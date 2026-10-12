@@ -29,7 +29,7 @@ function uuid() {
 }
 
 /** Short, unambiguous reference for humans to read down a phone line. */
-function reference(prefix = 'RF') {
+function reference(prefix = 'HG') {
   const set = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I, O, 0, 1
   const bytes = crypto.randomBytes(10);
   let out = '';
@@ -124,7 +124,7 @@ function maskAccount(number, visible = 4) {
 
 /** A customer number: what the call centre asks for before anything else. */
 function customerNumber() {
-  return `RF${digits(9)}`;
+  return `HG${digits(9)}`;
 }
 
 /**
@@ -186,10 +186,10 @@ function checkNumber(seq) {
   return String(seq == null ? Number(digits(4)) : seq).padStart(4, '0');
 }
 
-/** A statement id that sorts by period: RF-STM-2026-03-<acct last4>. */
+/** A statement id that sorts by period: HG-STM-2026-03-<acct last4>. */
 function statementId(periodStart, accountNo) {
   const d = new Date(periodStart);
-  return `RF-STM-${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(accountNo).slice(-4)}`;
+  return `HG-STM-${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(accountNo).slice(-4)}`;
 }
 
 /** Six-digit one-time passcode. */

@@ -129,70 +129,13 @@ const homeContent = `
         <p class="hs-in" style="--d:180ms">Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the street corner or the other side of the world.</p>
         <div class="hs-actions hs-in" style="--d:270ms">
           <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
-          <a class="hs-textlink light" href="/security-center">How we keep you safe</a>
+          <a class="hs-textlink light" href="/digital">See the app</a>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="hs-home">
-    <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
-    <div class="wrap hs-home-grid">
-      <div class="hs-home-copy">
-        <span class="hs-kicker hs-in" style="--d:0ms">Global banking for a stronger tomorrow</span>
-        <h2 class="hs-home-title hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h2>
-        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
-        <div class="hs-actions hs-in" style="--d:240ms">
-          <a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a>
-          <a class="hs-textlink" href="/signin">Log in to online banking</a>
-        </div>
-        <ul class="hs-features">
-          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.card}</span><h3>Easy Payments</h3><p>Send and receive money in seconds, globally.</p></li>
-          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.piggy}</span><h3>Smart Savings</h3><p>Automate your savings and grow your wealth.</p></li>
-          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.bars}</span><h3>Spending Insights</h3><p>See where your money goes and budget better.</p></li>
-          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Bank-Grade Security</h3><p>Your data and funds are always protected.</p></li>
-        </ul>
-      </div>
-
-      <div class="hs-home-visual" aria-hidden="true">
-        <span class="hs-slab hs-slab-a"></span>
-        <span class="hs-slab hs-slab-b"></span>
-        <div class="hs-phone">
-          <div class="hs-notch"></div>
-          <div class="hs-screen">
-            <div class="hs-screen-top">
-              <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
-              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
-              <div class="hs-balance">$<span data-hs-count="4250">4,250</span>.00</div>
-              <div class="hs-delta"><span>${ui.up} +12%</span> vs. last month</div>
-            </div>
-            <div class="hs-sheet">
-              <div class="hs-quick">
-                <span><i>${ui.send}</i>Send</span><span><i>${ui.request}</i>Request</span><span><i>${ui.topup}</i>Top up</span><span><i>${ui.more}</i>More</span>
-              </div>
-              <div class="hs-tx-head"><strong>Recent transactions</strong><em>See all</em></div>
-              <ul class="hs-tx">
-                <li><i>${ui.cup}</i><span>Coffee Shop<small>Today</small></span><b>- $4.50</b></li>
-                <li><i>${ui.home}</i><span>Salary Deposit<small>Yesterday</small></span><b class="in">+ $2,800.00</b></li>
-                <li><i>${ui.bag}</i><span>Online Shopping<small>2 days ago</small></span><b>- $89.99</b></li>
-                <li><i>${ui.send}</i><span>Transfer to Friend<small>3 days ago</small></span><b>- $120.00</b></li>
-              </ul>
-              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.card}Cards</span><span>${ui.bank}Wealth</span><span>${ui.more}More</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="hs-card3d">
-          <div class="hs-card-face">
-            <div class="hs-card-brand"><img src="/assets/bank/logomark-light.png" alt="" width="20" height="25" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
-            <span class="hs-chipset"></span>
-            <span class="hs-nfc">${ui.nfc}</span>
-            <span class="hs-card-type">DEBIT</span>
-          </div>
-        </div>
-        <div class="hs-toast"><i>${ui.check}</i><span><strong>Payment received</strong><small>+ $1,250.00 &middot; London</small></span></div>
-      </div>
-    </div>
-
+  <section class="hs-trust-band">
     <div class="hs-trust">
       <div class="wrap">
         <p class="hs-trust-k">Trusted by families and businesses around the world</p>
@@ -331,6 +274,85 @@ const homeContent = `
   </section>`;
 
 /* ================================================================= personal == */
+
+const digitalContent = `
+  <section class="hs-home">
+    <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
+    <div class="wrap hs-home-grid">
+      <div class="hs-home-copy">
+        <span class="hs-kicker hs-in" style="--d:0ms">Digital banking &middot; app and online</span>
+        <h1 class="hs-home-title hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h1>
+        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
+        <div class="hs-actions hs-in" style="--d:240ms">
+          <a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a>
+          <a class="hs-textlink" href="/signin">Log in to online banking</a>
+        </div>
+        <ul class="hs-features">
+          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.card}</span><h3>Easy Payments</h3><p>Send and receive money in seconds, globally.</p></li>
+          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.piggy}</span><h3>Smart Savings</h3><p>Automate your savings and grow your wealth.</p></li>
+          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.bars}</span><h3>Spending Insights</h3><p>See where your money goes and budget better.</p></li>
+          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Bank-Grade Security</h3><p>Your data and funds are always protected.</p></li>
+        </ul>
+      </div>
+
+      <div class="hs-home-visual" aria-hidden="true">
+        <span class="hs-slab hs-slab-a"></span>
+        <span class="hs-slab hs-slab-b"></span>
+        <div class="hs-phone">
+          <div class="hs-notch"></div>
+          <div class="hs-screen">
+            <div class="hs-screen-top">
+              <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
+              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
+              <div class="hs-balance">$<span data-hs-count="4250">4,250</span>.00</div>
+              <div class="hs-delta"><span>${ui.up} +12%</span> vs. last month</div>
+            </div>
+            <div class="hs-sheet">
+              <div class="hs-quick">
+                <span><i>${ui.send}</i>Send</span><span><i>${ui.request}</i>Request</span><span><i>${ui.topup}</i>Top up</span><span><i>${ui.more}</i>More</span>
+              </div>
+              <div class="hs-tx-head"><strong>Recent transactions</strong><em>See all</em></div>
+              <ul class="hs-tx">
+                <li><i>${ui.cup}</i><span>Coffee Shop<small>Today</small></span><b>- $4.50</b></li>
+                <li><i>${ui.home}</i><span>Salary Deposit<small>Yesterday</small></span><b class="in">+ $2,800.00</b></li>
+                <li><i>${ui.bag}</i><span>Online Shopping<small>2 days ago</small></span><b>- $89.99</b></li>
+                <li><i>${ui.send}</i><span>Transfer to Friend<small>3 days ago</small></span><b>- $120.00</b></li>
+              </ul>
+              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.card}Cards</span><span>${ui.bank}Wealth</span><span>${ui.more}More</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hs-card3d">
+          <div class="hs-card-face">
+            <div class="hs-card-brand"><img src="/assets/bank/logomark-light.png" alt="" width="20" height="25" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
+            <span class="hs-chipset"></span>
+            <span class="hs-nfc">${ui.nfc}</span>
+            <span class="hs-card-type">DEBIT</span>
+          </div>
+        </div>
+        <div class="hs-toast"><i>${ui.check}</i><span><strong>Payment received</strong><small>+ $1,250.00 &middot; London</small></span></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section class="rf-section">
+    <div class="wrap">
+      <span class="rf-eyebrow">Everything in the app</span>
+      <h2>Your whole bank, on the device in your hand.</h2>
+      <p class="section-lede">The same accounts, the same protections and the same people behind them, whether you are on the phone, a laptop, or the other side of the world.</p>
+      <div class="rf-grid cols-3">
+        <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Send and request</h3><p>Pay anyone by email or phone number, split a bill, or send a wire with the fee shown before you confirm.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.card}</span><h3 class="hs-card-h">Card controls</h3><p>Freeze and unfreeze in a tap, set daily limits and switch international use on or off.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Insights</h3><p>Thirty days of spending by category, upcoming bills, and money in and out for six months.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.request}</span><h3 class="hs-card-h">Mobile check deposit</h3><p>Photograph both sides and the funds availability is shown before you submit.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.shield}</span><h3 class="hs-card-h">Two-step security</h3><p>A one-time code on every sign-in and every outside payment, plus a transfer PIN of your own.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, payments and card activity, the moment they happen, by email and text.</p></div>
+      </div>
+      <p style="margin-top:28px"><a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a></p>
+    </div>
+  </section>
+`;
 
 const personalContent = `
   ${header({
@@ -825,6 +847,11 @@ module.exports = [
     title: `${BANK.name} | ${BANK.tagline}`,
     description: 'Personal and business banking from Hedgestone Global Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
     active: '', content: homeContent,
+  }),
+  marketing('digital.html', {
+    title: `Digital banking | ${BANK.name}`,
+    description: 'The Hedgestone Global Bank app and online banking: payments, savings, insights and card controls in one place.',
+    active: 'digital', content: digitalContent,
   }),
   marketing('personal.html', {
     title: `Personal banking | ${BANK.name}`,

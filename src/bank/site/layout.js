@@ -370,6 +370,7 @@ function marketingNav(active = '') {
       <nav>
         ${link('/personal', 'Personal', 'personal')}
         ${link('/business', 'Business', 'business')}
+        ${link('/digital', 'Digital banking', 'digital')}
         ${link('/rates', 'Rates &amp; fees', 'rates')}
         ${link('/security-center', 'Security', 'security-center')}
         ${link('/support', 'Support', 'support')}
@@ -397,6 +398,7 @@ function marketingFooter() {
           <h5>Bank</h5>
           <a href="/personal">Personal banking</a>
           <a href="/business">Business banking</a>
+          <a href="/digital">Digital banking</a>
           <a href="/rates">Rates and fees</a>
           <a href="/open-account">Open an account</a>
         </div>

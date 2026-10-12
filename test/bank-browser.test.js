@@ -261,7 +261,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       const registered = staff.click('#rf-register-form [data-submit]').catch(() => {});
       await staff.waitForSelector('.rf-modal-backdrop:not(.rf-hide)', { timeout: 25000 });
       const summary = await staff.textContent('.rf-modal-backdrop:not(.rf-hide)');
-      assert.match(summary, /RF\d{9}/, 'the registration summary carries the customer number');
+      assert.match(summary, /HG\d{9}/, 'the registration summary carries the customer number');
       await staff.click('.rf-modal-backdrop:not(.rf-hide) [data-close]');
       await registered;
       await staff.waitForSelector('[data-customers] tr[data-customer]', { timeout: 25000 });

@@ -15,7 +15,7 @@
      harsher than it needed to be. */
   --rf-ink: #0c1d4a;
   --rf-ink-2: #3b4a6b;
-  --rf-ink-3: #637089;
+  --rf-ink-3: #56627a;
   --rf-ink-4: #9aa3b8;
   --rf-paper: #f5f6f8;
   --rf-surface: #ffffff;
@@ -28,7 +28,7 @@
   --rf-navy: #0b6b50;
   --rf-navy-2: #0a5a44;
   --rf-navy-3: #14906c;
-  --rf-brass: #0d8060;
+  --rf-brass: #0a6e52;
   --rf-brass-2: #7fe0bb;
   --rf-brass-soft: #e3f5ee;
 
@@ -37,7 +37,7 @@
   --rf-credit-soft: #e4f2ea;
   --rf-debit: #a3352b;
   --rf-debit-soft: #fae9e7;
-  --rf-pending: #8a6a1f;
+  --rf-pending: #7a5c17;
   --rf-pending-soft: #fbf1d8;
   --rf-info: #1f5c8f;
   --rf-info-soft: #e5eff7;
@@ -159,7 +159,7 @@ body.rf-site {
 .rf-nav-group { margin: 0 0 18px; }
 .rf-nav-group h6 {
   margin: 0 0 6px; padding: 0 10px;
-  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-4); font-weight: 700;
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-3); font-weight: 700;
 }
 
 .rf-nav a {
@@ -1024,7 +1024,7 @@ a.rf-auth-brand {
     -webkit-tap-highlight-color: transparent;
   }
   .rf-tabbar svg { opacity: .75; }
-  .rf-tabbar .is-active { color: var(--rf-navy-3); }
+  .rf-tabbar .is-active { color: var(--rf-navy); }
   .rf-tabbar .is-active svg { opacity: 1; }
   .rf-tabbar span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rf-grid.cols-3, .rf-grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
@@ -1095,9 +1095,9 @@ a.rf-auth-brand {
   [data-totals] > .rf-card:first-child {
     background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; padding: 18px;
   }
-  [data-totals] > .rf-card:first-child .k { color: #9cc4b8; }
+  [data-totals] > .rf-card:first-child .k { color: #d7efe6; }
   [data-totals] > .rf-card:first-child .v { font-size: 33px; margin: 7px 0 3px; }
-  [data-totals] > .rf-card:first-child .d { color: #a9bcd6; }
+  [data-totals] > .rf-card:first-child .d { color: #d7efe6; }
 
   /* Account tiles: the balance is the point, so it keeps its size. */
   .rf-acct { padding: 15px 16px; }
@@ -1357,10 +1357,10 @@ a.rf-auth-brand {
 
 .hs-phone {
   position: relative; z-index: 2; width: 270px; height: 548px; border-radius: 44px; padding: 11px;
-  background: linear-gradient(145deg, #2a2f36, #0d1014); box-shadow: 0 50px 90px -40px rgba(12, 29, 74, .55), inset 0 0 0 2px #3c434c;
+  background: linear-gradient(145deg, #fbfcfd 0%, #e4e8ec 55%, #cfd5dc 100%); box-shadow: 0 50px 90px -40px rgba(12, 29, 74, .45), inset 0 0 0 1px #c3c9d1, inset 0 0 0 4px #f4f6f8;
   animation: hs-phone-in 1.2s var(--rf-ease) both .2s, hs-float 7s ease-in-out infinite 1.4s;
 }
-.hs-notch { position: absolute; top: 18px; left: 50%; width: 86px; height: 22px; transform: translateX(-50%); background: #0d1014; border-radius: 20px; z-index: 3; }
+.hs-notch { position: absolute; top: 18px; left: 50%; width: 86px; height: 22px; transform: translateX(-50%); background: #262c33; border-radius: 20px; z-index: 3; }
 .hs-screen { position: relative; width: 100%; height: 100%; border-radius: 34px; overflow: hidden; background: #f6faf8; display: flex; flex-direction: column; font-size: 11px; color: var(--rf-ink); }
 .hs-screen-top { background: linear-gradient(160deg, #0d6a51, #08422f); color: #fff; padding: 14px 18px 40px; }
 .hs-status { display: flex; justify-content: space-between; font-weight: 700; font-size: 11px; margin-bottom: 18px; padding: 0 4px; }
@@ -1389,9 +1389,9 @@ a.rf-auth-brand {
 .hs-tx span { flex: 1; font-weight: 600; font-size: 10.5px; }
 .hs-tx small { display: block; font-weight: 400; color: var(--rf-ink-3); font-size: 9px; }
 .hs-tx b { font-size: 10.5px; font-weight: 700; }
-.hs-tx b.in { color: #0d8060; }
+.hs-tx b.in { color: #0a6e52; }
 .hs-tabs { margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr); text-align: center; padding: 8px 0 14px; border-top: 1px solid #eef3f1; }
-.hs-tabs span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8.5px; color: var(--rf-ink-4); }
+.hs-tabs span { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8.5px; color: var(--rf-ink-3); }
 .hs-tabs span.on { color: var(--rf-navy); font-weight: 700; }
 
 .hs-card3d { position: absolute; z-index: 3; right: -2%; bottom: 12%; perspective: 900px; animation: hs-card-in 1.2s var(--rf-ease) both .6s; }
@@ -1527,3 +1527,9 @@ a.rf-auth-brand {
    against the green scrim instead of melting into it. */
 .hs-band .hs-cta { --btn-face: #ffffff; --btn-edge: #ffffff; --btn-ink: #0a5a44; box-shadow: 0 14px 30px -14px rgba(0, 0, 0, .45); }
 .hs-band .hs-cta:hover { --btn-face: #eef7f3; --btn-edge: #eef7f3; }
+
+/* The trust strip stands on its own under the landing hero. */
+.hs-trust-band .hs-trust { margin-top: 0; }
+.rf-card .hs-ic { margin-bottom: 14px; }
+.hs-card-h { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: var(--rf-ink); letter-spacing: -.01em; }
+.rf-card p { color: var(--rf-ink-2); }

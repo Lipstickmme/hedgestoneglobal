@@ -89,6 +89,7 @@ app.get('/', sendPage('index.html'));
 // /support off the deployment while they worked perfectly well locally.
 app.get('/personal', sendPage('personal.html'));
 app.get('/business', sendPage('business.html'));
+app.get('/digital', sendPage('digital.html'));
 // The names these pages had before the site became a bank. Kept so existing
 // links and bookmarks still land.
 app.get('/services', sendPage('personal.html'));

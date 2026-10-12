@@ -442,7 +442,7 @@
     qsa('[data-user-number]').forEach((el) => { el.textContent = user.customerNumber || ''; });
     qsa('[data-user-avatar]').forEach((el) => {
       if (user.photoUrl) el.innerHTML = `<img src="${esc(user.photoUrl)}" alt="" />`;
-      else el.textContent = user.initials || 'RF';
+      else el.textContent = user.initials || 'HG';
     });
     qsa('[data-admin-only]').forEach((el) => el.classList.toggle('rf-hide', user.role !== 'admin'));
 

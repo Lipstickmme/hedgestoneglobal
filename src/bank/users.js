@@ -27,7 +27,7 @@ function fullName(user) {
 function initials(user) {
   const first = (user && user.first_name) || '';
   const last = (user && user.last_name) || '';
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || 'RF';
+  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase() || 'HG';
 }
 
 function defaultAlertPrefs() {
