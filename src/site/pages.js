@@ -42,7 +42,7 @@ function header({ eyebrow, title, lede, image }) {
   <header class="rf-hero compact ${image ? 'has-photo' : 'has-mark'}">
     ${image
       ? `<img class="rf-hero-photo" src="${image}" alt="" aria-hidden="true" />`
-      : `<img class="rf-hero-mark" src="/assets/bank/logomark-light.png" alt="" aria-hidden="true" width="940" height="499" />`}
+      : `<img class="rf-hero-mark" src="/assets/bank/logomark-light.png" alt="" aria-hidden="true" width="130" height="160" />`}
     <div class="wrap">
       <span class="rf-eyebrow">${eyebrow}</span>
       <h1 style="font-size:clamp(32px,4.6vw,52px)">${title}</h1>
@@ -90,55 +90,138 @@ function enquiryForm(id = 'contact-form', { heading, note } = {}) {
 }
 
 const tick = icon('check', 15);
+/* Small line icons for the home page, drawn to the same 24-unit grid. */
+const svg = (d, size = 22) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ui = {
+  arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 18),
+  card: svg('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18M7 15h4"/>'),
+  piggy: svg('<path d="M19 11c0-3.3-3.1-6-7-6S5 7.7 5 11c0 1.6.7 3 1.9 4.1V19h3v-2h4v2h3v-3.6c.8-.6 1.4-1.4 1.8-2.4H21v-3h-1.4c-.1-.3-.3-.7-.6-1"/><path d="M15 9.5h.01M9 5.5 8 3"/>'),
+  bars: svg('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  shield: svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>'),
+  up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 12),
+  send: svg('<path d="M7 17 17 7M8 7h9v9"/>', 18),
+  request: svg('<path d="M12 4v12M6 10l6 6 6-6M5 20h14"/>', 18),
+  topup: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/>', 18),
+  more: svg('<circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/>', 18),
+  cup: svg('<path d="M5 8h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V8zM16 9h2a2 2 0 0 1 0 4h-2M8 3v2M11 3v2"/>', 16),
+  home: svg('<path d="M3 11 12 4l9 7M5 10v10h14V10"/>', 16),
+  bag: svg('<path d="M6 7h12l-1 13H7L6 7zM9 7a3 3 0 0 1 6 0"/>', 16),
+  bank: svg('<path d="M3 10 12 5l9 5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', 16),
+  nfc: svg('<path d="M8.5 8.5a5 5 0 0 1 0 7M12 6a8.5 8.5 0 0 1 0 12M15.5 3.5a12 12 0 0 1 0 17"/>', 20),
+  check: svg('<path d="m5 12.5 4.5 4.5L19 7.5"/>', 16),
+  users: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>', 30),
+  star: svg('<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4l-5.6 2.9 1.1-6.2L3 9.7l6.2-.9L12 3z"/>', 30),
+  leaf: svg('<path d="M20 4c-9 0-15 4.5-15 11 0 2 .8 3.6 2 5 6.5 0 13-4.5 13-16zM5 20c2.5-5 6-8 10-10"/>', 30),
+};
+ui.shield30 = svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>', 30);
 
 /* ===================================================================== home == */
 
 const ceo = leadership[0];
 
 const homeContent = `
-  <section class="rf-hero tall hs-hero">
-    <div class="hs-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
-    <svg class="hs-meridians" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
-      <g fill="none" stroke="currentColor" stroke-width="1">
-        <circle cx="300" cy="300" r="290" />
-        <ellipse cx="300" cy="300" rx="290" ry="110" />
-        <ellipse cx="300" cy="300" rx="290" ry="210" />
-        <ellipse cx="300" cy="300" rx="110" ry="290" />
-        <ellipse cx="300" cy="300" rx="210" ry="290" />
-        <line x1="10" y1="300" x2="590" y2="300" />
-        <line x1="300" y1="10" x2="300" y2="590" />
-      </g>
-    </svg>
-    <div class="wrap hs-hero-grid">
-      <div class="rf-hero-copy">
-        <span class="rf-eyebrow hs-in" style="--d:0ms">Hedgestone Global &middot; Since ${BANK.established}</span>
-        <h1 class="hs-in" style="--d:90ms">Banking that travels <em>with your family.</em></h1>
-        <p class="lede hs-in" style="--d:180ms">Checking with no monthly fee. Savings at 4.35% APY. Money sent home or abroad, read by a person before it leaves, and with you in seconds when it lands.</p>
-        <div class="rf-hero-actions hs-in" style="--d:270ms">
-          <a class="rf-btn brass lg hs-shine" href="/open-account">Open an account</a>
-          <a class="rf-btn glass lg" href="/signin">Sign in to online banking</a>
+  <section class="hs-home">
+    <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
+    <div class="wrap hs-home-grid">
+      <div class="hs-home-copy">
+        <span class="hs-kicker hs-in" style="--d:0ms">Global banking for a stronger tomorrow</span>
+        <h1 class="hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h1>
+        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
+        <div class="hs-actions hs-in" style="--d:240ms">
+          <a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a>
+          <a class="hs-textlink" href="/signin">Log in to online banking</a>
         </div>
+        <ul class="hs-features">
+          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.card}</span><h3>Easy Payments</h3><p>Send and receive money in seconds, globally.</p></li>
+          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.piggy}</span><h3>Smart Savings</h3><p>Automate your savings and grow your wealth.</p></li>
+          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.bars}</span><h3>Spending Insights</h3><p>See where your money goes and budget better.</p></li>
+          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Bank-Grade Security</h3><p>Your data and funds are always protected.</p></li>
+        </ul>
       </div>
-      <div class="hs-hero-visual hs-in" style="--d:160ms">
-        <div class="hs-orbit" aria-hidden="true"><span class="hs-dot"></span></div>
-        <figure class="hs-frame">
-          <img src="${images.hero}" alt="A father and daughter checking their account together on a phone" fetchpriority="high" />
-        </figure>
-        <div class="hs-chip hs-chip-a rf-glass" aria-hidden="true">
-          <span class="ic">${icon('check', 16)}</span>
-          <span><strong>Transfer delivered</strong><small>Family savings &middot; just now</small></span>
+
+      <div class="hs-home-visual" aria-hidden="true">
+        <span class="hs-slab hs-slab-a"></span>
+        <span class="hs-slab hs-slab-b"></span>
+        <div class="hs-phone">
+          <div class="hs-notch"></div>
+          <div class="hs-screen">
+            <div class="hs-screen-top">
+              <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
+              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
+              <div class="hs-balance">$<span data-hs-count="4250">4,250</span>.00</div>
+              <div class="hs-delta"><span>${ui.up} +12%</span> vs. last month</div>
+            </div>
+            <div class="hs-sheet">
+              <div class="hs-quick">
+                <span><i>${ui.send}</i>Send</span><span><i>${ui.request}</i>Request</span><span><i>${ui.topup}</i>Top up</span><span><i>${ui.more}</i>More</span>
+              </div>
+              <div class="hs-tx-head"><strong>Recent transactions</strong><em>See all</em></div>
+              <ul class="hs-tx">
+                <li><i>${ui.cup}</i><span>Coffee Shop<small>Today</small></span><b>- $4.50</b></li>
+                <li><i>${ui.home}</i><span>Salary Deposit<small>Yesterday</small></span><b class="in">+ $2,800.00</b></li>
+                <li><i>${ui.bag}</i><span>Online Shopping<small>2 days ago</small></span><b>- $89.99</b></li>
+                <li><i>${ui.send}</i><span>Transfer to Friend<small>3 days ago</small></span><b>- $120.00</b></li>
+              </ul>
+              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.card}Cards</span><span>${ui.bank}Wealth</span><span>${ui.more}More</span></div>
+            </div>
+          </div>
         </div>
-        <div class="hs-chip hs-chip-b rf-glass" aria-hidden="true">
-          <span class="big">4.35%</span><small>APY on savings</small>
+        <div class="hs-card3d">
+          <div class="hs-card-face">
+            <div class="hs-card-brand"><img src="/assets/bank/logomark-light.png" alt="" width="20" height="25" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
+            <span class="hs-chipset"></span>
+            <span class="hs-nfc">${ui.nfc}</span>
+            <span class="hs-card-type">DEBIT</span>
+          </div>
+        </div>
+        <div class="hs-toast"><i>${ui.check}</i><span><strong>Payment received</strong><small>+ $1,250.00 &middot; London</small></span></div>
+      </div>
+    </div>
+
+    <div class="hs-trust">
+      <div class="wrap">
+        <p class="hs-trust-k">Trusted by families and businesses around the world</p>
+        <div class="hs-trust-row">
+          <div><span class="hs-ic">${ui.users}</span><span><b><span data-hs-count="2">2</span>M+</b><small>Global customers</small></span></div>
+          <div><span class="hs-ic">${ui.shield30}</span><span><b>99.9%</b><small>Uptime</small></span></div>
+          <div><span class="hs-ic">${ui.star}</span><span><b>4.8/5</b><small>App store rating</small></span></div>
+          <div><span class="hs-ic">${ui.leaf}</span><span><b class="sm">A greener tomorrow</b><small>Supporting sustainable finance</small></span></div>
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="rf-section hs-split">
+    <div class="wrap hs-split-grid">
+      <figure class="hs-photo hs-photo-family">
+        <img src="${images.hero}" alt="A family of four standing together outside, smiling" loading="lazy" width="1024" height="1024" />
+        <figcaption class="hs-float-note"><i>${ui.piggy}</i><span><strong>Family goal: Summer trip</strong><span class="hs-bar"><span style="--w:72%"></span></span><small>$3,600 of $5,000 saved</small></span></figcaption>
+      </figure>
+      <div>
+        <span class="rf-eyebrow">For the whole family</span>
+        <h2>One home for everyone&rsquo;s money.</h2>
+        <p class="section-lede">Joint accounts for the grown-ups, savings pots the kids can watch grow, and shared goals the whole family can chip in to &mdash; with alerts that keep everyone in the loop.</p>
+        <ul class="hs-checks">
+          <li>${tick}<span>Joint checking with a card for each of you</span></li>
+          <li>${tick}<span>Savings goals with automatic round-ups</span></li>
+          <li>${tick}<span>Send to family abroad in seconds, at a fee you see first</span></li>
+        </ul>
+        <p style="margin-top:26px"><a class="rf-btn" href="/personal">Explore personal banking</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="hs-band">
+    <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" loading="lazy" />
     <div class="wrap">
-      <div class="rf-hero-stats rf-glass hs-in" style="--d:360ms">
-        <div><div class="k">Savings APY</div><div class="v">4.35%</div></div>
-        <div><div class="k">Monthly fee</div><div class="v">$0.00</div></div>
-        <div><div class="k">Fee-free ATMs</div><div class="v">60,000</div></div>
-        <div><div class="k">Fraud line</div><div class="v">24 / 7</div></div>
+      <div class="hs-band-copy">
+        <span class="rf-eyebrow">Your bank, in your pocket</span>
+        <h2>Bank from anywhere. Feel at home everywhere.</h2>
+        <p>Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the street corner or the other side of the world.</p>
+        <div class="hs-actions">
+          <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
+          <a class="hs-textlink light" href="/security-center">How we keep you safe</a>
+        </div>
       </div>
     </div>
   </section>
@@ -630,7 +713,7 @@ const legalContent = `
 
 const notFoundContent = `
   <section class="rf-hero has-mark" style="min-height:60vh;display:flex;align-items:center">
-    <img class="rf-hero-mark" src="/assets/bank/logomark-light.png" alt="" aria-hidden="true" width="940" height="499" />
+    <img class="rf-hero-mark" src="/assets/bank/logomark-light.png" alt="" aria-hidden="true" width="130" height="160" />
     <div class="wrap">
       <span class="rf-eyebrow">Error 404</span>
       <h1>Not on the books.</h1>
@@ -677,7 +760,7 @@ const deskContent = `
     <div class="admin-shell" id="admin-shell" hidden>
       <header class="admin-bar">
         <a class="admin-brand" href="/">
-          <img src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="143" />
+          <img src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="54" />
           <span>Client services desk</span>
         </a>
         <div class="admin-bar-end">

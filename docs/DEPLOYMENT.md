@@ -39,9 +39,10 @@ if more than one is present.
 
 | File | Where it appears |
 | ---- | ---------------- |
-| `hedgestonefamily` | The home page hero, in the arched frame |
+| `hedgestone-family` | The home page, 'For the whole family' panel |
+| `hedgestone-mobile` | The home page, 'Your bank, in your pocket' band |
 | `hedgestone2` | The home page security panel |
-| `hedgestone1` | The `/personal` header |
+| `hedgestonefamily` | The `/personal` header |
 | `hedgestone5` | The `/business` header |
 | `hedgestone4` | The `/rates` header |
 | `hedgestone` | The `/security-center` header |
@@ -52,9 +53,12 @@ if more than one is present.
 Project and service artwork is named per item in `src/data/projects.json` and
 `src/data/services.json`, so those take any filename you like.
 
-`hedgestonefamily` carries the most weight: it is the first thing anyone sees.
-It is cropped to a portrait inside an arch beside the headline, so keep the
-people near the middle of the picture.
+The home page hero itself is not a photograph: the phone and the card beside the
+headline are drawn in HTML and CSS, so they stay sharp at any size.
+
+The logo files in `public/assets/bank/` are all cut from
+`public/assets/img/hedgestonelogo.png`. To change the logo, replace that file
+and run `npm run build:brand` (needs Python 3 with Pillow and numpy).
 
 The mapping lives in `src/data/images.json`. Each slot names the file it prefers
 and the placeholder it falls back on, so the site never shows a broken image

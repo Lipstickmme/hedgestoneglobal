@@ -72,7 +72,7 @@ function nav(active = '') {
   return `
   <header class="nav" id="nav">
     <a class="brand" href="/" aria-label="Hedgestone Global Bank home">
-      <img class="brand-logo" src="/assets/bank/logo-dark.png" alt="Hedgestone Global Bank" width="240" height="143" />
+      <img class="brand-logo" src="/assets/bank/logo-dark.png" alt="Hedgestone Global Bank" width="240" height="54" />
     </a>
     <nav class="nav-links" id="navlinks">
       ${link('/personal', 'Personal', 'services')}
@@ -93,7 +93,7 @@ function footer() {
   <footer class="footer">
     <div class="wrap footer-top">
       <div class="footer-brand">
-        <img class="brand-logo footer-logo" src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="143" />
+        <img class="brand-logo footer-logo" src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="54" />
         <p>Personal and business banking since 1924. Member FDIC.</p>
       </div>
       <div class="col">

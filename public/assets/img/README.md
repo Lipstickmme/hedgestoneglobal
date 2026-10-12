@@ -16,13 +16,15 @@ Rename a file to the name in the first column and it takes that place.
 
 | Name                | Where it appears            | What suits it                                     |
 | ------------------- | --------------------------- | ------------------------------------------------- |
-| `hedgestonefamily`  | Home hero (arched frame)    | Cropped to a portrait: keep the people near the middle |
+| `hedgestone-family` | Home, 'For the whole family' panel | Square crop: people centred |
+| `hedgestone-mobile` | Home, 'Your bank, in your pocket' band | Wide; subject in the middle third, calm space on the left |
 | `hedgestone2`       | Home security panel         | One person going through their money, unhurried    |
-| `hedgestone1`       | `/personal` header          | The building, at dusk                              |
+| `hedgestonefamily`  | `/personal` header          | People at home, banking on a phone                 |
 | `hedgestone5`       | `/business` header          | A conversation across a desk                       |
 | `hedgestone4`       | `/rates` header             | Close, dark, physical: a vault door, a lock        |
 | `hedgestone`        | `/security-center` header   | A branch interior, somebody being served           |
 | `hedgestonehero`    | `/open-account` header      | A banker, face visible — reassurance               |
+| `hedgestonelogo`    | Source for every logo file  | Rebuild with `npm run build:brand` (Python 3, Pillow, numpy) |
 | `hedgestone3`       | `/careers` header           | Somebody at work, hands on the job                 |
 | `hedgestone6`       | `/contact` header           | The office, as it actually looks                   |
 | `story-logistics`   | Customer story              | Fleet, depot, freight                              |
