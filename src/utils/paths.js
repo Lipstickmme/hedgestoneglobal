@@ -9,7 +9,7 @@ const path = require('path');
  */
 function dataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
-  if (process.env.VERCEL) return '/tmp/rockfield-data';
+  if (process.env.VERCEL) return '/tmp/hedgestone-data';
   return path.join(__dirname, '..', '..', 'data');
 }
 

@@ -5,7 +5,7 @@
  *
  *   npm run build:brand
  *
- * The source is public/assets/img/rockfieldlogo.png: black line work on an
+ * The source is public/assets/img/hedgestonelogo.png: black line work on an
  * opaque white square, which is the wrong shape for most of the places it has
  * to appear. This turns it into the set the site actually needs -
  *
@@ -31,7 +31,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 const BRAND = path.join(PUBLIC, 'assets', 'bank');
-const SOURCE = path.join(PUBLIC, 'assets', 'img', 'rockfieldlogo.png');
+const SOURCE = path.join(PUBLIC, 'assets', 'img', 'hedgestonelogo.png');
 
 const NAVY = '#11213a';
 const BRASS_LIGHT = '#caa062';

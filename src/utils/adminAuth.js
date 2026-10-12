@@ -44,7 +44,7 @@ async function requireAdmin(req) {
     if (!res.ok) return { ok: false, status: 401, reason: 'invalid_token' };
     user = await res.json();
   } catch (err) {
-    console.warn('[rockfield] admin auth unreachable:', err.message);
+    console.warn('[hedgestone] admin auth unreachable:', err.message);
     return { ok: false, status: 503, reason: 'auth_unreachable' };
   }
 

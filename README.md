@@ -1,4 +1,4 @@
-# Rockfield National Bank
+# Hedgestone National Bank
 
 A complete retail banking application: a public bank site, online banking for
 customers, and a staff console that registers customers, opens accounts, moves
@@ -9,7 +9,7 @@ dependency. Supabase holds the data in production; without it the same code
 runs on JSON files, so the whole bank starts on a laptop with nothing
 provisioned.
 
-> **This is a demonstration.** Rockfield National Bank is fictional. The
+> **This is a demonstration.** Hedgestone National Bank is fictional. The
 > routing number sits in a prefix the Federal Reserve has not assigned, account
 > numbers and card numbers are generated in published test ranges, and no real
 > money can move through any of it.
@@ -22,8 +22,8 @@ npm start        # http://localhost:3000
 
 | | |
 |---|---|
-| Customer sign-in | `/signin` — `demo@rockfieldglobalfinance.com` / `Bedrock#Demo2026` |
-| Staff console | `/console` — `admin@rockfieldglobalfinance.com` / `Rockfield#Admin2026` |
+| Customer sign-in | `/signin` — `demo@hedgestonesfinance.com` / `Bedrock#Demo2026` |
+| Staff console | `/console` — `admin@hedgestonesfinance.com` / `Hedgestone#Admin2026` |
 | Client services desk | `/admin` — website enquiries, chat and mail (Supabase auth) |
 
 The sign-in page carries both demonstration logins as buttons, so nothing needs
@@ -293,7 +293,7 @@ timeout — lives in the console under Settings instead.
 ## Images and the mark
 
 Page artwork resolves at build time from `public/assets/bank/`. Drop in
-`rockfield1` … `rockfield6` in any common format and the next build picks them
+`hedgestone1` … `hedgestone6` in any common format and the next build picks them
 up in place of the generated placeholders; the build log says which were found.
 Per-story images are named in `src/data/projects.json`.
 
@@ -305,7 +305,7 @@ writes everything derived from it:
 | Output | Built from |
 |---|---|
 | `assets/bank/mark-{dark,light}.svg` | the line work alone |
-| `assets/bank/wordmark-{dark,light}.svg` | mark over ROCKFIELD / BANK |
+| `assets/bank/wordmark-{dark,light}.svg` | mark over HEDGESTONE / BANK |
 | `favicon.ico` (16, 32, 48) | a filled reduction — at 16px, the hall alone |
 | `favicon.png`, `apple-touch-icon.png` | the line work on a navy tile |
 | `assets/bank/og-image.png` | the link card, 1200×630 |

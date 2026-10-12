@@ -187,7 +187,7 @@ function createCollection(name) {
         // A missing table means the migration has not been applied yet. Fall
         // through to files rather than taking the whole dashboard down.
         if (/does not exist|42P01|PGRST205/i.test(err.message)) {
-          console.warn(`[rockfield] ${table} missing in Supabase; using file storage`);
+          console.warn(`[hedgestone] ${table} missing in Supabase; using file storage`);
         } else {
           throw err;
         }

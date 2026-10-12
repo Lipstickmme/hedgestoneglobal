@@ -537,7 +537,7 @@ module.exports = [
     build: appPage,
     opts: {
       title: `Staff console | ${BANK.name}`,
-      description: 'Rockfield staff console.',
+      description: 'Hedgestone staff console.',
       heading: 'Staff console',
       sub: 'Customers, money movement and everything that has been done today.',
       active: 'console',

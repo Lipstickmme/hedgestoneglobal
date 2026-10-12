@@ -31,13 +31,13 @@ async function until(check, what, timeout = 10000) {
   sb.db.email_threads.rows.push(thread);
   sb.db.email_messages.rows.push({
     id: 'e1', created_at: new Date().toISOString(), thread_id: thread.id, direction: 'inbound',
-    from_email: 'procurement@example.com', to_email: 'studio@rockfieldglobalfinance.com',
+    from_email: 'procurement@example.com', to_email: 'studio@hedgestonesfinance.com',
     subject: thread.subject, body_text: 'Please confirm the deadline for the tender return.',
     has_attachments: false,
   });
   const sbUrl = `http://127.0.0.1:${sb.address().port}`;
-  sb.createUser('desk@rockfieldglobalfinance.com', 'studio-password', { admin: true });
-  sb.createUser('nobody@rockfieldglobalfinance.com', 'outsider-password');
+  sb.createUser('desk@hedgestonesfinance.com', 'studio-password', { admin: true });
+  sb.createUser('nobody@hedgestonesfinance.com', 'outsider-password');
 
   process.env.SUPABASE_URL = sbUrl;
   process.env.SUPABASE_ANON_KEY = mock.ANON_KEY;
@@ -104,14 +104,14 @@ async function until(check, what, timeout = 10000) {
     await staff.waitForSelector('#admin-login:not([hidden])');
 
     // A wrong password is reported, not swallowed.
-    await staff.fill('#login-email', 'desk@rockfieldglobalfinance.com');
+    await staff.fill('#login-email', 'desk@hedgestonesfinance.com');
     await staff.fill('#login-password', 'wrong');
     await staff.click('#login-btn');
     await staff.waitForFunction(() => document.getElementById('login-error').textContent.length > 0);
     console.log('  ok  bad credentials are reported:', await staff.textContent('#login-error'));
 
     // An account that is not on the admins list gets told why.
-    await staff.fill('#login-email', 'nobody@rockfieldglobalfinance.com');
+    await staff.fill('#login-email', 'nobody@hedgestonesfinance.com');
     await staff.fill('#login-password', 'outsider-password');
     await staff.click('#login-btn');
     await staff.waitForFunction(() =>
@@ -121,11 +121,11 @@ async function until(check, what, timeout = 10000) {
     console.log('  ok  a non-admin account is refused with an explanation');
 
     // The real account gets in.
-    await staff.fill('#login-email', 'desk@rockfieldglobalfinance.com');
+    await staff.fill('#login-email', 'desk@hedgestonesfinance.com');
     await staff.fill('#login-password', 'studio-password');
     await staff.click('#login-btn');
     await staff.waitForSelector('#admin-shell:not([hidden])', { timeout: 10000 });
-    assert.strictEqual(await staff.textContent('#admin-who'), 'desk@rockfieldglobalfinance.com');
+    assert.strictEqual(await staff.textContent('#admin-who'), 'desk@hedgestonesfinance.com');
     console.log('  ok  admin signed in');
 
     await staff.click('.admin-tab[data-tab="chat"]');
@@ -281,11 +281,11 @@ async function until(check, what, timeout = 10000) {
     console.log('  ok  a cleared settings field stays cleared');
 
     await staff.fill('#setting-address', 'Wijnhaven 3, 3011 WG Rotterdam, NL');
-    await staff.fill('#setting-email', 'desk@rockfieldglobalfinance.com');
+    await staff.fill('#setting-email', 'desk@hedgestonesfinance.com');
     await staff.fill('#setting-phone', '+31 (0)20 111 2222');
     await staff.click('.admin-settings-form .btn');
     await until(
-      () => sb.db.site_settings.rows[0].email === 'desk@rockfieldglobalfinance.com',
+      () => sb.db.site_settings.rows[0].email === 'desk@hedgestonesfinance.com',
       'the desk to save the new contact details'
     );
     console.log('  ok  the desk saves new contact details');
@@ -293,12 +293,12 @@ async function until(check, what, timeout = 10000) {
     const reader2 = await newPage(visitorCtx);
     await reader2.goto(`${base}/contact`, { waitUntil: 'networkidle' });
     await reader2.waitForFunction(
-      () => document.querySelector('[data-site="email"]').textContent.trim() === 'desk@rockfieldglobalfinance.com',
+      () => document.querySelector('[data-site="email"]').textContent.trim() === 'desk@hedgestonesfinance.com',
       null,
       { timeout: 10000 }
     );
     const href = await reader2.getAttribute('a[data-site="email"]', 'href');
-    assert.strictEqual(href, 'mailto:desk@rockfieldglobalfinance.com', 'the mailto follows the address');
+    assert.strictEqual(href, 'mailto:desk@hedgestonesfinance.com', 'the mailto follows the address');
     const phone = await reader2.textContent('[data-site="phone"]');
     assert.strictEqual(phone.trim(), '+31 (0)20 111 2222');
     console.log('  ok  the change reaches the public pages with no rebuild');

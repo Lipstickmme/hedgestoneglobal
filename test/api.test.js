@@ -179,7 +179,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${receiving.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        MAILBOX_ADDRESS: 'Rockfield National Bank <contact@rockfield.test>',
+        MAILBOX_ADDRESS: 'Hedgestone National Bank <contact@hedgestone.test>',
       },
       async (base) => {
         const res = await req(base, 'GET', '/api/health?probe=1');
@@ -204,7 +204,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${banking.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        BANK_ADMIN_EMAIL: 'ops@rockfield.test',
+        BANK_ADMIN_EMAIL: 'ops@hedgestone.test',
         BANK_ADMIN_PASSWORD: 'Quarry#Road2026',
       },
       async (base) => {
@@ -218,7 +218,7 @@ async function withApp(env, fn) {
 
         // The credentials from the environment are the ones that work.
         const login = await req(base, 'POST', '/api/bank/auth/login', {
-          email: 'ops@rockfield.test', password: 'Quarry#Road2026',
+          email: 'ops@hedgestone.test', password: 'Quarry#Road2026',
         });
         assert.strictEqual(login.status, 200, JSON.stringify(login.body));
         assert.strictEqual(login.body.user.role, 'admin');
@@ -241,7 +241,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${halfBuilt.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        BANK_ADMIN_EMAIL: 'ops@rockfield.test',
+        BANK_ADMIN_EMAIL: 'ops@hedgestone.test',
         BANK_ADMIN_PASSWORD: 'Quarry#Road2026',
       },
       async (base) => {
@@ -271,7 +271,7 @@ async function withApp(env, fn) {
         assert.strictEqual(rebuilt.body.bank.seedState, 'complete');
 
         const login = await req(base, 'POST', '/api/bank/auth/login', {
-          email: 'ops@rockfield.test', password: 'Quarry#Road2026',
+          email: 'ops@hedgestone.test', password: 'Quarry#Road2026',
         });
         assert.strictEqual(login.status, 200, JSON.stringify(login.body));
 
@@ -295,9 +295,9 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${sameEmail.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        BANK_ADMIN_EMAIL: 'support@rockfield.test',
+        BANK_ADMIN_EMAIL: 'support@hedgestone.test',
         BANK_ADMIN_PASSWORD: 'Quarry#Road2026',
-        BANK_DEMO_EMAIL: 'support@rockfield.test',
+        BANK_DEMO_EMAIL: 'support@hedgestone.test',
         BANK_DEMO_PASSWORD: 'Bedrock#Demo2026',
       },
       async (base) => {
@@ -310,11 +310,11 @@ async function withApp(env, fn) {
         const built = await req(base, 'GET', '/api/health?seed=1');
         assert.strictEqual(built.body.bank.seedRun.ok, true, JSON.stringify(built.body.bank.seedRun));
         assert.strictEqual(built.body.bank.seedState, 'complete', 'it finishes rather than dying half way');
-        assert.strictEqual(built.body.bank.seedRun.demoEmailIgnored, 'support@rockfield.test');
+        assert.strictEqual(built.body.bank.seedRun.demoEmailIgnored, 'support@hedgestone.test');
 
         // The administrator keeps the address that was asked for.
         const login = await req(base, 'POST', '/api/bank/auth/login', {
-          email: 'support@rockfield.test', password: 'Quarry#Road2026',
+          email: 'support@hedgestone.test', password: 'Quarry#Road2026',
         });
         assert.strictEqual(login.status, 200, JSON.stringify(login.body));
         assert.strictEqual(login.body.user.role, 'admin');
@@ -337,14 +337,14 @@ async function withApp(env, fn) {
         SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_API_KEY: 're_test_key',
         RESEND_WEBHOOK_SECRET: 'whsec_test',
-        MAILBOX_ADDRESS: 'Rockfield <support@rockfield.test>',
-        FORM_TO: 'support@rockfield.test',
+        MAILBOX_ADDRESS: 'Hedgestone <support@hedgestone.test>',
+        FORM_TO: 'support@hedgestone.test',
       },
       async (base) => {
         const res = await req(base, 'GET', '/api/health');
         const warning = res.body.warnings.find((w) => /FORM_TO .* is on the same domain as MAILBOX_ADDRESS/.test(w));
         assert.ok(warning, JSON.stringify(res.body.warnings));
-        assert.match(warning, /support@rockfield\.test/, 'it names the address');
+        assert.match(warning, /support@hedgestone\.test/, 'it names the address');
         assert.match(warning, /never reach a mailbox anybody opens/, 'and says what the consequence is');
         console.log('  ok  notifications addressed into our own inbound mailbox are reported');
       }
@@ -361,7 +361,7 @@ async function withApp(env, fn) {
         SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_API_KEY: 're_test_key',
         RESEND_WEBHOOK_SECRET: 'whsec_test',
-        MAILBOX_ADDRESS: 'Rockfield <support@rockfield.test>',
+        MAILBOX_ADDRESS: 'Hedgestone <support@hedgestone.test>',
         FORM_TO: 'someone@elsewhere.test',
       },
       async (base) => {
@@ -392,7 +392,7 @@ async function withApp(env, fn) {
             // receive, which is the whole reason this exists.
             data: [
               {
-                name: 'rockfield.test',
+                name: 'hedgestone.test',
                 status: 'verified',
                 region: 'eu-west-1',
                 capabilities: { sending: 'enabled', receiving: 'disabled' },
@@ -416,8 +416,8 @@ async function withApp(env, fn) {
           RESEND_API_KEY: 're_test_key',
           RESEND_API_BASE: `http://127.0.0.1:${resend.address().port}`,
           RESEND_WEBHOOK_SECRET: 'whsec_test',
-          FORM_FROM: 'Rockfield <support@rockfield.test>',
-          MAILBOX_ADDRESS: 'Rockfield <support@rockfield.test>',
+          FORM_FROM: 'Hedgestone <support@hedgestone.test>',
+          MAILBOX_ADDRESS: 'Hedgestone <support@hedgestone.test>',
           FORM_TO: 'someone@elsewhere.test',
         },
         async (base) => {
@@ -425,7 +425,7 @@ async function withApp(env, fn) {
           assert.strictEqual(res.body.mail.ok, true, JSON.stringify(res.body.mail));
           assert.strictEqual(res.body.mail.domains[0].sending, 'enabled');
           assert.strictEqual(res.body.mail.domains[0].receiving, 'disabled');
-          const receiving = res.body.warnings.find((w) => /MAILBOX_ADDRESS receives on rockfield\.test/.test(w));
+          const receiving = res.body.warnings.find((w) => /MAILBOX_ADDRESS receives on hedgestone\.test/.test(w));
           assert.ok(receiving, JSON.stringify(res.body.warnings));
           assert.match(receiving, /receiving disabled/, 'it says which capability is off');
           assert.match(receiving, /MX record/, 'and that SPF and DKIM do not cover it');
@@ -759,7 +759,7 @@ async function withApp(env, fn) {
   /* ---- 15. a signed Resend delivery reaches the admin inbox ---- */
   {
     const { sign } = require(ROOT + '/src/utils/webhookSignature');
-    const SECRET = 'whsec_' + Buffer.from('rockfield-inbound-test-secret').toString('base64');
+    const SECRET = 'whsec_' + Buffer.from('hedgestone-inbound-test-secret').toString('base64');
     const sb = await mock.start({});
     await withApp(
       {
@@ -767,7 +767,7 @@ async function withApp(env, fn) {
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_WEBHOOK_SECRET: SECRET,
-        MAILBOX_ADDRESS: 'Rockfield National Bank <contact@rockfield.test>',
+        MAILBOX_ADDRESS: 'Hedgestone National Bank <contact@hedgestone.test>',
         // No forwarding here: this asserts the archive that /admin reads.
         FORWARD_TO: '',
         RESEND_API_KEY: '',
@@ -790,7 +790,7 @@ async function withApp(env, fn) {
           type: 'email.received',
           data: {
             from: 'Ada Kolen <ada@example.com>',
-            to: ['contact@rockfield.test'],
+            to: ['contact@hedgestone.test'],
             subject: 'Re: A 40m span',
             text: 'Can you quote the canal crossing?',
             message_id: '<m1@example.com>',
@@ -806,7 +806,7 @@ async function withApp(env, fn) {
         assert.strictEqual(sb.db.email_threads.rows[0].subject, 'A 40m span');
         assert.strictEqual(sb.db.email_messages.rows.length, 1);
         assert.strictEqual(sb.db.email_messages.rows[0].direction, 'inbound');
-        assert.strictEqual(sb.db.email_messages.rows[0].to_email, 'contact@rockfield.test');
+        assert.strictEqual(sb.db.email_messages.rows[0].to_email, 'contact@hedgestone.test');
         console.log('  ok  a signed inbound delivery lands in the admin inbox');
 
         const tampered = body.replace('Ada Kolen', 'Mallory Vane');
@@ -844,7 +844,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${sb.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY, SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_WEBHOOK_SECRET: SECRET, RESEND_API_KEY: 'test-key',
-        MAILBOX_ADDRESS: 'contact@rockfield.test', FORWARD_TO: '',
+        MAILBOX_ADDRESS: 'contact@hedgestone.test', FORWARD_TO: '',
       },
       async (base) => {
         // Shaped like a real Resend delivery: envelope only, no text or html.
@@ -855,9 +855,9 @@ async function withApp(env, fn) {
             email_id: '4a93e097-c85c-408f-89fd-67bc22511be5',
             from: 'ada@example.com',
             message_id: '<ada-2@example.com>',
-            received_for: ['contact@rockfield.test'],
+            received_for: ['contact@hedgestone.test'],
             subject: 'Canal crossing',
-            to: ['contact@rockfield.test'],
+            to: ['contact@hedgestone.test'],
           },
         });
         const id = 'msg_body', ts = String(Math.floor(Date.now() / 1000));
@@ -916,7 +916,7 @@ async function withApp(env, fn) {
       return res.json();
     };
 
-    const staff = await signIn('desk@rockfield.test', 'pw-desk');
+    const staff = await signIn('desk@hedgestone.test', 'pw-desk');
     const outsider = await signIn('nosy@example.com', 'pw-nosy');
     sb.db.admins.rows.push({ user_id: staff.user.id, email: staff.user.email });
 
@@ -929,14 +929,14 @@ async function withApp(env, fn) {
     sb.db.email_messages.rows.push({
       id: 'aaaaaaaa-2222-4333-8444-555555555555', created_at: new Date().toISOString(),
       thread_id: thread.id, direction: 'inbound', from_email: 'ada@example.com',
-      to_email: 'contact@rockfield.test', subject: 'A 40m span', message_id: '<ada-1@example.com>',
+      to_email: 'contact@hedgestone.test', subject: 'A 40m span', message_id: '<ada-1@example.com>',
       has_attachments: false,
     });
 
     await withApp(
       {
         SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY, SUPABASE_ANON_KEY: mock.ANON_KEY,
-        RESEND_API_KEY: 'test-key', MAILBOX_ADDRESS: 'contact@rockfield.test',
+        RESEND_API_KEY: 'test-key', MAILBOX_ADDRESS: 'contact@hedgestone.test',
       },
       async (base) => {
         const reply = (token, payload) => fetch(base + '/api/emails/reply', {
@@ -973,7 +973,7 @@ async function withApp(env, fn) {
         assert.strictEqual(sentMail[0].headers['In-Reply-To'], '<ada-1@example.com>');
         // A bare MAILBOX_ADDRESS would otherwise show in the recipient's inbox
         // as "contact", the local part, rather than as the studio.
-        assert.strictEqual(sentMail[0].from, 'Rockfield National Bank <contact@rockfield.test>');
+        assert.strictEqual(sentMail[0].from, 'Hedgestone National Bank <contact@hedgestone.test>');
         // Written by a person, so no monospace HTML part goes with it.
         assert.strictEqual(sentMail[0].html, undefined);
         assert.strictEqual(sentMail[0].text, 'Quoting next week.');

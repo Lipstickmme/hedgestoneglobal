@@ -16,15 +16,15 @@ Rename a file to the name in the first column and it takes that place.
 
 | Name                | Where it appears            | What suits it                                     |
 | ------------------- | --------------------------- | ------------------------------------------------- |
-| `rockfield1`        | Home hero background        | Wide. Empty sky or plaza on the left — the headline sits there |
-| `rockfield4`        | Home security panel         | Close, dark, physical: a vault door, a lock        |
-| `rockfamily`        | `/personal` header          | People at home, banking on a phone                 |
-| `rockfield3`        | `/business` header          | Somebody running a small business, at work         |
-| `rockfield2`        | `/rates` header             | One person going through their money, unhurried    |
-| `rockfieldhero`     | `/security-center` header   | A banker, face visible — reassurance, not hardware |
-| `rockfield`         | `/open-account` header      | A branch interior, somebody being served           |
-| `rockfield6`        | `/careers` header           | The office, as it actually looks                   |
-| `rockfield5`        | `/contact` header           | A conversation across a desk                       |
+| `hedgestonehero`    | Home hero background        | Wide. Subject on the right — the headline sits on the left |
+| `hedgestone2`       | Home security panel         | One person going through their money, unhurried    |
+| `hedgestone1`       | `/personal` header          | The building, at dusk                              |
+| `hedgestone5`       | `/business` header          | A conversation across a desk                       |
+| `hedgestone4`       | `/rates` header             | Close, dark, physical: a vault door, a lock        |
+| `hedgestone`        | `/security-center` header   | A branch interior, somebody being served           |
+| `hedgestonefamily`  | `/open-account` header      | People at home, banking on a phone                 |
+| `hedgestone3`       | `/careers` header           | Somebody at work, hands on the job                 |
+| `hedgestone6`       | `/contact` header           | The office, as it actually looks                   |
 | `story-logistics`   | Customer story              | Fleet, depot, freight                              |
 | `story-property`    | Customer story              | A building going up                                |
 | `story-retail`      | Customer story              | A shop floor                                       |

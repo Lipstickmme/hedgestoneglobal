@@ -255,7 +255,7 @@
       }
       facts.appendChild(dd);
     };
-    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent('Re: your message to Rockfield National Bank')}`);
+    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent('Re: your message to Hedgestone National Bank')}`);
     fact('Company', row.company);
     fact('Discipline', row.service);
     fact('Received', when(row.created_at));
@@ -331,7 +331,7 @@
       facts.appendChild(dd);
     };
     fact('Role', row.role_title);
-    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent(`Your application: ${row.role_title || 'Rockfield National Bank'}`)}`);
+    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent(`Your application: ${row.role_title || 'Hedgestone National Bank'}`)}`);
     fact('Phone', row.phone, row.phone ? `tel:${row.phone}` : null);
     fact('Experience', row.experience);
     fact('Portfolio', row.portfolio, row.portfolio);
@@ -857,7 +857,7 @@
     client = window.MerkelSupabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
       // Its own key, so a member of staff signing in here does not displace
       // the anonymous session the chat widget uses on the public pages.
-      storageKey: 'rockfield-desk-auth',
+      storageKey: 'hedgestone-desk-auth',
     });
 
     wire();

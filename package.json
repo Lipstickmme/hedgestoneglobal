@@ -1,7 +1,7 @@
 {
-  "name": "rockfield-bank",
+  "name": "hedgestone-bank",
   "version": "1.2.2",
-  "description": "Rockfield National Bank: online banking, staff console and public site",
+  "description": "Hedgestone National Bank: online banking, staff console and public site",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -28,7 +28,7 @@
     "online-banking",
     "ledger"
   ],
-  "author": "Rockfield National Bank",
+  "author": "Hedgestone National Bank",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {

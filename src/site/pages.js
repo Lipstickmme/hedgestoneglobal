@@ -123,7 +123,7 @@ const homeContent = `
       <h2>Open in ten minutes. Useful from the first day.</h2>
       <p class="section-lede">No monthly fee on Everyday Checking, no minimum on savings, and a rate that does not quietly expire after three months.</p>
       <div class="rf-grid cols-3">
-        ${PRODUCTS.filter((p) => ['everyday_checking', 'high_yield_savings', 'rockfield_signature_card'].includes(p.id)).map(productCard).join('')}
+        ${PRODUCTS.filter((p) => ['everyday_checking', 'high_yield_savings', 'hedgestone_signature_card'].includes(p.id)).map(productCard).join('')}
       </div>
       <p style="margin-top:26px"><a class="rf-btn ghost" href="/personal">All personal accounts</a></p>
     </div>
@@ -573,7 +573,7 @@ const contactContent = `
 /* ===================================================================== legal == */
 
 const legalContent = `
-  ${header({ eyebrow: 'Legal', title: 'Disclosures.', lede: 'The agreements and notices that govern an account at Rockfield.' })}
+  ${header({ eyebrow: 'Legal', title: 'Disclosures.', lede: 'The agreements and notices that govern an account at Hedgestone.' })}
 
   <section class="rf-section">
     <div class="wrap" style="max-width:820px">
@@ -626,7 +626,7 @@ const deskContent = `
 
     <section class="admin-gate" id="admin-unconfigured" hidden>
       <div class="admin-card">
-        <span class="eyebrow">Rockfield / Client services desk</span>
+        <span class="eyebrow">Hedgestone / Client services desk</span>
         <h1>Backend not connected.</h1>
         <div id="admin-missing"></div>
         <p class="admin-note">Set it in the deployment's environment variables and reload. Nothing needs rebuilding, but the change only reaches a running deployment after a redeploy.</p>
@@ -637,7 +637,7 @@ const deskContent = `
 
     <section class="admin-gate" id="admin-login" hidden>
       <form class="admin-card" id="login-form" novalidate>
-        <span class="eyebrow">Rockfield / Client services desk</span>
+        <span class="eyebrow">Hedgestone / Client services desk</span>
         <h1>Staff sign in.</h1>
         <p class="admin-note" id="login-note">Website enquiries, live chat and the shared mailbox. Customer accounts are in the <a href="/console">banking console</a>.</p>
         <div class="field"><label for="login-email">Email</label><input type="email" id="login-email" name="email" autocomplete="username" required /></div>
@@ -651,7 +651,7 @@ const deskContent = `
     <div class="admin-shell" id="admin-shell" hidden>
       <header class="admin-bar">
         <a class="admin-brand" href="/">
-          <img src="/assets/bank/logo-light.png" alt="Rockfield National Bank" width="240" height="143" />
+          <img src="/assets/bank/logo-light.png" alt="Hedgestone National Bank" width="240" height="143" />
           <span>Client services desk</span>
         </a>
         <div class="admin-bar-end">
@@ -713,12 +713,12 @@ const marketing = (file, opts) => ({ file, build: marketingPage, opts });
 module.exports = [
   marketing('index.html', {
     title: `${BANK.name} | ${BANK.tagline}`,
-    description: 'Personal and business banking from Rockfield National Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
+    description: 'Personal and business banking from Hedgestone National Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
     active: '', content: homeContent,
   }),
   marketing('personal.html', {
     title: `Personal banking | ${BANK.name}`,
-    description: 'Checking, savings, certificates and cards from Rockfield National Bank.',
+    description: 'Checking, savings, certificates and cards from Hedgestone National Bank.',
     active: 'personal', content: personalContent,
   }),
   marketing('business.html', {
@@ -728,32 +728,32 @@ module.exports = [
   }),
   marketing('rates.html', {
     title: `Rates and fees | ${BANK.name}`,
-    description: 'Deposit rates and the full fee schedule at Rockfield National Bank.',
+    description: 'Deposit rates and the full fee schedule at Hedgestone National Bank.',
     active: 'rates', content: ratesContent,
   }),
   marketing('security-center.html', {
     title: `Security centre | ${BANK.name}`,
-    description: 'How Rockfield protects your account, and what to do if something looks wrong.',
+    description: 'How Hedgestone protects your account, and what to do if something looks wrong.',
     active: 'security-center', content: securityCentreContent,
   }),
   marketing('open-account.html', {
     title: `Open an account | ${BANK.name}`,
-    description: 'Start an application for a Rockfield checking, savings or business account.',
+    description: 'Start an application for a Hedgestone checking, savings or business account.',
     active: '', content: openAccountContent,
   }),
   marketing('careers.html', {
     title: `Careers | ${BANK.name}`,
-    description: 'Open roles at Rockfield National Bank across retail, payments, financial crime, compliance, lending and technology.',
+    description: 'Open roles at Hedgestone National Bank across retail, payments, financial crime, compliance, lending and technology.',
     active: '', content: careersContent, extraScripts: ['/js/careers.js'],
   }),
   marketing('apply.html', {
     title: `Apply | ${BANK.name}`,
-    description: 'Apply to Rockfield National Bank. One form, read by the people you would work with.',
+    description: 'Apply to Hedgestone National Bank. One form, read by the people you would work with.',
     active: '', content: applyContent, extraScripts: ['/js/apply.js'],
   }),
   marketing('support.html', {
     title: `Support | ${BANK.name}`,
-    description: 'Contact Rockfield National Bank. Client services six days a week and a 24/7 fraud line.',
+    description: 'Contact Hedgestone National Bank. Client services six days a week and a 24/7 fraud line.',
     active: 'support', content: contactContent,
   }),
   marketing('legal.html', {

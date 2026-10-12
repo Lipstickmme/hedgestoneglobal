@@ -451,7 +451,7 @@
         <section class="rf-card">
           <div class="rf-card-body">
             <div class="rf-plastic ${card.kind === 'credit' ? 'brass' : ''} ${card.status === 'active' ? '' : 'is-frozen'}">
-              <div class="brandline"><span>Rockfield</span><span class="scheme">${esc(card.brand.toUpperCase())}</span></div>
+              <div class="brandline"><span>Hedgestone</span><span class="scheme">${esc(card.brand.toUpperCase())}</span></div>
               <div class="chip"></div>
               <div class="pan">${esc(card.masked)}</div>
               <div class="foot">
@@ -624,7 +624,7 @@
       qs('[data-thread-subject]').textContent = thread.subject;
       body.innerHTML = thread.messages.map((m) => `
         <div style="margin-bottom:16px;padding:12px 14px;border-radius:12px;background:${m.from === 'bank' ? 'var(--rf-surface-3)' : 'var(--rf-info-soft)'}">
-          <div class="rf-spread rf-small rf-muted"><strong>${esc(m.authorName || (m.from === 'bank' ? 'Rockfield' : 'You'))}</strong><span>${datetime(m.createdAt)}</span></div>
+          <div class="rf-spread rf-small rf-muted"><strong>${esc(m.authorName || (m.from === 'bank' ? 'Hedgestone' : 'You'))}</strong><span>${datetime(m.createdAt)}</span></div>
           <div style="margin-top:6px;white-space:pre-wrap">${esc(m.body)}</div>
         </div>`).join('');
       api.post(`/messages/${thread.id}/read`).then(() => RF.paintUser(RF.state.session)).catch(() => {});
@@ -677,7 +677,7 @@
     try {
       await route();
     } catch (err) {
-      console.error('[rockfield]', err);
+      console.error('[hedgestone]', err);
       toast(err.message || 'This page could not load.', 'bad');
     }
   });

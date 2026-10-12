@@ -480,7 +480,7 @@
     try {
       await route();
     } catch (err) {
-      console.error('[rockfield]', err);
+      console.error('[hedgestone]', err);
       toast(err.message || 'This page could not load.', 'bad');
     }
   });

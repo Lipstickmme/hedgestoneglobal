@@ -69,21 +69,21 @@ async function fetchBody(emailId) {
     if (!res.ok) {
       // The response text names which of these it is: a wrong path, a key
       // without inbound scope, or an id this account cannot read.
-      console.warn('[rockfield] could not fetch inbound body:', res.status, raw.slice(0, 300));
+      console.warn('[hedgestone] could not fetch inbound body:', res.status, raw.slice(0, 300));
       return null;
     }
     let data;
     try {
       data = JSON.parse(raw);
     } catch (err) {
-      console.warn('[rockfield] inbound body was not json:', raw.slice(0, 200));
+      console.warn('[hedgestone] inbound body was not json:', raw.slice(0, 200));
       return null;
     }
     const text = firstString(data.text, data.body_plain, data.plain);
     const html = firstString(data.html, data.body_html);
     return text || html ? { text, html } : null;
   } catch (err) {
-    console.warn('[rockfield] inbound body fetch error:', err.message);
+    console.warn('[hedgestone] inbound body fetch error:', err.message);
     return null;
   }
 }
@@ -141,7 +141,7 @@ exports.resend = async (req, res, next) => {
     // Only accept signed requests. Without a secret the endpoint stays closed.
     const result = verify(secret, req.headers, req.rawBody);
     if (!result.ok) {
-      console.warn('[rockfield] inbound webhook rejected:', result.reason);
+      console.warn('[hedgestone] inbound webhook rejected:', result.reason);
       // The reason is returned, not just logged: a provider's delivery log is
       // where this failure is actually read, and a bare 401 there is
       // indistinguishable between an unset secret, a mismatched one, and a
@@ -183,7 +183,7 @@ exports.resend = async (req, res, next) => {
       try {
         threadId = await fileOnThread(supabase, email);
       } catch (err) {
-        console.error('[rockfield] failed to file inbound email:', err.message);
+        console.error('[hedgestone] failed to file inbound email:', err.message);
       }
     }
 
@@ -197,7 +197,7 @@ exports.resend = async (req, res, next) => {
 
     if (forwardTo && (config.forwardWouldLoop() || ours.has(fromAddress))) {
       console.warn(
-        '[rockfield] not forwarding: FORWARD_TO or the sender is one of this site\'s own addresses, which would loop mail back into this webhook.'
+        '[hedgestone] not forwarding: FORWARD_TO or the sender is one of this site\'s own addresses, which would loop mail back into this webhook.'
       );
     } else if (forwardTo) {
       const body = [

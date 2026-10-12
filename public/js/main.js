@@ -1,8 +1,8 @@
 'use strict';
 
 /* =========================================================================
-   Rockfield National Bank shared frontend for the public site.
-   Exposes helpers on window.ROCKFIELD (window.MERKEL remains as an alias for
+   Hedgestone National Bank shared frontend for the public site.
+   Exposes helpers on window.HEDGESTONE (window.MERKEL remains as an alias for
    the page scripts that came with the template), drives shared UI
    (nav, hero slideshow, reveals, counters, contact form) and hydrates the
    home page. Data comes from the Express API with seed-data fallbacks.
@@ -115,10 +115,10 @@
     }
   }
 
-  // ROCKFIELD is the name to use. MERKEL is kept as an alias because the page
+  // HEDGESTONE is the name to use. MERKEL is kept as an alias because the page
   // scripts this site inherited from the template still reach for it.
-  window.ROCKFIELD = { $, $$, esc, fetchJSON, reduceMotion, projectCard, observeReveals, FALLBACK_PROJECTS, site };
-  window.MERKEL = window.ROCKFIELD;
+  window.HEDGESTONE = { $, $$, esc, fetchJSON, reduceMotion, projectCard, observeReveals, FALLBACK_PROJECTS, site };
+  window.MERKEL = window.HEDGESTONE;
 
   /* Nav, scroll progress, underlay parallax, chapter rail ----------------- */
   const nav = $('#nav');

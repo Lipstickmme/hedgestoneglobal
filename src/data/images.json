@@ -3,47 +3,47 @@
   "slots": {
     "hero": {
       "_where": "Home page hero background. Wants a wide frame with empty sky or plaza on the left, because the headline sits over it.",
-      "prefer": ["rockfield1", "rf1"],
+      "prefer": ["hedgestonehero", "hedgestone0", "rf0"],
       "fallback": "/assets/bank/hero.svg"
     },
     "homeSecurity": {
       "_where": "The security panel on the home page, beside 'Held before it leaves'.",
-      "prefer": ["rockfield4", "rf4"],
+      "prefer": ["hedgestone2", "rf2"],
       "fallback": "/assets/bank/security.svg"
     },
     "personalHeader": {
       "_where": "/personal",
-      "prefer": ["rockfamily", "rockfield7", "rf7"],
+      "prefer": ["hedgestone1", "rf1"],
       "fallback": "/assets/bank/personal.svg"
     },
     "businessHeader": {
       "_where": "/business",
-      "prefer": ["rockfield3", "rf3"],
+      "prefer": ["hedgestone5", "rf5"],
       "fallback": "/assets/bank/business.svg"
     },
     "ratesHeader": {
       "_where": "/rates",
-      "prefer": ["rockfield2", "rf2"],
+      "prefer": ["hedgestone4", "rf4"],
       "fallback": "/assets/bank/personal.svg"
     },
     "securityHeader": {
       "_where": "/security-center",
-      "prefer": ["rockfieldhero", "rockfield0", "rf0"],
+      "prefer": ["hedgestone", "rf"],
       "fallback": "/assets/bank/security.svg"
     },
     "openAccountHeader": {
       "_where": "/open-account",
-      "prefer": ["rockfield", "rf"],
+      "prefer": ["hedgestonefamily", "hedgestone7", "rf7"],
       "fallback": "/assets/bank/hero.svg"
     },
     "careersHeader": {
       "_where": "/careers",
-      "prefer": ["rockfield6", "rf6"],
+      "prefer": ["hedgestone3", "rf3"],
       "fallback": "/assets/bank/hero.svg"
     },
     "contactHeader": {
       "_where": "/contact",
-      "prefer": ["rockfield5", "rf5"],
+      "prefer": ["hedgestone6", "rf6"],
       "fallback": "/assets/bank/mobile.svg"
     }
   },

@@ -1,7 +1,7 @@
 'use strict';
 
 (function () {
-  const M = window.ROCKFIELD || window.MERKEL; if (!M) return;
+  const M = window.HEDGESTONE || window.MERKEL; if (!M) return;
   const wrap = document.getElementById('roles');
   if (!wrap) return;
   const esc = M.esc;

@@ -39,7 +39,7 @@ function defaultAlertPrefs() {
 /**
  * Create a customer or an administrator.
  *
- * Only the admin console calls this in production - Rockfield opens accounts
+ * Only the admin console calls this in production - Hedgestone opens accounts
  * for people, it does not let the internet open them for itself - so the
  * caller is trusted to have validated the input; what happens here is the
  * hashing, the encryption and the defaults.

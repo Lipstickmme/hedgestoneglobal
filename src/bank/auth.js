@@ -99,7 +99,7 @@ async function createSession(user, req, res, extra = {}) {
 async function resolveSession(req) {
   const cookies = parseCookies(req);
   const token = cookies[SESSION_COOKIE] || '';
-  const header = req.headers['x-rockfield-session'];
+  const header = req.headers['x-hedgestone-session'];
   const raw = token || (typeof header === 'string' ? header : '');
   if (!raw) return null;
 
@@ -201,7 +201,7 @@ async function attach(req, res, next) {
       req.bankSession = resolved.session;
     }
   } catch (err) {
-    console.warn('[rockfield] session lookup failed:', err.message);
+    console.warn('[hedgestone] session lookup failed:', err.message);
   }
   next();
 }
@@ -237,7 +237,7 @@ function requireAdmin(req, res, next) {
 function csrf(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   if (!req.bankSession) return next(); // unauthenticated posts (sign-in) are rate limited instead
-  const sent = req.headers['x-rockfield-csrf'];
+  const sent = req.headers['x-hedgestone-csrf'];
   const expected = req.bankSession.csrf;
   if (!expected) return next();
   if (!sent || !security.timingSafeEqualStr(sent, expected)) {

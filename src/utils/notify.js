@@ -31,7 +31,7 @@ function defaultTo() {
 
 /** Verified sender identity. */
 function defaultFrom() {
-  return process.env.FORM_FROM || process.env.NOTIFY_FROM || 'Rockfield National Bank <onboarding@resend.dev>';
+  return process.env.FORM_FROM || process.env.NOTIFY_FROM || 'Hedgestone National Bank <onboarding@resend.dev>';
 }
 
 /**
@@ -79,8 +79,8 @@ async function send(opts) {
     });
     const text = await res.text().catch(() => '');
     if (!res.ok) {
-      console.warn('[rockfield] notify email failed:', res.status, text);
-      // Resend says why in the body - "The rockfield... domain is not
+      console.warn('[hedgestone] notify email failed:', res.status, text);
+      // Resend says why in the body - "The hedgestone... domain is not
       // verified", "You can only send testing emails to your own address".
       // Dropping that and reporting a bare status code is what turns a
       // five-second fix into an afternoon.
@@ -92,7 +92,7 @@ async function send(opts) {
     try { id = JSON.parse(text).id; } catch (e) { /* id is a bonus, not a requirement */ }
     return { ok: true, id };
   } catch (err) {
-    console.warn('[rockfield] notify email error:', err.message);
+    console.warn('[hedgestone] notify email error:', err.message);
     return { ok: false, error: err.message };
   }
 }
@@ -112,10 +112,10 @@ async function sendWebhook(subject, text, data) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: `${subject}\n\n${text}`, content: `${subject}\n\n${text}`, subject, data }),
     });
-    if (!res.ok) console.warn('[rockfield] notify webhook failed:', res.status);
+    if (!res.ok) console.warn('[hedgestone] notify webhook failed:', res.status);
     return res.ok;
   } catch (err) {
-    console.warn('[rockfield] notify webhook error:', err.message);
+    console.warn('[hedgestone] notify webhook error:', err.message);
     return false;
   }
 }

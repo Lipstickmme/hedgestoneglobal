@@ -23,12 +23,12 @@
   const input = document.getElementById('chat-input');
   const minBtn = document.getElementById('chat-min');
 
-  const KEY_SESSION = 'rockfield_chat_supabase_session';
-  const KEY_TOKEN = 'rockfield_chat_session';
+  const KEY_SESSION = 'hedgestone_chat_supabase_session';
+  const KEY_TOKEN = 'hedgestone_chat_session';
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const POLL_MS = 4000;
   const COLUMNS = 'id,created_at,sender,body';
-  const GREETING = "Hi, you're through to Rockfield client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
+  const GREETING = "Hi, you're through to Hedgestone client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
 
   const store = {
     get(key) {
@@ -202,7 +202,7 @@
         const cfg = await res.json();
         if (cfg.chatEnabled && window.MerkelSupabase) {
           const client = window.MerkelSupabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-            storageKey: 'rockfield-visitor-auth',
+            storageKey: 'hedgestone-visitor-auth',
           });
           await client.auth.signInAnonymously();
           return supabaseTransport(client);
@@ -210,7 +210,7 @@
       } catch (err) {
         // Most often anonymous sign-ins are switched off. The visitor should
         // not see that; the message says exactly where to fix it.
-        console.warn('[rockfield] live chat falling back to the server:', err.message);
+        console.warn('[hedgestone] live chat falling back to the server:', err.message);
       }
       return serverTransport();
     })();
@@ -290,7 +290,7 @@
         }, 900);
       }
     } catch (err) {
-      const inbox = (window.ROCKFIELD && window.ROCKFIELD.site.email) || 'client services';
+      const inbox = (window.HEDGESTONE && window.HEDGESTONE.site.email) || 'client services';
       bubble('agent', `That message did not send. Please email ${inbox}.`);
     }
   });

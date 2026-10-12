@@ -487,7 +487,7 @@ exports.health = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.json({
     status: warnings.length ? 'degraded' : 'ok',
-    service: 'rockfield-national-bank',
+    service: 'hedgestone-national-bank',
     version: require('../../package.json').version,
     commit: commit ? commit.slice(0, 7) : undefined,
     branch: config.pick('VERCEL_GIT_COMMIT_REF') || undefined,

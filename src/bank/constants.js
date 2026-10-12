@@ -13,9 +13,9 @@
 
 /** The institution. Fictional, on a routing prefix the Fed has not assigned. */
 const BANK = {
-  name: 'Rockfield National Bank',
-  shortName: 'Rockfield',
-  legalName: 'Rockfield National Bank, N.A.',
+  name: 'Hedgestone National Bank',
+  shortName: 'Hedgestone',
+  legalName: 'Hedgestone National Bank, N.A.',
   tagline: 'Banking built on bedrock.',
   // ABA checksum valid: 3(8+2+4)+7(1+6+1)+(9+4+7) = 42+56+20 = 118... see
   // validateRouting() in ids.js, which is what actually enforces this.
@@ -24,8 +24,8 @@ const BANK = {
   swift: 'RKFDUS44XXX',
   fdicCert: '58412',
   nmls: '409127',
-  email: 'support@rockfieldglobalfinance.com',
-  securityEmail: 'security@rockfieldglobalfinance.com',
+  email: 'support@hedgestonesfinance.com',
+  securityEmail: 'security@hedgestonesfinance.com',
   established: 1924,
 };
 
@@ -95,9 +95,9 @@ const PRODUCTS = [
     features: ['Guaranteed rate', 'Auto-renew option', 'Interest paid monthly'],
   },
   {
-    id: 'rockfield_signature_card',
+    id: 'hedgestone_signature_card',
     type: 'credit',
-    name: 'Rockfield Signature Card',
+    name: 'Hedgestone Signature Card',
     blurb: '2% back on everything, no categories to remember.',
     apr: 18.99,
     creditLimit: 1500000,

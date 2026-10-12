@@ -52,14 +52,14 @@ async function persist(record) {
     await storage.applications.append(record);
     return 'applications';
   } catch (err) {
-    console.warn('[rockfield] applications table unavailable, filing as an enquiry:', err.message);
+    console.warn('[hedgestone] applications table unavailable, filing as an enquiry:', err.message);
   }
 
   try {
     await storage.enquiries.append(asEnquiry(record));
     return 'enquiries';
   } catch (err) {
-    console.error('[rockfield] failed to persist application:', err.message);
+    console.error('[hedgestone] failed to persist application:', err.message);
     return null;
   }
 }

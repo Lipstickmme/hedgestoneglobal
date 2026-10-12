@@ -41,7 +41,7 @@ const MERCHANTS = {
   Travel: ['Continental Air', 'Harborview Hotel'],
   Utilities: ['Columbus Power & Light', 'Clearwater Utilities', 'Fibernet Broadband'],
   Shopping: ['Meridian Supply Co', 'Ashgate Hardware', 'Lantern Books'],
-  Entertainment: ['Palace Cinema', 'Rockfield Arena'],
+  Entertainment: ['Palace Cinema', 'Hedgestone Arena'],
   Subscriptions: ['Streamline Media', 'Cloudline Storage', 'Ledger App Pro'],
   Healthcare: ['Brookfield Dental', 'Riverside Pharmacy'],
   Insurance: ['Sentinel Mutual'],
@@ -207,7 +207,7 @@ async function generateHistory({ user, checking, savings, card, cardAccountId, m
         accountId: checking.id,
         direction: 'debit',
         amount,
-        description: `ROCKFIELD CARD PAYMENT ${label}`.trim(),
+        description: `HEDGESTONE CARD PAYMENT ${label}`.trim(),
         category: 'Transfers',
         method: 'internal',
         date: iso,
@@ -227,7 +227,7 @@ async function generateHistory({ user, checking, savings, card, cardAccountId, m
     const purchases = isWeekend(cursor) ? (r() < 0.7 ? 2 : 1) : (r() < 0.5 ? 1 : r() < 0.85 ? 2 : 3);
     for (let i = 0; i < purchases; i += 1) {
       const [category, , min, max] = weightedCategory(r);
-      const merchant = pick(MERCHANTS[category] || ['Rockfield Merchant'], r);
+      const merchant = pick(MERCHANTS[category] || ['Hedgestone Merchant'], r);
       // Roughly a third of card spending sits on the credit card, so both the
       // debit and the credit product have a history worth looking at.
       const onCard = Boolean(cardAccountId) && r() < 0.35;
@@ -362,8 +362,8 @@ async function seedMessages(user) {
     thread_id: thread,
     user_id: user.id,
     from_side: 'bank',
-    author_name: 'Rockfield Client Services',
-    subject: 'Welcome to Rockfield',
+    author_name: 'Hedgestone Client Services',
+    subject: 'Welcome to Hedgestone',
     body: 'Your online banking is live. Set a transfer PIN under Security before your first payment, and add the people you pay regularly as beneficiaries - transfers to a verified beneficiary clear without a second review.',
     read_at: null,
     attachments: null,
@@ -427,8 +427,8 @@ async function ensureSeed(options = {}) {
   const existing = await db.users.count();
   if (existing > 0 && !options.force) return { seeded: false, users: existing };
 
-  const adminEmail = process.env.BANK_ADMIN_EMAIL || 'admin@rockfieldglobalfinance.com';
-  const adminPassword = process.env.BANK_ADMIN_PASSWORD || 'Rockfield#Admin2026';
+  const adminEmail = process.env.BANK_ADMIN_EMAIL || 'admin@hedgestonesfinance.com';
+  const adminPassword = process.env.BANK_ADMIN_PASSWORD || 'Hedgestone#Admin2026';
   const { user: admin } = await users.createUser({
     email: adminEmail,
     password: adminPassword,
@@ -460,12 +460,12 @@ async function ensureSeed(options = {}) {
   // The administrator keeps the address that was asked for, because that is
   // the one somebody signs in with. The customer gets the built-in one, and
   // the clash is reported rather than silently worked around.
-  const DEFAULT_DEMO_EMAIL = 'demo@rockfieldglobalfinance.com';
+  const DEFAULT_DEMO_EMAIL = 'demo@hedgestonesfinance.com';
   const requestedDemoEmail = process.env.BANK_DEMO_EMAIL || DEFAULT_DEMO_EMAIL;
   const demoClashesWithAdmin = requestedDemoEmail.trim().toLowerCase() === adminEmail.trim().toLowerCase();
   if (demoClashesWithAdmin) {
     console.warn(
-      `[rockfield] BANK_DEMO_EMAIL is the same address as BANK_ADMIN_EMAIL. They must be different accounts, so the demonstration customer is on ${DEFAULT_DEMO_EMAIL} instead.`
+      `[hedgestone] BANK_DEMO_EMAIL is the same address as BANK_ADMIN_EMAIL. They must be different accounts, so the demonstration customer is on ${DEFAULT_DEMO_EMAIL} instead.`
     );
   }
   const demoEmail = demoClashesWithAdmin ? DEFAULT_DEMO_EMAIL : requestedDemoEmail;
@@ -521,7 +521,7 @@ async function ensureSeed(options = {}) {
     openingDate: relationshipStart,
   });
   const cardAccount = await accountsLib.openAccount(customer, {
-    productId: 'rockfield_signature_card', type: 'credit', nickname: 'Signature card', creditLimit: 1500000,
+    productId: 'hedgestone_signature_card', type: 'credit', nickname: 'Signature card', creditLimit: 1500000,
     createdBy: 'system', openedAt: relationshipStart,
   });
 
@@ -604,7 +604,7 @@ async function ensureSeed(options = {}) {
     updated_at: nowIso(),
   });
 
-  console.log(`[rockfield] seeded: admin ${adminEmail}, customer ${demoEmail}`);
+  console.log(`[hedgestone] seeded: admin ${adminEmail}, customer ${demoEmail}`);
   return {
     seeded: true,
     admin: { email: adminEmail, password: adminPassword },
@@ -646,7 +646,7 @@ async function reconcileAdmin() {
   const password = process.env.BANK_ADMIN_PASSWORD || '';
   if (!email && !password) return { changed: false, reason: 'not configured' };
   if (!email || !password) {
-    console.warn('[rockfield] BANK_ADMIN_EMAIL and BANK_ADMIN_PASSWORD must both be set; ignoring.');
+    console.warn('[hedgestone] BANK_ADMIN_EMAIL and BANK_ADMIN_PASSWORD must both be set; ignoring.');
     return { changed: false, reason: 'incomplete' };
   }
 
@@ -655,7 +655,7 @@ async function reconcileAdmin() {
 
   if (existing) {
     if (existing.role !== 'admin') {
-      console.warn(`[rockfield] BANK_ADMIN_EMAIL is a customer account; not changing it.`);
+      console.warn(`[hedgestone] BANK_ADMIN_EMAIL is a customer account; not changing it.`);
       return { changed: false, reason: 'not an administrator' };
     }
     if (!reset) return { changed: false, reason: 'already exists' };
@@ -667,7 +667,7 @@ async function reconcileAdmin() {
       must_change_password: false,
       updated_at: nowIso(),
     });
-    console.log(`[rockfield] BANK_ADMIN_RESET: password reset for ${email}`);
+    console.log(`[hedgestone] BANK_ADMIN_RESET: password reset for ${email}`);
     return { changed: true, reason: 'password reset' };
   }
 
@@ -686,7 +686,7 @@ async function reconcileAdmin() {
       must_change_password: false,
       updated_at: nowIso(),
     });
-    console.log(`[rockfield] administrator moved to ${email} from the environment`);
+    console.log(`[hedgestone] administrator moved to ${email} from the environment`);
     return { changed: true, reason: 'adopted the seeded administrator' };
   }
 
@@ -703,7 +703,7 @@ async function reconcileAdmin() {
     tier: 'Staff',
     twoFactorEnabled: false,
   });
-  console.log(`[rockfield] administrator ${email} created from the environment`);
+  console.log(`[hedgestone] administrator ${email} created from the environment`);
   return { changed: true, reason: 'created' };
 }
 
@@ -741,7 +741,7 @@ function ensureSeedOnce() {
         try {
           admin = await reconcileAdmin();
         } catch (err) {
-          console.warn('[rockfield] admin reconcile failed:', err.message);
+          console.warn('[hedgestone] admin reconcile failed:', err.message);
           admin = { changed: false, error: err.message };
         }
         lastSeed = {
@@ -753,7 +753,7 @@ function ensureSeedOnce() {
       .catch((err) => {
         seeding = null;
         lastSeed = { attempted: true, ok: false, tookMs: Date.now() - startedAt, error: err.message };
-        console.warn('[rockfield] seed failed:', err.message);
+        console.warn('[hedgestone] seed failed:', err.message);
         return { seeded: false, error: err.message };
       });
   }

@@ -14,7 +14,7 @@ function autoReply(text) {
   const has = (...words) => words.some((w) => t.includes(w));
 
   if (has('hello', 'hi ', 'hey', 'good morning', 'good afternoon') || t === 'hi') {
-    return "Hi, you're through to Rockfield client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
+    return "Hi, you're through to Hedgestone client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
   }
   if (has('career', 'job', 'hiring', 'vacancy', 'apply', 'position', 'role')) {
     return 'We hire across branch, operations, risk and technology. Open roles are on our Careers page, or tell me which area interests you.';
@@ -70,7 +70,7 @@ exports.postMessage = async (req, res, next) => {
     try {
       handedOver = await chatStore.isHandedOver(sessionId);
     } catch (err) {
-      console.error('[rockfield] chat handover check failed:', err.message);
+      console.error('[hedgestone] chat handover check failed:', err.message);
     }
 
     const reply = handedOver ? null : { role: 'agent', text: autoReply(text), at: new Date(Date.now() + 1).toISOString() };
@@ -81,7 +81,7 @@ exports.postMessage = async (req, res, next) => {
       await chatStore.append(sessionId, messages);
     } catch (err) {
       stored = false;
-      console.error('[rockfield] failed to persist chat message:', err.message);
+      console.error('[hedgestone] failed to persist chat message:', err.message);
     }
 
     // Route the visitor's message to the inbox so a human can pick it up.
@@ -122,7 +122,7 @@ exports.notifyMessage = async (req, res, next) => {
         replied = true;
       }
     } catch (err) {
-      console.error('[rockfield] failed to post chat reply:', err.message);
+      console.error('[hedgestone] failed to post chat reply:', err.message);
     }
 
     await notify.chatMessage(sessionId, text);
@@ -145,7 +145,7 @@ exports.getHistory = async (req, res, next) => {
       convo = await chatStore.load(sessionId);
     } catch (err) {
       // A storage fault should cost the visitor their history, not the widget.
-      console.error('[rockfield] failed to load chat history:', err.message);
+      console.error('[hedgestone] failed to load chat history:', err.message);
     }
     return res.json({ sessionId, messages: convo.messages });
   } catch (err) {

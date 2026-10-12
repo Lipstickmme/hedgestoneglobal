@@ -50,7 +50,7 @@ const str = (value) => (value == null ? '' : String(value).trim());
  * list retires it when it stops being ours.
  */
 const RETIRED = {
-  email: ['support@rockfieldbank.com'],
+  email: ['support@rockfieldbank.com', 'support@rockfieldglobalfinance.com'],
 };
 
 /** True when a stored value is one we used to ship rather than one chosen. */

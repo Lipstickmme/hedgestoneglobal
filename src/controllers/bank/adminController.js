@@ -315,7 +315,7 @@ const updateCustomer = asyncHandler(async (req, res) => {
     meta: { fields: changed },
   });
   await alerts.notifyUser(after, 'profile_changed', {
-    subject: 'Your Rockfield account details were updated',
+    subject: 'Your Hedgestone account details were updated',
     heading: 'Your details changed',
     intro: 'A member of our team updated the following on your account.',
     rows: changed.map((f) => ({ label: f.replace(/_/g, ' '), value: String(after[f] ?? '-') })),
@@ -341,7 +341,7 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'profile_changed', {
     force: true,
-    subject: `Your Rockfield account is now ${status}`,
+    subject: `Your Hedgestone account is now ${status}`,
     heading: `Account ${status}`,
     intro: reason || `Your online banking access is now ${status}.`,
     footNote: `Questions? Please ${contact.callSupport()}.`,
@@ -402,7 +402,7 @@ const resetCustomerPassword = asyncHandler(async (req, res) => {
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'password_changed', {
     force: true,
-    subject: 'A temporary Rockfield password has been issued',
+    subject: 'A temporary Hedgestone password has been issued',
     heading: 'Your password was reset by our team',
     intro: 'Use the temporary password below to sign in, then choose your own.',
     rows: [{ label: 'Temporary password', value: temporary }],
@@ -854,7 +854,7 @@ const exportActivity = asyncHandler(async (req, res) => {
     actor: actorOf(req), detail: `Exported ${rows.length} activity rows`,
   });
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="rockfield-activity-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="hedgestone-activity-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send(body);
 });
 
@@ -908,7 +908,7 @@ const sendAlert = asyncHandler(async (req, res) => {
     // each would be a round trip each - the sort of thing that is instant
     // against a handful of demonstration accounts and times out against a
     // real book.
-    const author = `${req.bankUser.first_name} ${req.bankUser.last_name}`.trim() || 'Rockfield Client Services';
+    const author = `${req.bankUser.first_name} ${req.bankUser.last_name}`.trim() || 'Hedgestone Client Services';
     await db.messages.insertMany(recipients.map((recipient) => ({
       id: ids.uuid(),
       created_at: nowIso(),
@@ -980,7 +980,7 @@ const replyToMessage = asyncHandler(async (req, res) => {
     thread_id: first.thread_id,
     user_id: first.user_id,
     from_side: 'bank',
-    author_name: `${req.bankUser.first_name} ${req.bankUser.last_name}`.trim() || 'Rockfield Client Services',
+    author_name: `${req.bankUser.first_name} ${req.bankUser.last_name}`.trim() || 'Hedgestone Client Services',
     subject: first.subject,
     body,
     read_at: null,

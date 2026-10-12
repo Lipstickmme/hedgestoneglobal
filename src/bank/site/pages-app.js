@@ -76,11 +76,11 @@ const signinContent = `
           <div class="rf-card-body tight rf-small">
             <strong>Demonstration sign-ins</strong>
             <div class="rf-spread rf-mt" style="margin-top:8px">
-              <span>Customer &mdash; <code class="rf-mono">demo@rockfieldglobalfinance.com</code> / <code class="rf-mono">Bedrock#Demo2026</code></span>
+              <span>Customer &mdash; <code class="rf-mono">demo@hedgestonesfinance.com</code> / <code class="rf-mono">Bedrock#Demo2026</code></span>
               <button class="rf-btn ghost sm" data-fill="customer">Use</button>
             </div>
             <div class="rf-spread" style="margin-top:8px">
-              <span>Administrator &mdash; <code class="rf-mono">admin@rockfieldglobalfinance.com</code> / <code class="rf-mono">Rockfield#Admin2026</code></span>
+              <span>Administrator &mdash; <code class="rf-mono">admin@hedgestonesfinance.com</code> / <code class="rf-mono">Hedgestone#Admin2026</code></span>
               <button class="rf-btn ghost sm" data-fill="admin">Use</button>
             </div>
           </div>
@@ -919,12 +919,12 @@ module.exports = [
   {
     file: 'signin.html',
     build: authPage,
-    opts: { title: `Sign in | ${BANK.name}`, description: 'Sign in to Rockfield National Bank online banking.', content: signinContent, extraScripts: ['/js/bank/signin.js'] },
+    opts: { title: `Sign in | ${BANK.name}`, description: 'Sign in to Hedgestone National Bank online banking.', content: signinContent, extraScripts: ['/js/bank/signin.js'] },
   },
   {
     file: 'forgot.html',
     build: authPage,
-    opts: { title: `Reset your password | ${BANK.name}`, description: 'Reset your Rockfield online banking password.', content: forgotContent, extraScripts: ['/js/bank/signin.js'] },
+    opts: { title: `Reset your password | ${BANK.name}`, description: 'Reset your Hedgestone online banking password.', content: forgotContent, extraScripts: ['/js/bank/signin.js'] },
   },
   {
     file: 'change-password.html',

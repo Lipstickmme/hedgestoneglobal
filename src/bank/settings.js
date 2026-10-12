@@ -37,7 +37,7 @@ async function get() {
   try {
     stored = await db.settings.findById(ROW_ID);
   } catch (err) {
-    console.warn('[rockfield] settings read failed, using defaults:', err.message);
+    console.warn('[hedgestone] settings read failed, using defaults:', err.message);
   }
   cached = deepMerge(DEFAULT_SETTINGS, stored ? stored.values : null);
   cachedAt = Date.now();

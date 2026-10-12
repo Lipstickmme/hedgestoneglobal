@@ -188,7 +188,7 @@ const exportTransactions = asyncHandler(async (req, res) => {
   });
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="rockfield-transactions-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="hedgestone-transactions-${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send(body);
 });
 

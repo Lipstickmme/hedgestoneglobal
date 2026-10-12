@@ -78,7 +78,7 @@ async function log(entry = {}) {
     await db.activity.insert(row);
     return row;
   } catch (err) {
-    console.warn('[rockfield] activity log failed:', err.message);
+    console.warn('[hedgestone] activity log failed:', err.message);
     return null;
   }
 }

@@ -19,7 +19,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 
-const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rockfield-test-'));
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hedgestone-test-'));
 process.env.DATA_DIR = DATA_DIR;
 process.env.BANK_ENCRYPTION_KEY = 'test-key-not-for-production';
 process.env.BANK_COOKIE_INSECURE = '1';
@@ -39,7 +39,7 @@ function client(base) {
       const headers = {};
       if (body !== undefined) headers['Content-Type'] = 'application/json';
       if (jar.size) headers.Cookie = Array.from(jar.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
-      if (csrf && method !== 'GET') headers['X-Rockfield-CSRF'] = csrf;
+      if (csrf && method !== 'GET') headers['X-Hedgestone-CSRF'] = csrf;
 
       const res = await fetch(base + url, {
         method,
@@ -94,21 +94,21 @@ const dollars = (cents) => (cents / 100).toFixed(2);
     /* ---- 2. sign-in is two steps when two-step is on ---- */
     const customer = client(base);
     {
-      const bad = await customer.post('/api/bank/auth/login', { email: 'demo@rockfieldglobalfinance.com', password: 'wrong-password' });
+      const bad = await customer.post('/api/bank/auth/login', { email: 'demo@hedgestonesfinance.com', password: 'wrong-password' });
       assert.strictEqual(bad.status, 401, 'a wrong password is refused');
       assert.ok(!/unknown|no account/i.test(bad.body.message), 'the message must not confirm the address');
 
-      const start = await customer.post('/api/bank/auth/login', { email: 'demo@rockfieldglobalfinance.com', password: 'Bedrock#Demo2026' });
+      const start = await customer.post('/api/bank/auth/login', { email: 'demo@hedgestonesfinance.com', password: 'Bedrock#Demo2026' });
       assert.strictEqual(start.status, 200);
       assert.strictEqual(start.body.status, 'verification_required');
       assert.ok(start.body.devCode, 'without a mail provider the code is returned');
 
-      const wrongCode = await customer.post('/api/bank/auth/verify', { email: 'demo@rockfieldglobalfinance.com', code: '000000' });
+      const wrongCode = await customer.post('/api/bank/auth/verify', { email: 'demo@hedgestonesfinance.com', code: '000000' });
       assert.strictEqual(wrongCode.status, 400, 'a wrong code is refused');
 
-      const done = await customer.post('/api/bank/auth/verify', { email: 'demo@rockfieldglobalfinance.com', code: start.body.devCode });
+      const done = await customer.post('/api/bank/auth/verify', { email: 'demo@hedgestonesfinance.com', code: start.body.devCode });
       assert.strictEqual(done.status, 200, done.text);
-      assert.strictEqual(done.body.user.email, 'demo@rockfieldglobalfinance.com');
+      assert.strictEqual(done.body.user.email, 'demo@hedgestonesfinance.com');
       assert.ok(customer.csrf, 'a CSRF token is issued');
       ok('sign-in: password, then an emailed code');
     }
@@ -276,7 +276,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
     /* ---- 12. another customer's account is simply not there ---- */
     {
       const admin = client(base);
-      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@rockfieldglobalfinance.com', password: 'Rockfield#Admin2026' });
+      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' });
       assert.strictEqual(signIn.status, 200, signIn.text);
       const list = await admin.get('/api/bank/admin/customers?q=mara');
       const other = list.body.customers[0];
@@ -295,7 +295,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
     let newCustomerId;
     let newAccountId;
     {
-      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@rockfieldglobalfinance.com', password: 'Rockfield#Admin2026' });
+      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' });
       assert.strictEqual(signIn.body.user.role, 'admin');
 
       const res = await admin.post('/api/bank/admin/customers', {
@@ -391,7 +391,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
         assert.ok(actions.includes(action), `the log records ${action}`);
       });
       const adjust = res.body.activity.find((a) => a.action === 'admin.balance_adjusted');
-      assert.strictEqual(adjust.actorEmail, 'admin@rockfieldglobalfinance.com', 'the log names who did it');
+      assert.strictEqual(adjust.actorEmail, 'admin@hedgestonesfinance.com', 'the log names who did it');
       assert.ok(adjust.ip !== undefined && adjust.device, 'with where they did it from');
       ok(`activity log: ${res.body.total} rows, staff actions attributed`);
     }
@@ -440,14 +440,14 @@ const dollars = (cents) => (cents / 100).toFixed(2);
     /* ---- 21. a deployment never hands a one-time code back ---- */
     {
       const api = client(base);
-      const onLaptop = await api.post('/api/bank/auth/forgot', { email: 'demo@rockfieldglobalfinance.com' });
+      const onLaptop = await api.post('/api/bank/auth/forgot', { email: 'demo@hedgestonesfinance.com' });
       assert.ok(onLaptop.body.devCode, 'without mail configured, local development can still sign in');
 
       // The same request from something that looks deployed must not answer
       // with the code: /auth/forgot takes an address from anybody, and
       // /auth/reset takes that code, so together they would be a takeover.
       process.env.VERCEL = '1';
-      const deployed = await api.post('/api/bank/auth/forgot', { email: 'demo@rockfieldglobalfinance.com' });
+      const deployed = await api.post('/api/bank/auth/forgot', { email: 'demo@hedgestonesfinance.com' });
       delete process.env.VERCEL;
       assert.strictEqual(deployed.status, 200, 'the endpoint still answers the same way');
       assert.strictEqual(deployed.body.devCode, undefined, 'but the code is withheld');
@@ -485,7 +485,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       const alerts_ = require(ROOT + '/src/bank/alerts');
       const users_ = require(ROOT + '/src/bank/users');
 
-      const who = await users_.findByEmail('demo@rockfieldglobalfinance.com');
+      const who = await users_.findByEmail('demo@hedgestonesfinance.com');
       const acct = (await db_.accounts.find({ user_id: who.id })).find((a) => a.type === 'checking');
       const before = (await db_.alerts.find({ user_id: who.id })).length;
 
@@ -536,7 +536,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       const db_ = require(ROOT + '/src/bank/db').db;
       const alerts_ = require(ROOT + '/src/bank/alerts');
       const users_ = require(ROOT + '/src/bank/users');
-      const who = await users_.findByEmail('demo@rockfieldglobalfinance.com');
+      const who = await users_.findByEmail('demo@hedgestonesfinance.com');
 
       const real = db_.alerts.update;
       let refusals = 0;

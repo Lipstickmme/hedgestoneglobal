@@ -70,7 +70,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     meta: { fields: changed },
   });
   await alerts.notifyUser(after, 'profile_changed', {
-    subject: 'Your Rockfield profile was updated',
+    subject: 'Your Hedgestone profile was updated',
     heading: 'Your details changed',
     intro: 'These contact details on your account were just updated.',
     rows: changed.map((field) => ({ label: field.replace(/_/g, ' '), value: String(after[field] || '-') })),
@@ -285,7 +285,7 @@ const updateSecurity = asyncHandler(async (req, res) => {
     detail: notes.join('; '),
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'password_changed', {
-    subject: 'Your Rockfield security settings changed',
+    subject: 'Your Hedgestone security settings changed',
     heading: 'Security settings updated',
     intro: notes.join('. ') + '.',
     footNote: `If this was not you, please ${contact.callFraud()}.`,

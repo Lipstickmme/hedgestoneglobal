@@ -228,7 +228,7 @@ async function recordDelivery(id, patch) {
     const { sms_status: smsStatus, sms_error: smsError, ...emailOnly } = patch;
     await db.alerts.update(id, emailOnly);
     console.warn(
-      '[rockfield] bank_alerts has no sms_status/sms_error column, so text delivery is not being recorded. '
+      '[hedgestone] bank_alerts has no sms_status/sms_error column, so text delivery is not being recorded. '
       + 'Run supabase/migrations/0004_bank_sms.sql in the Supabase SQL editor.'
     );
     return emailOnly;

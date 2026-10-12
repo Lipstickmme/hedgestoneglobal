@@ -34,7 +34,7 @@ const found = [];
 /**
  * Every candidate file, indexed by lower-cased name.
  *
- * Case-insensitive on purpose: an upload named Rockfield3.png has to be found
+ * Case-insensitive on purpose: an upload named Hedgestone3.png has to be found
  * on Linux, where the deploy runs, not only on the machine it was named on.
  */
 const index = new Map();

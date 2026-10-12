@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * The From header for a reply, always carrying a display name.
  *
  * Mail clients fall back to the local part of the address when there is none,
- * so a reply from support@rockfieldglobalfinance.com shows in the recipient's
+ * so a reply from support@hedgestonesfinance.com shows in the recipient's
  * inbox as "contact" rather than the bank's name.
  */
 function senderIdentity() {

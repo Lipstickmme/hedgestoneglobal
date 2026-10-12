@@ -198,7 +198,7 @@ function otpCode() {
 }
 
 /** A SWIFT/BIC for a fictional receiving bank, when one is not supplied. */
-function swift(bankName = 'ROCKFIELD') {
+function swift(bankName = 'HEDGESTONE') {
   const letters = String(bankName).toUpperCase().replace(/[^A-Z]/g, '').padEnd(4, 'X').slice(0, 4);
   return `${letters}US${digits(2)}XXX`;
 }

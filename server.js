@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Rockfield National Bank server entry point.
+ * Hedgestone National Bank server entry point.
  * Boots the HTTP server and wires graceful shutdown.
  */
 
@@ -14,14 +14,14 @@ const server = http.createServer(app);
 
 server.listen(PORT, () => {
   const mode = process.env.NODE_ENV || 'development';
-  console.log(`[rockfield] server listening on http://localhost:${PORT} (${mode})`);
+  console.log(`[hedgestone] server listening on http://localhost:${PORT} (${mode})`);
 });
 
 // Graceful shutdown so runtime data flushes cleanly.
 function shutdown(signal) {
-  console.log(`[rockfield] received ${signal}, shutting down...`);
+  console.log(`[hedgestone] received ${signal}, shutting down...`);
   server.close(() => {
-    console.log('[rockfield] closed remaining connections. bye.');
+    console.log('[hedgestone] closed remaining connections. bye.');
     process.exit(0);
   });
   // Force-exit if connections hang.

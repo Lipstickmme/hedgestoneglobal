@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Rockfield National Bank - application styling
+   Hedgestone National Bank - application styling
    Loaded after styles.css. The marketing pages borrow the tokens and the
    components; the signed-in application uses the shell, the tables and the
    forms below.
@@ -153,7 +153,7 @@ body.rf-site {
 }
 .rf-mark.on-paper { height: 46px; }
 
-/* The whole lockup - mark over ROCKFIELD over BANK - where a panel is tall
+/* The whole lockup - mark over HEDGESTONE over BANK - where a panel is tall
    enough to give it room. */
 .rf-lockup { display: block; height: auto; max-width: 100%; }
 
@@ -1055,7 +1055,7 @@ a.rf-auth-brand {
 
    The bank's full name plus two buttons does not fit across 390px, and the
    name was wrapping onto three lines while the buttons ran off the edge. The
-   name shortens to the mark and "Rockfield", and "Open an account" gives way
+   name shortens to the mark and "Hedgestone", and "Open an account" gives way
    to Sign in - the page below is one long argument for opening an account, so
    the button is not the only route to it. */
 @media (max-width: 620px) {

@@ -72,7 +72,7 @@ function showDevCodes() {
 const resendWebhookSecret = () => pick('RESEND_WEBHOOK_SECRET');
 
 const formTo = () => pick('FORM_TO', 'CONTACT_NOTIFY_EMAIL');
-const formFrom = () => pick('FORM_FROM', 'NOTIFY_FROM') || 'Rockfield National Bank <onboarding@resend.dev>';
+const formFrom = () => pick('FORM_FROM', 'NOTIFY_FROM') || 'Hedgestone National Bank <onboarding@resend.dev>';
 const mailboxAddress = () => pick('MAILBOX_ADDRESS');
 const forwardTo = () => pick('FORWARD_TO');
 
@@ -80,7 +80,7 @@ const forwardTo = () => pick('FORWARD_TO');
  * The name a recipient sees beside the address. Without one, mail clients fall
  * back to the local part, so a reply from contact@ shows up as "contact".
  */
-const senderName = () => pick('BANK_NAME', 'STUDIO_NAME') || 'Rockfield National Bank';
+const senderName = () => pick('BANK_NAME', 'STUDIO_NAME') || 'Hedgestone National Bank';
 
 /** Bare address out of "Name <a@b.c>". */
 function parseAddress(value) {
@@ -166,7 +166,7 @@ function formToOnInboundDomain() {
 function baseUrl() {
   const set = pick('PUBLIC_BASE_URL', 'BANK_BASE_URL', 'APP_URL');
   const vercel = pick('VERCEL_URL');
-  const value = set || (vercel ? `https://${vercel}` : 'https://rockfieldglobalfinance.com');
+  const value = set || (vercel ? `https://${vercel}` : 'https://hedgestonesfinance.com');
   return value.replace(/\/+$/, '');
 }
 

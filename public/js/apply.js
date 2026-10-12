@@ -3,7 +3,7 @@
 /* The recruitment form. Roles come from the same API the careers page uses,
    and the one named in ?role= is preselected so the apply link carries over. */
 (function () {
-  const M = window.ROCKFIELD || window.MERKEL; if (!M) return;
+  const M = window.HEDGESTONE || window.MERKEL; if (!M) return;
   const form = document.getElementById('apply-form');
   if (!form) return;
 

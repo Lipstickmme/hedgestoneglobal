@@ -42,7 +42,7 @@ function browserPath() {
   });
 }
 
-const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'rockfield-ui-'));
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hedgestone-ui-'));
 process.env.DATA_DIR = DATA_DIR;
 process.env.BANK_ENCRYPTION_KEY = 'test-key-not-for-production';
 process.env.BANK_COOKIE_INSECURE = '1';

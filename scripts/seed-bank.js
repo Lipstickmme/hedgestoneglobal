@@ -19,12 +19,12 @@ const seed = require('../src/bank/seed');
   const result = await seed.ensureSeed({ force });
 
   if (!result.seeded) {
-    console.log(`[rockfield] nothing to do: ${result.users} user(s) already exist. Pass --force to seed anyway.`);
+    console.log(`[hedgestone] nothing to do: ${result.users} user(s) already exist. Pass --force to seed anyway.`);
     return;
   }
 
   console.log('');
-  console.log('  Rockfield National Bank is ready.');
+  console.log('  Hedgestone National Bank is ready.');
   console.log('');
   console.log(`  Administrator   ${result.admin.email}`);
   console.log(`                  ${result.admin.password}`);
@@ -39,6 +39,6 @@ const seed = require('../src/bank/seed');
   console.log('  Sign in at /signin, or the staff console at /console.');
   console.log('');
 })().catch((err) => {
-  console.error('[rockfield] seeding failed:', err);
+  console.error('[hedgestone] seeding failed:', err);
   process.exit(1);
 });

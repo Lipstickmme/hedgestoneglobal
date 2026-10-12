@@ -12,7 +12,7 @@
  *             -> processing           (funds held, instruction sent)
  *             -> completed | rejected | returned
  *
- * A transfer between two Rockfield accounts skips the middle: both legs post
+ * A transfer between two Hedgestone accounts skips the middle: both legs post
  * immediately, because both sides of it are on our own books. Everything else
  * puts a hold on the money the moment it is accepted, so the customer cannot
  * spend it twice while it clears.
@@ -244,7 +244,7 @@ async function issueTransferOtp(user, transfer) {
   const { code, expiresAt } = await auth.issueOtp(user, `transfer:${transfer.id}`, { transferId: transfer.id });
   await alerts.notifyUser(user, 'transfer_submitted', {
     force: true,
-    subject: `Your Rockfield verification code: ${code}`,
+    subject: `Your Hedgestone verification code: ${code}`,
     heading: 'Verify this transfer',
     intro: `Use code ${code} to release the transfer below. It expires in 10 minutes.`,
     rows: receiptRows(transfer),
@@ -255,7 +255,7 @@ async function issueTransferOtp(user, transfer) {
     // Not necessarily because email is unconfigured - BANK_SHOW_DEV_CODES
     // turns this on deliberately too - and saying so while mail is working
     // sends whoever reads the log off after the wrong problem.
-    console.log(`[rockfield] transfer OTP for ${user.email}: ${code} (codes are being shown; see BANK_SHOW_DEV_CODES)`);
+    console.log(`[hedgestone] transfer OTP for ${user.email}: ${code} (codes are being shown; see BANK_SHOW_DEV_CODES)`);
   }
   return { expiresAt, devCode: exposeCode ? code : undefined };
 }
