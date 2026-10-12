@@ -137,7 +137,7 @@ delivery is missing.
    | Variable | Value |
    | --- | --- |
    | `RESEND_API_KEY` | the key, `re_...` |
-   | `BANK_ALERT_FROM` | `Hedgestone National Bank <alerts@yourdomain.com>` |
+   | `BANK_ALERT_FROM` | `Hedgestone Global Bank <alerts@yourdomain.com>` |
    | `FORM_TO` | where website enquiries should land |
    | `FORM_FROM` | the sender for those, same verified domain |
 
@@ -177,12 +177,12 @@ Money arriving raises **two messages, in this order**:
 
 **1. It has landed.**
 
-> Hedgestone National Bank: $2,500.00 credited to Everyday ••••2835.
+> Hedgestone Global Bank: $2,500.00 credited to Everyday ••••2835.
 > Current balance $16,447.26. Ref TXN-5EAUZ-JQ5M2
 
 **2. What they can actually spend.**
 
-> Hedgestone National Bank: Available to spend on Everyday ••••2835 is
+> Hedgestone Global Bank: Available to spend on Everyday ••••2835 is
 > $16,879.84. $67.42 is on hold and will be released as it clears, and this
 > includes your $500.00 overdraft line.
 

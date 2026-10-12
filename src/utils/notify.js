@@ -31,7 +31,7 @@ function defaultTo() {
 
 /** Verified sender identity. */
 function defaultFrom() {
-  return process.env.FORM_FROM || process.env.NOTIFY_FROM || 'Hedgestone National Bank <onboarding@resend.dev>';
+  return process.env.FORM_FROM || process.env.NOTIFY_FROM || 'Hedgestone Global Bank <onboarding@resend.dev>';
 }
 
 /**

@@ -1,4 +1,4 @@
-# Deploying Hedgestone National Bank to Vercel
+# Deploying Hedgestone Global Bank to Vercel
 
 A step-by-step guide for the workflow: replace the images, fork to your GitHub,
 deploy on Vercel, then switch the backend on.
@@ -39,21 +39,22 @@ if more than one is present.
 
 | File | Where it appears |
 | ---- | ---------------- |
-| `hedgestonehero` | The home page hero |
+| `hedgestonefamily` | The home page hero, in the arched frame |
 | `hedgestone2` | The home page security panel |
 | `hedgestone1` | The `/personal` header |
 | `hedgestone5` | The `/business` header |
 | `hedgestone4` | The `/rates` header |
 | `hedgestone` | The `/security-center` header |
-| `hedgestonefamily` | The `/open-account` header |
+| `hedgestonehero` | The `/open-account` header |
 | `hedgestone3` | The `/careers` header |
 | `hedgestone6` | The `/contact` header |
 
 Project and service artwork is named per item in `src/data/projects.json` and
 `src/data/services.json`, so those take any filename you like.
 
-`hedgestonehero` carries the most weight: it is the first thing anyone sees, so
-keep the subject on the right and calm space on the left, where the headline sits.
+`hedgestonefamily` carries the most weight: it is the first thing anyone sees.
+It is cropped to a portrait inside an arch beside the headline, so keep the
+people near the middle of the picture.
 
 The mapping lives in `src/data/images.json`. Each slot names the file it prefers
 and the placeholder it falls back on, so the site never shows a broken image
@@ -260,7 +261,7 @@ While you are there, set the first administrator:
 | `BANK_ENCRYPTION_KEY` | the 64-character hex string from above |
 | `BANK_ADMIN_EMAIL` | the address you will sign in with |
 | `BANK_ADMIN_PASSWORD` | a strong password, changed after the first sign-in |
-| `BANK_ALERT_FROM` | `Hedgestone National Bank <alerts@yourdomain.com>` |
+| `BANK_ALERT_FROM` | `Hedgestone Global Bank <alerts@yourdomain.com>` |
 | `PUBLIC_BASE_URL` | `https://yourdomain.com`, for links inside alert emails |
 
 **`PUBLIC_BASE_URL` has to be saved as plain text, not Sensitive.** Vercel reads
@@ -297,7 +298,7 @@ for anything real** - they have balances and history that are not yours.
    | ---- | ----- |
    | `RESEND_API_KEY` | the key you copied |
    | `FORM_TO` | where enquiries land (comma-separate for several) |
-   | `FORM_FROM` | `Hedgestone National Bank <onboarding@resend.dev>` to start |
+   | `FORM_FROM` | `Hedgestone Global Bank <onboarding@resend.dev>` to start |
 
 4. **Redeploy.**
 
@@ -307,7 +308,7 @@ directly. Set `CHAT_NOTIFY=off` to keep enquiry emails but stop chat emails.
 
 For production, verify your domain in Resend (**Domains, Add Domain**, then add the
 DNS records) and change `FORM_FROM` to something like
-`Hedgestone National Bank <support@yourdomain.com>`. Mail from a verified domain is far less
+`Hedgestone Global Bank <support@yourdomain.com>`. Mail from a verified domain is far less
 likely to be treated as spam.
 
 To text customers as well as email them, add `PINGRAM_API_KEY` and
@@ -449,7 +450,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `FORWARD_TO` | for inbound | Where received mail is forwarded. No default: unset means nothing is forwarded |
 | `NOTIFY_WEBHOOK_URL` | no | Slack / Discord / desk webhook |
 | `RESEND_API_BASE` | no | Override for the Resend API base (default `https://api.resend.com`) |
-| `BANK_NAME` | no | Sender display name for replies and alerts (default `Hedgestone National Bank`; `STUDIO_NAME` accepted) |
+| `BANK_NAME` | no | Sender display name for replies and alerts (default `Hedgestone Global Bank`; `STUDIO_NAME` accepted) |
 | `BANK_SHOW_DEV_CODES` | no | `1` returns one-time codes in responses and shows demo logins. Public demonstrations only |
 | `DATA_DIR` | no | Override local file storage path |
 | `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | no | API rate limiting (default 60000 / 30) |

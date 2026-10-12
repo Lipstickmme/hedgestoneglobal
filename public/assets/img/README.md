@@ -16,13 +16,13 @@ Rename a file to the name in the first column and it takes that place.
 
 | Name                | Where it appears            | What suits it                                     |
 | ------------------- | --------------------------- | ------------------------------------------------- |
-| `hedgestonehero`    | Home hero background        | Wide. Subject on the right — the headline sits on the left |
+| `hedgestonefamily`  | Home hero (arched frame)    | Cropped to a portrait: keep the people near the middle |
 | `hedgestone2`       | Home security panel         | One person going through their money, unhurried    |
 | `hedgestone1`       | `/personal` header          | The building, at dusk                              |
 | `hedgestone5`       | `/business` header          | A conversation across a desk                       |
 | `hedgestone4`       | `/rates` header             | Close, dark, physical: a vault door, a lock        |
 | `hedgestone`        | `/security-center` header   | A branch interior, somebody being served           |
-| `hedgestonefamily`  | `/open-account` header      | People at home, banking on a phone                 |
+| `hedgestonehero`    | `/open-account` header      | A banker, face visible — reassurance               |
 | `hedgestone3`       | `/careers` header           | Somebody at work, hands on the job                 |
 | `hedgestone6`       | `/contact` header           | The office, as it actually looks                   |
 | `story-logistics`   | Customer story              | Fleet, depot, freight                              |

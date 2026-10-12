@@ -24,7 +24,7 @@ const seed = require('../src/bank/seed');
   }
 
   console.log('');
-  console.log('  Hedgestone National Bank is ready.');
+  console.log('  Hedgestone Global Bank is ready.');
   console.log('');
   console.log(`  Administrator   ${result.admin.email}`);
   console.log(`                  ${result.admin.password}`);

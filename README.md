@@ -1,4 +1,4 @@
-# Hedgestone National Bank
+# Hedgestone Global Bank
 
 A complete retail banking application: a public bank site, online banking for
 customers, and a staff console that registers customers, opens accounts, moves
@@ -9,7 +9,7 @@ dependency. Supabase holds the data in production; without it the same code
 runs on JSON files, so the whole bank starts on a laptop with nothing
 provisioned.
 
-> **This is a demonstration.** Hedgestone National Bank is fictional. The
+> **This is a demonstration.** Hedgestone Global Bank is fictional. The
 > routing number sits in a prefix the Federal Reserve has not assigned, account
 > numbers and card numbers are generated in published test ranges, and no real
 > money can move through any of it.

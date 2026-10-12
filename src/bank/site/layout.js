@@ -163,7 +163,7 @@ function head({ title, description, noindex = false, styles = [], bodyClass }) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${title}</title>
   <meta name="description" content="${description}" />${noindex ? '\n  <meta name="robots" content="noindex, nofollow" />' : ''}
-  <meta name="theme-color" content="#11213a" />
+  <meta name="theme-color" content="#0d3b35" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="${BANK.name}" />
   <meta property="og:title" content="${title}" />
@@ -448,7 +448,7 @@ function marketingPage({ title, description, active, content, extraScripts = [],
     marketingFooter(),
     chatWidget(),
     `  <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/main.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
+    scripts(['/js/main.js', '/js/motion.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
   ].join('\n');
 }
 

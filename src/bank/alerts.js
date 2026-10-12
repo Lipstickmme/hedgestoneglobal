@@ -75,16 +75,16 @@ function renderEmail({ heading, intro, rows = [], body = '', cta, footNote, bank
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ee;padding:28px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e4e0d8;border-radius:14px;overflow:hidden">
-        <tr><td style="background:#11213a;padding:20px 26px">
+        <tr><td style="background:#0d3b35;padding:20px 26px">
           <span style="color:#ffffff;font:700 17px/1.2 Georgia,'Times New Roman',serif;letter-spacing:.02em">${escapeHtml(name)}</span>
           <span style="display:block;color:#9fb2cc;font:500 11px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">Member FDIC</span>
         </td></tr>
         <tr><td style="padding:26px">
-          <h1 style="margin:0 0 10px;color:#11213a;font:600 21px/1.3 Georgia,'Times New Roman',serif">${escapeHtml(heading)}</h1>
+          <h1 style="margin:0 0 10px;color:#0d3b35;font:600 21px/1.3 Georgia,'Times New Roman',serif">${escapeHtml(heading)}</h1>
           ${intro ? `<p style="margin:0 0 14px;color:#4a4640;font:400 15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">${escapeHtml(intro)}</p>` : ''}
           ${rowsHtml}
           ${body ? `<p style="margin:0 0 14px;color:#4a4640;font:400 15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;white-space:pre-wrap">${escapeHtml(body)}</p>` : ''}
-          ${cta ? `<p style="margin:22px 0 0"><a href="${escapeHtml(cta.href)}" style="display:inline-block;background:#11213a;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font:600 14px/1 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">${escapeHtml(cta.label)}</a></p>` : ''}
+          ${cta ? `<p style="margin:22px 0 0"><a href="${escapeHtml(cta.href)}" style="display:inline-block;background:#0d3b35;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font:600 14px/1 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">${escapeHtml(cta.label)}</a></p>` : ''}
           ${footNote ? `<p style="margin:22px 0 0;color:#847f76;font:400 12px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">${escapeHtml(footNote)}</p>` : ''}
         </td></tr>
         <tr><td style="background:#faf8f4;border-top:1px solid #e8e5df;padding:18px 26px;color:#847f76;font:400 11px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">

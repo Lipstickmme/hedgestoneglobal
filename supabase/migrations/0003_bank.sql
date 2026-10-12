@@ -1,5 +1,5 @@
 -- ============================================================================
--- Hedgestone National Bank - schema for the banking application.
+-- Hedgestone Global Bank - schema for the banking application.
 --
 -- Apply after 0001_init.sql and 0002_email.sql. Every table is written to by
 -- the server with the service-role key, which bypasses row level security, so

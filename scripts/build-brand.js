@@ -33,8 +33,8 @@ const PUBLIC = path.join(ROOT, 'public');
 const BRAND = path.join(PUBLIC, 'assets', 'bank');
 const SOURCE = path.join(PUBLIC, 'assets', 'img', 'hedgestonelogo.png');
 
-const NAVY = '#11213a';
-const BRASS_LIGHT = '#caa062';
+const NAVY = '#0d3b35';
+const BRASS_LIGHT = '#f08c60';
 const PAPER = '#ffffff';
 
 /* ------------------------------------------------------------ in-page -- */
@@ -333,14 +333,14 @@ function cardHtml(logoLightUrl) {
                 display:flex;flex-direction:column;align-items:center;justify-content:center;
                 font-family:Georgia,'Liberation Serif','Times New Roman',serif">
       <div style="position:absolute;inset:0;
-                  background:radial-gradient(60% 50% at 78% 12%, rgba(176,131,65,.30), transparent 70%),
-                             radial-gradient(50% 45% at 8% 92%, rgba(41,74,119,.55), transparent 70%)"></div>
+                  background:radial-gradient(60% 50% at 78% 12%, rgba(240,140,96,.30), transparent 70%),
+                             radial-gradient(50% 45% at 8% 92%, rgba(35,128,111,.55), transparent 70%)"></div>
 
       <img src="${logoLightUrl}" style="position:relative;width:560px;object-fit:contain" />
 
-      <div style="position:relative;color:#c3d0e2;font-size:30px;margin-top:34px">Banking built on bedrock.</div>
+      <div style="position:relative;color:#cfe5de;font-size:30px;margin-top:34px">Banking that travels with your family.</div>
 
-      <div style="position:absolute;bottom:40px;color:#7f91ab;
+      <div style="position:absolute;bottom:40px;color:#86aaa0;
                   font-family:Helvetica,'Liberation Sans',Arial,sans-serif;font-size:16px;letter-spacing:3px">
         MEMBER FDIC &middot; EQUAL HOUSING LENDER
       </div>

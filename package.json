@@ -1,7 +1,7 @@
 {
   "name": "hedgestone-bank",
   "version": "1.2.2",
-  "description": "Hedgestone National Bank: online banking, staff console and public site",
+  "description": "Hedgestone Global Bank: online banking, staff console and public site",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -28,7 +28,7 @@
     "online-banking",
     "ledger"
   ],
-  "author": "Hedgestone National Bank",
+  "author": "Hedgestone Global Bank",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {

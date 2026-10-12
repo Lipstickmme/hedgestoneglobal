@@ -96,19 +96,45 @@ const tick = icon('check', 15);
 const ceo = leadership[0];
 
 const homeContent = `
-  <section class="rf-hero tall has-photo">
-    <img class="rf-hero-photo" src="${images.hero}" alt="" aria-hidden="true" fetchpriority="high" />
-    <div class="wrap">
+  <section class="rf-hero tall hs-hero">
+    <div class="hs-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+    <svg class="hs-meridians" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor" stroke-width="1">
+        <circle cx="300" cy="300" r="290" />
+        <ellipse cx="300" cy="300" rx="290" ry="110" />
+        <ellipse cx="300" cy="300" rx="290" ry="210" />
+        <ellipse cx="300" cy="300" rx="110" ry="290" />
+        <ellipse cx="300" cy="300" rx="210" ry="290" />
+        <line x1="10" y1="300" x2="590" y2="300" />
+        <line x1="300" y1="10" x2="300" y2="590" />
+      </g>
+    </svg>
+    <div class="wrap hs-hero-grid">
       <div class="rf-hero-copy">
-        <span class="rf-eyebrow">Established ${BANK.established}</span>
-        <h1>Banking built<br />on bedrock.</h1>
-        <p class="lede">Checking with no monthly fee. Savings at 4.35% APY. And a payments team that reads every outgoing wire before it leaves.</p>
-        <div class="rf-hero-actions">
-          <a class="rf-btn brass lg" href="/open-account">Open an account</a>
+        <span class="rf-eyebrow hs-in" style="--d:0ms">Hedgestone Global &middot; Since ${BANK.established}</span>
+        <h1 class="hs-in" style="--d:90ms">Banking that travels <em>with your family.</em></h1>
+        <p class="lede hs-in" style="--d:180ms">Checking with no monthly fee. Savings at 4.35% APY. Money sent home or abroad, read by a person before it leaves, and with you in seconds when it lands.</p>
+        <div class="rf-hero-actions hs-in" style="--d:270ms">
+          <a class="rf-btn brass lg hs-shine" href="/open-account">Open an account</a>
           <a class="rf-btn glass lg" href="/signin">Sign in to online banking</a>
         </div>
       </div>
-      <div class="rf-hero-stats rf-glass">
+      <div class="hs-hero-visual hs-in" style="--d:160ms">
+        <div class="hs-orbit" aria-hidden="true"><span class="hs-dot"></span></div>
+        <figure class="hs-frame">
+          <img src="${images.hero}" alt="A father and daughter checking their account together on a phone" fetchpriority="high" />
+        </figure>
+        <div class="hs-chip hs-chip-a rf-glass" aria-hidden="true">
+          <span class="ic">${icon('check', 16)}</span>
+          <span><strong>Transfer delivered</strong><small>Family savings &middot; just now</small></span>
+        </div>
+        <div class="hs-chip hs-chip-b rf-glass" aria-hidden="true">
+          <span class="big">4.35%</span><small>APY on savings</small>
+        </div>
+      </div>
+    </div>
+    <div class="wrap">
+      <div class="rf-hero-stats rf-glass hs-in" style="--d:360ms">
         <div><div class="k">Savings APY</div><div class="v">4.35%</div></div>
         <div><div class="k">Monthly fee</div><div class="v">$0.00</div></div>
         <div><div class="k">Fee-free ATMs</div><div class="v">60,000</div></div>
@@ -461,7 +487,7 @@ const careersContent = `
         <div>
           <span class="rf-eyebrow">Life at ${BANK.shortName}</span>
           <h2>Small enough to know what you changed.</h2>
-          <p class="section-lede">We are a national bank of about 900 people. Nobody here is four layers from a customer: a payments analyst sees the transfer they released land, and whoever changes the ledger sits close enough to the branch to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
+          <p class="section-lede">We are a global bank of about 900 people. Nobody here is four layers from a customer: a payments analyst sees the transfer they released land, and whoever changes the ledger sits close enough to the branch to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
         </div>
         <div class="rf-card"><div class="rf-card-body">
           <h3 style="font-family:var(--rf-display);margin:0 0 10px">What we offer</h3>
@@ -651,7 +677,7 @@ const deskContent = `
     <div class="admin-shell" id="admin-shell" hidden>
       <header class="admin-bar">
         <a class="admin-brand" href="/">
-          <img src="/assets/bank/logo-light.png" alt="Hedgestone National Bank" width="240" height="143" />
+          <img src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="143" />
           <span>Client services desk</span>
         </a>
         <div class="admin-bar-end">
@@ -713,12 +739,12 @@ const marketing = (file, opts) => ({ file, build: marketingPage, opts });
 module.exports = [
   marketing('index.html', {
     title: `${BANK.name} | ${BANK.tagline}`,
-    description: 'Personal and business banking from Hedgestone National Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
+    description: 'Personal and business banking from Hedgestone Global Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
     active: '', content: homeContent,
   }),
   marketing('personal.html', {
     title: `Personal banking | ${BANK.name}`,
-    description: 'Checking, savings, certificates and cards from Hedgestone National Bank.',
+    description: 'Checking, savings, certificates and cards from Hedgestone Global Bank.',
     active: 'personal', content: personalContent,
   }),
   marketing('business.html', {
@@ -728,7 +754,7 @@ module.exports = [
   }),
   marketing('rates.html', {
     title: `Rates and fees | ${BANK.name}`,
-    description: 'Deposit rates and the full fee schedule at Hedgestone National Bank.',
+    description: 'Deposit rates and the full fee schedule at Hedgestone Global Bank.',
     active: 'rates', content: ratesContent,
   }),
   marketing('security-center.html', {
@@ -743,17 +769,17 @@ module.exports = [
   }),
   marketing('careers.html', {
     title: `Careers | ${BANK.name}`,
-    description: 'Open roles at Hedgestone National Bank across retail, payments, financial crime, compliance, lending and technology.',
+    description: 'Open roles at Hedgestone Global Bank across retail, payments, financial crime, compliance, lending and technology.',
     active: '', content: careersContent, extraScripts: ['/js/careers.js'],
   }),
   marketing('apply.html', {
     title: `Apply | ${BANK.name}`,
-    description: 'Apply to Hedgestone National Bank. One form, read by the people you would work with.',
+    description: 'Apply to Hedgestone Global Bank. One form, read by the people you would work with.',
     active: '', content: applyContent, extraScripts: ['/js/apply.js'],
   }),
   marketing('support.html', {
     title: `Support | ${BANK.name}`,
-    description: 'Contact Hedgestone National Bank. Client services six days a week and a 24/7 fraud line.',
+    description: 'Contact Hedgestone Global Bank. Client services six days a week and a 24/7 fraud line.',
     active: 'support', content: contactContent,
   }),
   marketing('legal.html', {

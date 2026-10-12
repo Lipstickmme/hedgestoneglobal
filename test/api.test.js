@@ -179,7 +179,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${receiving.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        MAILBOX_ADDRESS: 'Hedgestone National Bank <contact@hedgestone.test>',
+        MAILBOX_ADDRESS: 'Hedgestone Global Bank <contact@hedgestone.test>',
       },
       async (base) => {
         const res = await req(base, 'GET', '/api/health?probe=1');
@@ -767,7 +767,7 @@ async function withApp(env, fn) {
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_WEBHOOK_SECRET: SECRET,
-        MAILBOX_ADDRESS: 'Hedgestone National Bank <contact@hedgestone.test>',
+        MAILBOX_ADDRESS: 'Hedgestone Global Bank <contact@hedgestone.test>',
         // No forwarding here: this asserts the archive that /admin reads.
         FORWARD_TO: '',
         RESEND_API_KEY: '',
@@ -973,7 +973,7 @@ async function withApp(env, fn) {
         assert.strictEqual(sentMail[0].headers['In-Reply-To'], '<ada-1@example.com>');
         // A bare MAILBOX_ADDRESS would otherwise show in the recipient's inbox
         // as "contact", the local part, rather than as the studio.
-        assert.strictEqual(sentMail[0].from, 'Hedgestone National Bank <contact@hedgestone.test>');
+        assert.strictEqual(sentMail[0].from, 'Hedgestone Global Bank <contact@hedgestone.test>');
         // Written by a person, so no monospace HTML part goes with it.
         assert.strictEqual(sentMail[0].html, undefined);
         assert.strictEqual(sentMail[0].text, 'Quoting next week.');

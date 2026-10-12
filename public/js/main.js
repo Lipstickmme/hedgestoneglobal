@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================================
-   Hedgestone National Bank shared frontend for the public site.
+   Hedgestone Global Bank shared frontend for the public site.
    Exposes helpers on window.HEDGESTONE (window.MERKEL remains as an alias for
    the page scripts that came with the template), drives shared UI
    (nav, hero slideshow, reveals, counters, contact form) and hydrates the

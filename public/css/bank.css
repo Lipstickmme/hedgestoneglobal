@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Hedgestone National Bank - application styling
+   Hedgestone Global Bank - application styling
    Loaded after styles.css. The marketing pages borrow the tokens and the
    components; the signed-in application uses the shell, the tables and the
    forms below.
@@ -13,24 +13,24 @@
      cards actually separate from it, which they did not when both were beige.
      Ink went down rather than up - on a brighter ground the old near-black was
      harsher than it needed to be. */
-  --rf-ink: #101725;
-  --rf-ink-2: #3d4757;
-  --rf-ink-3: #6a7587;
-  --rf-ink-4: #9aa4b4;
-  --rf-paper: #f4f7fb;
+  --rf-ink: #0f1d1b;
+  --rf-ink-2: #3a4a46;
+  --rf-ink-3: #64746f;
+  --rf-ink-4: #98a7a1;
+  --rf-paper: #f4f6f0;
   --rf-surface: #ffffff;
-  --rf-surface-2: #f8fafd;
-  --rf-surface-3: #eef2f8;
-  --rf-line: #dfe6f0;
-  --rf-line-2: #edf1f7;
+  --rf-surface-2: #f9faf6;
+  --rf-surface-3: #ecf1ea;
+  --rf-line: #dce5dd;
+  --rf-line-2: #ebf0ea;
 
   /* Brand */
-  --rf-navy: #11213a;
-  --rf-navy-2: #1b3457;
-  --rf-navy-3: #2d5c93;
-  --rf-brass: #b08341;
-  --rf-brass-2: #caa062;
-  --rf-brass-soft: #f6ecda;
+  --rf-navy: #0d3b35;
+  --rf-navy-2: #155248;
+  --rf-navy-3: #23806f;
+  --rf-brass: #b8502b;
+  --rf-brass-2: #f08c60;
+  --rf-brass-soft: #fde9df;
 
   /* Money */
   --rf-credit: #1b7a53;
@@ -47,9 +47,9 @@
   --rf-radius-lg: 24px;
   /* Two lights rather than one: a tight contact shadow that sits the card on
      the page, and a wide soft one that gives it somewhere to sit. */
-  --rf-shadow: 0 1px 2px rgba(16, 23, 37, .04), 0 12px 28px -16px rgba(16, 23, 37, .22);
-  --rf-shadow-lg: 0 2px 4px rgba(16, 23, 37, .04), 0 32px 64px -28px rgba(17, 33, 58, .38);
-  --rf-shadow-hover: 0 2px 6px rgba(16, 23, 37, .06), 0 26px 50px -22px rgba(17, 33, 58, .34);
+  --rf-shadow: 0 1px 2px rgba(15, 29, 27, .04), 0 12px 28px -16px rgba(15, 29, 27, .22);
+  --rf-shadow-lg: 0 2px 4px rgba(15, 29, 27, .04), 0 32px 64px -28px rgba(13, 59, 53, .38);
+  --rf-shadow-hover: 0 2px 6px rgba(15, 29, 27, .06), 0 26px 50px -22px rgba(13, 59, 53, .34);
 
   /* Glass. One set of values so every frosted surface is the same material:
      a translucent white, a blurred backdrop, a bright top edge where the light
@@ -57,10 +57,10 @@
   --rf-glass-bg: rgba(255, 255, 255, .62);
   --rf-glass-line: rgba(255, 255, 255, .75);
   --rf-glass-blur: saturate(180%) blur(18px);
-  --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, 0 18px 40px -22px rgba(17, 33, 58, .5);
+  --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, 0 18px 40px -22px rgba(13, 59, 53, .5);
   /* The same material over a photograph or a navy panel, where white glass
      would wash the type out instead of holding it. */
-  --rf-glass-dark-bg: rgba(14, 26, 46, .42);
+  --rf-glass-dark-bg: rgba(8, 38, 34, .42);
   --rf-glass-dark-line: rgba(255, 255, 255, .18);
 
   /* Button colours, themed here so the variants below keep the cascade. */
@@ -74,16 +74,13 @@
   --rf-tilt: 240ms var(--rf-ease);
   /* Type.
 
-     The supplied logo is set in classic roman caps, so the page is built
-     around a serif rather than the geometric sans it had before. Libre
-     Baskerville is the workhorse - a transitional face with the weight an
-     institution wants - and Cormorant Garamond carries the large headlines,
-     where Baskerville's sturdiness turns heavy. Source Sans 3 is a humanist
-     sans with classical proportions: it sits with a serif in a way a grotesk
-     does not, and stays legible down at table and label sizes. */
-  --rf-sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --rf-display: "Libre Baskerville", Georgia, "Times New Roman", serif;
-  --rf-headline: "Cormorant Garamond", "Libre Baskerville", Georgia, serif;
+     Fraunces is a soft, modern serif with real optical sizing: warm at
+     headline sizes, crisp on figures. Plus Jakarta Sans is an open, friendly
+     grotesk that stays legible down at table and label sizes, and gives the
+     global brand a contemporary voice next to the serif. */
+  --rf-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --rf-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --rf-headline: "Fraunces", Georgia, serif;
   --rf-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --rf-sidebar: 258px;
 }
@@ -125,7 +122,7 @@ body.rf-site {
   width: var(--rf-sidebar);
   flex: 0 0 var(--rf-sidebar);
   background: var(--rf-navy);
-  color: #e8edf4;
+  color: #e6efea;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -158,7 +155,7 @@ body.rf-site {
 .rf-lockup { display: block; height: auto; max-width: 100%; }
 
 .rf-side-brand strong { font-family: var(--rf-display); font-size: 14px; letter-spacing: .01em; display: block; }
-.rf-side-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8ea4c2; }
+.rf-side-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8db6aa; }
 
 .rf-nav { padding: 14px 12px; flex: 1; overflow-y: auto; }
 .rf-nav-group { margin: 0 0 18px; }
@@ -170,7 +167,7 @@ body.rf-site {
 .rf-nav a {
   display: flex; align-items: center; gap: 11px;
   padding: 9px 11px; border-radius: 9px;
-  color: #cdd8e8; text-decoration: none;
+  color: #cde0d8; text-decoration: none;
   font-size: 14px; font-weight: 500;
   transition: background .15s ease, color .15s ease;
 }
@@ -182,7 +179,7 @@ body.rf-site {
   border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; min-width: 20px; text-align: center;
 }
 
-.rf-side-foot { padding: 14px; border-top: 1px solid rgba(255, 255, 255, .09); font-size: 12px; color: #8ea4c2; }
+.rf-side-foot { padding: 14px; border-top: 1px solid rgba(255, 255, 255, .09); font-size: 12px; color: #8db6aa; }
 .rf-side-foot .rf-side-user { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .rf-side-foot .rf-side-user strong { color: #fff; font-size: 13px; display: block; }
 .rf-side-foot .rf-side-user span { font-size: 11px; }
@@ -248,7 +245,7 @@ body.rf-site {
 .rf-card.interactive:hover, a.rf-card:hover, .rf-product:hover {
   transform: perspective(900px) translateY(-4px) rotateX(2.2deg);
   box-shadow: var(--rf-shadow-hover);
-  border-color: #cfdaeb;
+  border-color: #cfe2db;
 }
 .rf-card + .rf-card { margin-top: 16px; }
 /* ...but not where the container is already doing the spacing.
@@ -340,13 +337,13 @@ body.rf-site {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 42px; padding: 0 20px;
   border: 1px solid var(--btn-edge);
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--btn-face);
   color: var(--btn-ink);
   font: 600 14px/1 var(--rf-sans);
   letter-spacing: .01em;
   cursor: pointer; text-decoration: none; white-space: nowrap;
-  box-shadow: 0 1px 1px rgba(16, 23, 37, .06);
+  box-shadow: 0 1px 1px rgba(15, 29, 27, .06);
   transition: transform var(--rf-tilt), box-shadow var(--rf-tilt),
               background var(--rf-tilt), border-color var(--rf-tilt), filter var(--rf-tilt);
   transform: perspective(600px);
@@ -356,12 +353,12 @@ body.rf-site {
 /* The lift, identical on every variant. */
 .rf-btn:hover {
   transform: perspective(600px) translateY(-2px) rotateX(6deg);
-  box-shadow: 0 10px 20px -10px rgba(16, 23, 37, .45);
+  box-shadow: 0 10px 20px -10px rgba(15, 29, 27, .45);
   filter: brightness(1.07);
 }
 .rf-btn:active {
   transform: perspective(600px) translateY(0) rotateX(0);
-  box-shadow: 0 1px 1px rgba(16, 23, 37, .06);
+  box-shadow: 0 1px 1px rgba(15, 29, 27, .06);
   filter: brightness(.96);
 }
 .rf-btn:focus-visible { outline: 2px solid var(--rf-brass); outline-offset: 2px; }
@@ -369,10 +366,10 @@ body.rf-site {
 
 /* ---- the variants: a face, an edge, an ink, and nothing else ---- */
 
-.rf-btn.brass  { --btn-face: var(--rf-brass); --btn-edge: #9a7137; --btn-ink: #fff; }
+.rf-btn.brass  { --btn-face: var(--rf-brass); --btn-edge: #9a3f20; --btn-ink: #fff; }
 .rf-btn.danger { --btn-face: var(--rf-debit); --btn-edge: #8a2b23; }
 .rf-btn.ghost  { --btn-face: var(--rf-btn-ghost-face); --btn-edge: var(--rf-btn-ghost-edge); --btn-ink: var(--rf-ink); }
-.rf-btn.ghost:hover { --btn-edge: #b9c6d8; }
+.rf-btn.ghost:hover { --btn-edge: #b7cfc6; }
 /* Over a photograph, where a white button would punch a hole in the picture. */
 .rf-btn.glass  { --btn-face: rgba(255, 255, 255, .1); --btn-edge: rgba(255, 255, 255, .55); }
 .rf-btn.glass:hover { --btn-face: rgba(255, 255, 255, .2); --btn-edge: rgba(255, 255, 255, .8); }
@@ -427,7 +424,7 @@ body.rf-site {
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 .rf-input:focus, .rf-select:focus, .rf-textarea:focus {
-  outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13);
+  outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(35, 128, 111, .13);
 }
 .rf-input[readonly] { background: var(--rf-surface-3); color: var(--rf-ink-2); }
 .rf-textarea { min-height: 96px; resize: vertical; }
@@ -535,7 +532,7 @@ body.rf-site {
 .rf-plastic {
   position: relative; aspect-ratio: 1.586; border-radius: 16px; padding: 20px;
   color: #fff; overflow: hidden; box-shadow: var(--rf-shadow-lg);
-  background: linear-gradient(140deg, #1b3457 0%, #11213a 55%, #0a1526 100%);
+  background: linear-gradient(140deg, #155248 0%, #0d3b35 55%, #07241f 100%);
   display: flex; flex-direction: column; justify-content: space-between;
   max-width: 380px;
 }
@@ -547,7 +544,7 @@ body.rf-site {
   pointer-events: none;
 }
 .rf-plastic .brandline { display: flex; align-items: center; justify-content: space-between; font-family: var(--rf-display); font-size: 14px; letter-spacing: .02em; }
-.rf-plastic .chip { width: 38px; height: 28px; border-radius: 5px; background: linear-gradient(140deg, #e6cd93, #b3923f); opacity: .92; }
+.rf-plastic .chip { width: 38px; height: 28px; border-radius: 5px; background: linear-gradient(140deg, #f6b896, #b3923f); opacity: .92; }
 .rf-plastic .pan { font-family: var(--rf-mono); font-size: 17px; letter-spacing: .09em; }
 .rf-plastic .foot { display: flex; justify-content: space-between; align-items: flex-end; font-size: 11.5px; }
 .rf-plastic .foot .k { display: block; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; opacity: .65; }
@@ -575,7 +572,7 @@ body.rf-site {
 /* --------------------------------------------------------------- modals -- */
 
 .rf-modal-backdrop {
-  position: fixed; inset: 0; background: rgba(12, 18, 28, .52);
+  position: fixed; inset: 0; background: rgba(8, 20, 18, .52);
   -webkit-backdrop-filter: saturate(120%) blur(8px);
   backdrop-filter: saturate(120%) blur(8px); z-index: 90;
   display: flex; align-items: flex-start; justify-content: center;
@@ -585,7 +582,7 @@ body.rf-site {
   background: var(--rf-surface); border-radius: var(--rf-radius-lg);
   border: 1px solid var(--rf-glass-line);
   width: 100%; max-width: 560px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 40px 80px -30px rgba(8, 16, 30, .6);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 40px 80px -30px rgba(5, 26, 23, .6);
   animation: rf-rise .26s var(--rf-ease);
 }
 .rf-modal.wide { max-width: 860px; }
@@ -687,21 +684,21 @@ body.rf-site {
 .rf-auth-wrap { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
 
 .rf-auth-aside {
-  background: linear-gradient(150deg, #16294a 0%, #0d1a2e 60%, #091421 100%);
-  color: #e9eef6; padding: 44px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden;
+  background: linear-gradient(150deg, #155248 0%, #0b332e 60%, #06211d 100%);
+  color: #e8f0ec; padding: 44px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden;
 }
 .rf-auth-aside::after {
   content: ""; position: absolute; inset: 0; opacity: .5;
   background:
-    radial-gradient(60% 40% at 80% 15%, rgba(176, 131, 65, .28), transparent 70%),
-    radial-gradient(50% 40% at 10% 90%, rgba(41, 74, 119, .5), transparent 70%);
+    radial-gradient(60% 40% at 80% 15%, rgba(240, 140, 96, .28), transparent 70%),
+    radial-gradient(50% 40% at 10% 90%, rgba(35, 128, 111, .5), transparent 70%);
 }
 .rf-auth-aside > * { position: relative; z-index: 1; }
 .rf-auth-aside .brandline { display: flex; align-items: center; gap: 11px; margin-bottom: auto; }
 .rf-auth-aside h2 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(29px, 3.5vw, 44px); line-height: 1.14; letter-spacing: 0; margin: 0 0 14px; }
-.rf-auth-aside p { color: #b9c7db; font-size: 15px; max-width: 42ch; margin: 0 0 26px; }
+.rf-auth-aside p { color: #b7d0c7; font-size: 15px; max-width: 42ch; margin: 0 0 26px; }
 .rf-auth-points { list-style: none; padding: 0; margin: 0 0 30px; display: grid; gap: 11px; }
-.rf-auth-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #cfdaea; }
+.rf-auth-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #cfe2db; }
 .rf-auth-points svg { width: 17px; height: 17px; flex: 0 0 17px; color: var(--rf-brass-2); margin-top: 1px; }
 .rf-auth-foot { font-size: 11.5px; color: #8093ad; line-height: 1.7; border-top: 1px solid rgba(255,255,255,.1); padding-top: 16px; }
 
@@ -727,7 +724,7 @@ a.rf-auth-brand {
 }
 .rf-auth-brand img { height: 30px; width: auto; flex: 0 0 auto; }
 .rf-auth-brand strong { display: block; font-family: var(--rf-display); font-size: 15px; letter-spacing: .01em; color: #fff; }
-.rf-auth-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #9db3d1; margin-top: 2px; }
+.rf-auth-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #9cc4b8; margin-top: 2px; }
 .rf-auth-box { width: 100%; max-width: 408px; }
 .rf-auth-box h1 { font-family: var(--rf-headline); font-weight: 600; font-size: 32px; letter-spacing: 0; margin: 0 0 6px; }
 .rf-auth-box .lede { color: var(--rf-ink-3); margin: 0 0 24px; font-size: 14.5px; }
@@ -739,7 +736,7 @@ a.rf-auth-brand {
   width: 100%; aspect-ratio: .78; text-align: center; font: 600 22px/1 var(--rf-mono);
   border: 1px solid var(--rf-line); border-radius: var(--rf-radius-sm); background: var(--rf-surface);
 }
-.rf-otp input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13); }
+.rf-otp input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(35, 128, 111, .13); }
 
 .rf-devcode {
   margin-top: 14px; padding: 11px 14px; border-radius: var(--rf-radius-sm);
@@ -774,8 +771,8 @@ a.rf-auth-brand {
 
 .rf-hero {
   position: relative; padding: clamp(70px, 11vw, 130px) 0 clamp(50px, 7vw, 90px);
-  background: linear-gradient(160deg, #16294a 0%, #0e1c32 55%, #0a1424 100%);
-  color: #eef2f8; overflow: hidden; isolation: isolate;
+  background: linear-gradient(160deg, #155248 0%, #0d3b35 55%, #072621 100%);
+  color: #eef6f2; overflow: hidden; isolation: isolate;
 }
 /* The home hero's height is set against the screen's height, not its width.
 
@@ -805,14 +802,14 @@ a.rf-auth-brand {
 .rf-hero.has-photo::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background:
-    linear-gradient(100deg, rgba(8, 16, 30, .78) 0%, rgba(9, 18, 33, .62) 40%, rgba(10, 20, 36, .26) 72%, rgba(10, 20, 36, .1) 100%),
-    linear-gradient(to top, rgba(8, 16, 30, .5) 0%, transparent 52%);
+    linear-gradient(100deg, rgba(5, 26, 23, .78) 0%, rgba(6, 30, 26, .62) 40%, rgba(7, 34, 30, .26) 72%, rgba(7, 34, 30, .1) 100%),
+    linear-gradient(to top, rgba(5, 26, 23, .5) 0%, transparent 52%);
 }
 .rf-hero::after {
   content: ""; position: absolute; inset: 0; opacity: .55; pointer-events: none; z-index: -1;
   background:
-    radial-gradient(55% 45% at 78% 12%, rgba(176, 131, 65, .3), transparent 70%),
-    radial-gradient(45% 45% at 8% 88%, rgba(41, 74, 119, .55), transparent 70%);
+    radial-gradient(55% 45% at 78% 12%, rgba(240, 140, 96, .32), transparent 70%),
+    radial-gradient(45% 45% at 8% 88%, rgba(35, 128, 111, .55), transparent 70%);
 }
 /* Over a photograph the brass wash is a tint, not a light source. */
 .rf-hero.has-photo::after { opacity: .22; }
@@ -827,7 +824,7 @@ a.rf-auth-brand {
 .rf-hero .wrap { position: relative; z-index: 1; }
 .rf-hero-copy { max-width: 46rem; }
 .rf-hero h1 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(46px, 7.4vw, 88px); line-height: 1.04; letter-spacing: 0; margin: 0 0 22px; color: #fff; }
-.rf-hero p.lede { font-size: clamp(17px, 1.8vw, 21px); line-height: 1.55; color: #d8e0ec; max-width: 52ch; margin: 0 0 32px; }
+.rf-hero p.lede { font-size: clamp(17px, 1.8vw, 21px); line-height: 1.55; color: #d6e7e1; max-width: 52ch; margin: 0 0 32px; }
 .rf-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--rf-brass-2); font-weight: 600; margin-bottom: 18px; }
 .rf-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 
@@ -838,7 +835,7 @@ a.rf-auth-brand {
   gap: 8px 20px; margin-top: clamp(28px, 4vh, 56px); padding: 22px 26px;
   border-radius: var(--rf-radius-lg);
 }
-.rf-hero-stats .k { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a7b8d0; }
+.rf-hero-stats .k { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a9cfc5; }
 .rf-hero-stats .v { font-family: var(--rf-display); font-size: clamp(20px, 2.1vw, 24px); letter-spacing: 0; color: #fff; }
 
 /* ---------------------------------------------------------------- glass -- */
@@ -853,7 +850,7 @@ a.rf-auth-brand {
    bars use the same tokens but keep their own rules, because a nav wants one
    border along the bottom rather than four around it. */
 .rf-glass {
-  background: rgba(17, 33, 58, .72);
+  background: rgba(13, 59, 53, .72);
   border: 1px solid var(--rf-glass-dark-line);
   box-shadow: var(--rf-glass-shadow);
 }
@@ -921,7 +918,7 @@ a.rf-auth-brand {
   position: relative;
   padding: 9px 2px 8px; margin: 0 11px;
   text-decoration: none; font-size: 14.5px; font-weight: 500;
-  color: #3d4757;
+  color: #3a4a46;
   transition: color .16s var(--rf-ease);
 }
 .rf-marketing-nav nav a::after {
@@ -929,9 +926,9 @@ a.rf-auth-brand {
   background: var(--rf-brass); transform: scaleX(0); transform-origin: center;
   transition: transform .2s var(--rf-ease);
 }
-.rf-marketing-nav nav a:hover { color: #101725; }
+.rf-marketing-nav nav a:hover { color: #0f1d1b; }
 .rf-marketing-nav nav a:hover::after { transform: scaleX(1); }
-.rf-marketing-nav nav a.is-active { color: #101725; font-weight: 600; }
+.rf-marketing-nav nav a.is-active { color: #0f1d1b; font-weight: 600; }
 .rf-marketing-nav nav a.is-active::after { transform: scaleX(1); }
 @media (prefers-reduced-motion: reduce) {
   .rf-marketing-nav nav a::after { transition: none; }
@@ -939,8 +936,8 @@ a.rf-auth-brand {
 .rf-marketing-nav .spacer { margin-left: auto; }
 .rf-marketing-nav .actions { display: flex; gap: 9px; align-items: center; }
 
-.rf-footer { background: var(--rf-navy); color: #b9c7db; padding: 52px 0 26px; font-size: 13.5px; }
-.rf-footer a { color: #cfdaea; text-decoration: none; display: block; padding: 4px 0; }
+.rf-footer { background: var(--rf-navy); color: #b7d0c7; padding: 52px 0 26px; font-size: 13.5px; }
+.rf-footer a { color: #cfe2db; text-decoration: none; display: block; padding: 4px 0; }
 .rf-footer a:hover { color: #fff; text-decoration: underline; }
 .rf-footer h5 { color: #fff; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 10px; }
 .rf-footer .cols { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; padding-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,.12); }
@@ -1036,14 +1033,14 @@ a.rf-auth-brand {
   .rf-row, .rf-row.three, .rf-row.four { grid-template-columns: minmax(0, 1fr); }
   .rf-statement-summary { grid-template-columns: repeat(2, 1fr); }
   .rf-marketing-nav nav { display: none; }
-  .rf-scrim { position: fixed; inset: 0; background: rgba(10, 16, 26, .5); z-index: 39; }
+  .rf-scrim { position: fixed; inset: 0; background: rgba(7, 18, 16, .5); z-index: 39; }
 
   /* On a narrow screen the copy fills the width, so the scrim has to cover it
      rather than clearing to the right. */
   .rf-hero.has-photo::before {
     background:
-      linear-gradient(180deg, rgba(8, 16, 30, .62) 0%, rgba(9, 18, 33, .76) 100%),
-      linear-gradient(to top, rgba(8, 16, 30, .5) 0%, transparent 58%);
+      linear-gradient(180deg, rgba(5, 26, 23, .62) 0%, rgba(6, 30, 26, .76) 100%),
+      linear-gradient(to top, rgba(5, 26, 23, .5) 0%, transparent 58%);
   }
   .rf-hero-stats { padding: 18px 18px; gap: 14px; }
   /* The watermark would otherwise push the page sideways. */
@@ -1100,7 +1097,7 @@ a.rf-auth-brand {
   [data-totals] > .rf-card:first-child {
     background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; padding: 18px;
   }
-  [data-totals] > .rf-card:first-child .k { color: #9db3d1; }
+  [data-totals] > .rf-card:first-child .k { color: #9cc4b8; }
   [data-totals] > .rf-card:first-child .v { font-size: 33px; margin: 7px 0 3px; }
   [data-totals] > .rf-card:first-child .d { color: #a9bcd6; }
 
@@ -1193,38 +1190,38 @@ a.rf-auth-brand {
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-rf-theme="light"]) {
-    --rf-ink: #eef1f6;
+    --rf-ink: #eef4f1;
     --rf-ink-2: #c2c9d5;
     --rf-ink-3: #949db0;
     --rf-ink-4: #6f7889;
-    --rf-paper: #0b0f17;
-    --rf-surface: #141a25;
-    --rf-surface-2: #19202c;
-    --rf-surface-3: #212936;
-    --rf-line: #2a3342;
-    --rf-line-2: #222a37;
+    --rf-paper: #07100e;
+    --rf-surface: #101b19;
+    --rf-surface-2: #15211f;
+    --rf-surface-3: #1c2a27;
+    --rf-line: #26372f;
+    --rf-line-2: #1f2e2a;
     /* The glass inverts: a dark translucent pane with a faint light edge,
        rather than a white one, which on a dark page reads as fog. */
-    --rf-glass-bg: rgba(20, 26, 37, .6);
+    --rf-glass-bg: rgba(16, 27, 25, .6);
     --rf-glass-line: rgba(255, 255, 255, .1);
     --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 18px 40px -22px rgba(0, 0, 0, .9);
     --rf-btn-face: var(--rf-navy-3);
-    --rf-btn-edge: #3d6494;
+    --rf-btn-edge: #36a08b;
     --rf-btn-ghost-face: var(--rf-surface-2);
     --rf-btn-ghost-edge: var(--rf-line);
     --rf-credit-soft: #10291f;
     --rf-debit-soft: #2e1614;
     --rf-pending-soft: #2a2312;
     --rf-info-soft: #122231;
-    --rf-brass-soft: #2c2213;
+    --rf-brass-soft: #301b12;
     --rf-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -18px rgba(0, 0, 0, .8);
   }
-  :root:not([data-rf-theme="light"]) .rf-top { background: rgba(11, 15, 23, .82); }
+  :root:not([data-rf-theme="light"]) .rf-top { background: rgba(7, 16, 14, .82); }
   :root:not([data-rf-theme="light"]) .rf-tabbar { background: var(--rf-surface); }
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    :root:not([data-rf-theme="light"]) .rf-tabbar { background: rgba(11, 15, 23, .82); }
+    :root:not([data-rf-theme="light"]) .rf-tabbar { background: rgba(7, 16, 14, .82); }
   }
-  :root:not([data-rf-theme="light"]) .rf-tabbar .is-active { color: #7fa8d8; }
+  :root:not([data-rf-theme="light"]) .rf-tabbar .is-active { color: #7fd6c1; }
   /* The marketing nav keeps its white ground in the dark theme.
 
      The logo is black line work drawn on white; on a dark bar the artwork
@@ -1232,9 +1229,9 @@ a.rf-auth-brand {
      logo in step, the bar stays white and its own text is pinned to the light
      palette - which is a deliberate band across the top of a dark page, not
      an accident. */
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav { background: #fff; border-bottom-color: #dfe6f0; }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline strong { color: #101725; }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline small { color: #3d4757; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav { background: #fff; border-bottom-color: #dce5dd; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline strong { color: #0f1d1b; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline small { color: #3a4a46; }
   :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost,
   /* ...and on hover too.
 
@@ -1246,14 +1243,14 @@ a.rf-auth-brand {
      that erased itself. Naming the hover here settles it on this bar
      without touching the rule for everywhere else. */
   :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover {
-    --btn-face: #fff; --btn-edge: #dfe6f0; --btn-ink: #101725;
+    --btn-face: #fff; --btn-edge: #dce5dd; --btn-ink: #0f1d1b;
   }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover { --btn-edge: #b9c6d8; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover { --btn-edge: #b7cfc6; }
   /* The lift still reads on a dark page, but a light border does not: the
      hover edge goes up in brightness instead of down. */
   :root:not([data-rf-theme="light"]) .rf-card.interactive:hover,
   :root:not([data-rf-theme="light"]) a.rf-card:hover,
-  :root:not([data-rf-theme="light"]) .rf-product:hover { border-color: #3b4759; }
+  :root:not([data-rf-theme="light"]) .rf-product:hover { border-color: #384a45; }
   :root:not([data-rf-theme="light"]) .rf-modal { border-color: rgba(255, 255, 255, .08); }
 
   /* The headline rate is navy, which on a dark card is very nearly the card.
@@ -1266,15 +1263,15 @@ a.rf-auth-brand {
      button is a hole in the other direction. Only the two default tokens move:
      brass stays brass and glass stays glass, because their rules set --btn-face
      themselves and nothing here reaches past them. */
-  :root:not([data-rf-theme="light"]) .rf-btn.ghost:hover { --btn-face: var(--rf-surface-3); --btn-edge: #3b4759; }
+  :root:not([data-rf-theme="light"]) .rf-btn.ghost:hover { --btn-face: var(--rf-surface-3); --btn-edge: #384a45; }
   :root:not([data-rf-theme="light"]) .rf-btn.link { --btn-ink: #7fa8d8; }
 
   /* Same problem in the other direction: a near-white rule over a dark card. */
   :root:not([data-rf-theme="light"]) .rf-glass { border-color: rgba(255, 255, 255, .14); }
   :root:not([data-rf-theme="light"]) .rf-section.alt { background: var(--rf-surface); }
   :root:not([data-rf-theme="light"]) .rf-statement { background: var(--rf-surface); }
-  :root:not([data-rf-theme="light"]) .rf-notice { color: #bcd6ea; }
-  :root:not([data-rf-theme="light"]) .rf-notice.warn { color: #e5cf90; }
+  :root:not([data-rf-theme="light"]) .rf-notice { color: #bfe3d8; }
+  :root:not([data-rf-theme="light"]) .rf-notice.warn { color: #f6b896; }
   :root:not([data-rf-theme="light"]) .rf-notice.bad { color: #efb3ab; }
   :root:not([data-rf-theme="light"]) .rf-notice.ok { color: #9ad9ba; }
 }
@@ -1351,7 +1348,7 @@ a.rf-auth-brand {
 .chat-head-id .dot { width: 8px; height: 8px; border-radius: 50%; background: #45c48a; box-shadow: 0 0 0 3px rgba(69, 196, 138, .25); }
 .chat-head strong { display: block; font-size: 14px; font-family: var(--rf-display); }
 .chat-head small { display: block; font-size: 11.5px; color: #9fb2cc; }
-.chat-min { margin-left: auto; background: none; border: 0; color: #cfdaea; font-size: 22px; line-height: 1; cursor: pointer; }
+.chat-min { margin-left: auto; background: none; border: 0; color: #cfe2db; font-size: 22px; line-height: 1; cursor: pointer; }
 
 .chat-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--rf-surface-2); }
 .chat-msg { max-width: 84%; padding: 10px 13px; border-radius: 14px; font-size: 13.8px; line-height: 1.5; white-space: pre-wrap; }
@@ -1369,11 +1366,146 @@ a.rf-auth-brand {
   font: 400 14px/1.4 var(--rf-sans); background: var(--rf-surface); color: var(--rf-ink);
 }
 .chat-form input::placeholder { color: var(--rf-ink-4); opacity: 1; }
-.chat-form input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13); }
+.chat-form input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(35, 128, 111, .13); }
 .chat-form button { border: 0; background: var(--rf-navy); color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; }
 .chat-form button:hover { background: var(--rf-navy-2); }
 
 @media (max-width: 520px) {
   .chat { right: 12px; bottom: 12px; }
   .chat-panel { height: min(70vh, 520px); }
+}
+
+/* ==========================================================================
+   Hedgestone Global - home hero and motion
+   The home page leads with people rather than a building: the family photo
+   sits in an arched frame on the right, with a slowly turning globe of
+   meridians behind it, so the headline never has to cross a face.
+   ========================================================================== */
+
+.hs-hero { padding-bottom: clamp(36px, 6vh, 72px); }
+.hs-hero-grid {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: clamp(28px, 5vw, 72px); align-items: center;
+}
+.hs-hero h1 { font-size: clamp(42px, 6vw, 76px); line-height: 1.02; letter-spacing: -.015em; }
+.hs-hero h1 em { font-style: italic; font-weight: 500; color: var(--rf-brass-2); }
+
+/* Drifting colour behind everything: three soft lights on slow loops. */
+.hs-aurora { position: absolute; inset: -20%; z-index: -1; pointer-events: none; filter: blur(60px); opacity: .7; }
+.hs-aurora span { position: absolute; border-radius: 50%; }
+.hs-aurora span:nth-child(1) { width: 46vw; height: 46vw; left: 50%; top: 0; background: radial-gradient(circle, rgba(240, 140, 96, .45), transparent 65%); animation: hs-drift-a 22s ease-in-out infinite alternate; }
+.hs-aurora span:nth-child(2) { width: 52vw; height: 52vw; left: -8%; top: 30%; background: radial-gradient(circle, rgba(46, 170, 145, .42), transparent 65%); animation: hs-drift-b 28s ease-in-out infinite alternate; }
+.hs-aurora span:nth-child(3) { width: 34vw; height: 34vw; left: 30%; top: 55%; background: radial-gradient(circle, rgba(201, 162, 39, .28), transparent 65%); animation: hs-drift-a 32s ease-in-out infinite alternate-reverse; }
+
+.hs-meridians {
+  position: absolute; z-index: -1; pointer-events: none;
+  width: min(78vw, 860px); height: auto; right: -14%; top: 50%;
+  color: rgba(214, 238, 230, .12); transform: translateY(-50%);
+  animation: hs-spin 120s linear infinite;
+}
+
+/* The picture. */
+.hs-hero-visual { position: relative; justify-self: end; width: min(100%, 480px); }
+.hs-frame {
+  margin: 0; position: relative; aspect-ratio: 4 / 5; overflow: hidden;
+  border-radius: 240px 240px 28px 28px;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .14);
+  animation: hs-unveil 1.3s var(--rf-ease) both; animation-delay: .15s;
+}
+.hs-frame img {
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; display: block;
+  transform-origin: 50% 40%;
+  animation: hs-kenburns 24s ease-in-out infinite alternate;
+}
+.hs-frame::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to top, rgba(5, 26, 23, .35), transparent 40%);
+}
+
+/* A ring the frame sits in, with one bright point travelling around it. */
+.hs-orbit {
+  position: absolute; inset: -7% -9%; border-radius: 50%;
+  border: 1px dashed rgba(240, 140, 96, .45); pointer-events: none;
+  animation: hs-spin 40s linear infinite;
+}
+.hs-dot {
+  position: absolute; top: 50%; left: -6px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--rf-brass-2); box-shadow: 0 0 0 6px rgba(240, 140, 96, .2), 0 0 24px rgba(240, 140, 96, .8);
+}
+
+/* Floating notes on glass. */
+.hs-chip {
+  position: absolute; display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: 16px; color: #fff; font-size: 13px; line-height: 1.25;
+  animation: hs-bob 6s ease-in-out infinite;
+}
+.hs-chip strong { display: block; font-weight: 600; }
+.hs-chip small { display: block; color: #a9cfc5; font-size: 12px; }
+.hs-chip .ic {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: #2eaa91; color: #fff; flex: none;
+}
+.hs-chip .big { font-family: var(--rf-headline); font-size: 28px; font-weight: 600; color: var(--rf-brass-2); }
+.hs-chip-a { left: -14%; bottom: 16%; }
+.hs-chip-b { right: -6%; top: 12%; flex-direction: column; align-items: flex-start; gap: 0; animation-delay: -3s; }
+
+/* The primary button catches the light every few seconds. */
+.hs-shine { position: relative; overflow: hidden; }
+.hs-shine::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .45), transparent);
+  transform: skewX(-18deg); animation: hs-shine 5.5s ease-in-out infinite 1.6s;
+}
+
+/* Entrance: everything in the hero rises into place in sequence. */
+.hs-in { animation: hs-rise .9s var(--rf-ease) both; animation-delay: var(--d, 0ms); }
+
+/* Scroll reveals for the rest of the page. Hidden only once the script has
+   said it is running, so the page is never blank without JavaScript. */
+.hs-motion [data-hs-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .8s var(--rf-ease), transform .8s var(--rf-ease); transition-delay: var(--hs-delay, 0ms); }
+.hs-motion [data-hs-reveal].is-in { opacity: 1; transform: none; }
+
+/* Cards lift toward the pointer. */
+.rf-card, .rf-product { transition: transform .35s var(--rf-ease), box-shadow .35s var(--rf-ease); }
+.rf-site .rf-card:hover, .rf-site .rf-product:hover { transform: translateY(-4px); box-shadow: var(--rf-shadow-hover); }
+
+/* Section headings get a short coral rule that draws in. */
+.rf-site .rf-section .rf-eyebrow::before {
+  content: ""; width: 22px; height: 2px; border-radius: 2px; background: currentColor;
+  transform-origin: left; animation: hs-rule .9s var(--rf-ease) both .2s;
+}
+.rf-site .rf-section .rf-eyebrow { color: var(--rf-brass); }
+
+@keyframes hs-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes hs-unveil { from { clip-path: inset(100% 0 0 0 round 240px 240px 28px 28px); } to { clip-path: inset(0 0 0 0 round 240px 240px 28px 28px); } }
+@keyframes hs-kenburns { from { transform: scale(1.04); } to { transform: scale(1.14) translate(-1.5%, -1%); } }
+@keyframes hs-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes hs-spin { to { transform: translateY(-50%) rotate(360deg); } }
+.hs-orbit { animation-name: hs-orbit; }
+@keyframes hs-orbit { to { transform: rotate(360deg); } }
+@keyframes hs-drift-a { to { transform: translate(-12%, 10%) scale(1.1); } }
+@keyframes hs-drift-b { to { transform: translate(14%, -8%) scale(.92); } }
+@keyframes hs-shine { 0%, 70% { left: -60%; } 100% { left: 130%; } }
+@keyframes hs-rule { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (max-width: 900px) {
+  .hs-hero-grid { grid-template-columns: 1fr; }
+  .hs-hero-visual { justify-self: center; width: min(78%, 360px); margin: 8px auto 12px; }
+  .hs-chip-a { left: -10%; }
+  .hs-chip-b { right: -8%; }
+  .hs-meridians { right: -40%; width: 120vw; }
+}
+@media (max-width: 520px) {
+  .hs-chip { padding: 9px 12px; font-size: 12px; }
+  .hs-chip .big { font-size: 22px; }
+  .hs-chip-a { left: -6%; bottom: 8%; }
+  .hs-chip-b { right: -4%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hs-in, .hs-frame, .hs-frame img, .hs-orbit, .hs-meridians, .hs-chip,
+  .hs-aurora span, .hs-shine::after, .rf-site .rf-section .rf-eyebrow::before { animation: none !important; }
+  .hs-meridians { transform: translateY(-50%); }
+  .hs-motion [data-hs-reveal] { opacity: 1; transform: none; transition: none; }
+  .rf-site .rf-card:hover, .rf-site .rf-product:hover { transform: none; }
 }

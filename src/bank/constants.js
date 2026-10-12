@@ -13,10 +13,10 @@
 
 /** The institution. Fictional, on a routing prefix the Fed has not assigned. */
 const BANK = {
-  name: 'Hedgestone National Bank',
+  name: 'Hedgestone Global Bank',
   shortName: 'Hedgestone',
-  legalName: 'Hedgestone National Bank, N.A.',
-  tagline: 'Banking built on bedrock.',
+  legalName: 'Hedgestone Global Bank',
+  tagline: 'Banking that travels with your family.',
   // ABA checksum valid: 3(8+2+4)+7(1+6+1)+(9+4+7) = 42+56+20 = 118... see
   // validateRouting() in ids.js, which is what actually enforces this.
   routingNumber: '819264176',
