@@ -141,6 +141,7 @@ come next.
    | [`supabase/migrations/0002_email.sql`](../supabase/migrations/0002_email.sql) | `email_threads`, `email_messages` (skip if you are not receiving mail) |
    | [`supabase/migrations/0003_bank.sql`](../supabase/migrations/0003_bank.sql) | The banking application: customers, accounts, the ledger, transfers, cards, documents, alerts, the activity log, sessions and settings |
    | [`supabase/migrations/0004_bank_sms.sql`](../supabase/migrations/0004_bank_sms.sql) | Text-message delivery status on banking alerts |
+   | [`supabase/migrations/0005_bank_invest.sql`](../supabase/migrations/0005_bank_invest.sql) | Investments: holdings, trades, and the last price seen for each asset |
 
    Everything is behind row level security. `enquiries` has no anon policy at all:
    writes arrive through the API using the service role.
@@ -423,6 +424,45 @@ and `inbound_emails`.
 
 ---
 
+## Live prices and converting balances (Invest)
+
+Every page carries a live price strip under the nav, and online banking has an
+**Invest** screen (`/invest`) where a customer converts part or all of a
+checking or savings balance into one of ten listed assets: the S&P 500 (SPY),
+the Nasdaq-100 (QQQ), Apple, Amazon, Microsoft, NVIDIA, Alphabet, Tesla,
+Bitcoin and gold. They get a fraction of a share - to a millionth, or to the
+satoshi for Bitcoin - at the price of the moment they confirm, and can sell any
+part of a holding back into an account at any time.
+
+What it needs:
+
+1. Run `supabase/migrations/0005_bank_invest.sql` (Step 4). Without it the
+   holdings fall back to file storage, which does not survive on Vercel.
+2. Optional but recommended: a free API key from <https://finnhub.io> as
+   `FINNHUB_API_KEY`. The free sources used without it (Yahoo Finance, Stooq)
+   sometimes refuse requests from cloud hosts; Finnhub does not.
+3. Redeploy, then check `https://<your-app>/api/bank/markets`: every asset
+   should have a `quote` with a `price` and a `source`.
+
+How it behaves:
+
+- Each conversion is a normal ledger debit (category **Investments**, method
+  **Investment**), so it appears in transactions and statements and is left out
+  of the spending chart. A sale is a ledger credit.
+- The price is fetched by the server at the moment of the trade, never taken
+  from the browser. If it has moved more than 2% from the price the customer
+  was shown, the trade is refused with the new price and they confirm again.
+- If no price fresher than two minutes can be had, buying and selling that
+  asset are refused with a message saying so; the ticker keeps showing the
+  last price with its time.
+- Every trade is written to the activity log and raises an
+  **Investments** alert, which customers can turn off under Alerts.
+
+This is a demonstration of the flow. Holdings are recorded by the bank; no
+order is sent to an exchange or broker, and nothing is bought on a market.
+Offering this to real customers needs a brokerage or custody partner and the
+licences that go with it.
+
 ## Local development
 
 ```bash
@@ -469,6 +509,10 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `PINGRAM_SMS_FROM` | for texts | The sending number, in E.164 (`+18005559999`) |
 | `PINGRAM_DEFAULT_COUNTRY` | no | Country code assumed for a ten-digit number with no `+` (default `1`) |
 | `PINGRAM_SMS_URL` | no | Override for Pingram's send endpoint (default `https://api.pingram.io/sms`) |
+| `FINNHUB_API_KEY` | recommended | Free key from finnhub.io: real-time stock and ETF prices for the ticker and Invest. Without it, Yahoo Finance and Stooq are used |
+| `MARKET_CACHE_SECONDS` | no | How long one round of prices is reused (default 30) |
+| `MARKET_TRADE_MAX_AGE_SECONDS` | no | A conversion is refused if the freshest price is older than this (default 120) |
+| `MARKET_DATA_FIXTURE` | no | `1` uses fixed demonstration prices. Tests and offline only; never on a deployment |
 | `PUBLIC_BASE_URL` | for email | Absolute base for the links inside alert emails. `BANK_BASE_URL` and `APP_URL` are accepted too, for when Vercel refuses the `PUBLIC_` prefix |
 | `BANK_RATE_LIMIT_MAX` | no | Requests per minute per IP against `/api/bank` (default 300) |
 | `BANK_LOGIN_RATE_LIMIT` | no | Sign-in attempts per five minutes per IP (default 20) |

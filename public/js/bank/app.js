@@ -136,6 +136,15 @@
   async function dashboard() {
     const data = await api.get('/overview');
 
+    // The invest card fills in on its own, so a slow price feed never holds up the balances.
+    api.get('/invest').then((inv) => {
+      const box = qs('[data-dash-invest]');
+      if (!box) return;
+      box.innerHTML = inv.holdings.length
+        ? `<strong>${money(inv.totals.value)}</strong><small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}</span> all time</small>`
+        : '<strong>$0.00</strong><small>Convert part of your balance in one tap:</small>';
+    }).catch(() => {});
+
     const heading = qs('.rf-top h1');
     if (heading && data.user) {
       const hour = new Date().getHours();

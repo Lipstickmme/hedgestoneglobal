@@ -40,6 +40,9 @@ const COLLECTIONS = {
   otps: 'bank_otps',
   settings: 'bank_settings',
   notices: 'bank_notices',
+  quotes: 'bank_market_quotes',
+  holdings: 'bank_holdings',
+  trades: 'bank_trades',
 };
 
 const bankDir = () => path.join(dataDir(), 'bank');

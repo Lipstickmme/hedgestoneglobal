@@ -114,7 +114,7 @@ app.get('/change-password', sendPage('change-password.html'));
 // visitor is sent to /signin before anything is rendered.
 [
   'dashboard', 'accounts', 'transactions', 'statements', 'transfers', 'recipients',
-  'bills', 'deposit', 'cards', 'alerts', 'messages', 'security', 'activity', 'profile',
+  'bills', 'deposit', 'cards', 'alerts', 'messages', 'security', 'activity', 'profile', 'invest',
 ].forEach((name) => app.get(`/${name}`, sendPage(`${name}.html`)));
 
 // The banking console, and the older desk for website enquiries and chat.

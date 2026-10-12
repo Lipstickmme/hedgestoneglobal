@@ -26,6 +26,7 @@ const profile = require('../controllers/bank/profileController');
 const money = require('../controllers/bank/moneyController');
 const messaging = require('../controllers/bank/messagingController');
 const admin = require('../controllers/bank/adminController');
+const invest = require('../controllers/bank/investController');
 
 const router = express.Router();
 
@@ -76,6 +77,9 @@ router.get('/config', asyncHandler(async (req, res) => {
     devCodes: require('../utils/config').showDevCodes(),
   });
 }));
+
+/** Live prices for the ticker under the nav. Public, and cached at the edge. */
+router.get('/markets', invest.quotes);
 
 /* ------------------------------------------------------------------ auth --- */
 
@@ -154,6 +158,10 @@ router.delete('/payees/:id', money.deletePayee);
 
 router.get('/deposits', money.listDeposits);
 router.post('/deposits', money.createDeposit);
+
+router.get('/invest', invest.portfolio);
+router.post('/invest/convert', invest.convert);
+router.post('/invest/sell', invest.sell);
 
 router.get('/disputes', money.listDisputes);
 router.post('/disputes', money.createDispute);

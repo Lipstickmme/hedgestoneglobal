@@ -354,7 +354,7 @@ const overview = asyncHandler(async (req, res) => {
 
   // Last 30 days, by category, for the spending ring.
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-  const recentSpend = allTx.filter((t) => t.direction === 'debit' && t.date >= since && t.status !== 'failed' && t.category !== 'Transfers');
+  const recentSpend = allTx.filter((t) => t.direction === 'debit' && t.date >= since && t.status !== 'failed' && t.category !== 'Transfers' && t.category !== 'Investments');
   const byCategory = {};
   recentSpend.forEach((t) => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
   const spending = Object.entries(byCategory)

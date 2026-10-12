@@ -134,13 +134,14 @@ const TRANSACTION_METHODS = {
   interest: { label: 'Interest', clearing: 0 },
   adjustment: { label: 'Adjustment', clearing: 0 },
   refund: { label: 'Refund', clearing: 1 },
+  investment: { label: 'Investment', clearing: 0 },
 };
 
 /** Spending categories. The dashboard groups the last 30 days by these. */
 const CATEGORIES = [
   'Groceries', 'Dining', 'Transport', 'Fuel', 'Travel', 'Utilities', 'Rent & Mortgage',
   'Insurance', 'Healthcare', 'Shopping', 'Entertainment', 'Subscriptions', 'Education',
-  'Transfers', 'Income', 'Fees & Interest', 'Taxes', 'Cash & ATM', 'Other',
+  'Transfers', 'Investments', 'Income', 'Fees & Interest', 'Taxes', 'Cash & ATM', 'Other',
 ];
 
 const US_STATES = [
@@ -248,6 +249,7 @@ const ALERT_TYPES = [
   { id: 'overdraft', group: 'Balances', label: 'Overdraft or returned item', default: true, locked: true },
   { id: 'statement_ready', group: 'Statements', label: 'Monthly statement ready', default: true },
   { id: 'card_activity', group: 'Cards', label: 'Card frozen, replaced or declined', default: true },
+  { id: 'investment_trade', group: 'Investments', label: 'Balance converted to an asset, or an asset sold', default: true },
   { id: 'account_opened', group: 'Account', label: 'New account opened', default: true },
   { id: 'message_received', group: 'Account', label: 'New secure message', default: true },
   { id: 'marketing', group: 'Account', label: 'Product news and offers', default: false },

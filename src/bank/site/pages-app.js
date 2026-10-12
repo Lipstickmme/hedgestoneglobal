@@ -210,6 +210,15 @@ const dashboardContent = `
               </div>
             </section>
 
+            <section class="rf-card hs-dash-invest">
+              <div class="rf-card-head"><h3>Invest</h3><div class="rf-card-actions"><a class="rf-btn ghost sm" href="/invest">Open</a></div></div>
+              <div class="hs-dash-invest-v" data-dash-invest><strong>&mdash;</strong><small>Turn part of your balance into listed assets.</small></div>
+              <div class="hs-chips" aria-label="Convert in one tap">
+                <a href="/invest?convert=SPY">S&amp;P 500</a><a href="/invest?convert=BTC">Bitcoin</a><a href="/invest?convert=XAU">Gold</a>
+                <a href="/invest?convert=AAPL">Apple</a><a href="/invest?convert=AMZN">Amazon</a><a href="/invest?convert=QQQ">Nasdaq ETF</a>
+              </div>
+            </section>
+
             <section class="rf-card">
               <div class="rf-card-head"><h3>Spending</h3><div class="rf-card-actions rf-small rf-muted">30 days</div></div>
               <div class="rf-card-body"><div class="rf-ring" data-spending></div></div>
@@ -915,6 +924,44 @@ const profileContent = `
           </div>
         </div>`;
 
+const investContent = `
+        <div class="rf-grid cols-4 rf-mb" data-inv-totals>
+          <div class="rf-card rf-stat hs-inv-hero"><div class="k">Portfolio value</div><div class="v" data-inv="value">&mdash;</div><div class="d" data-inv="gain">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Invested</div><div class="v" data-inv="cost">&mdash;</div><div class="d">what your holdings cost</div></div>
+          <div class="rf-card rf-stat"><div class="k">Cash you can convert</div><div class="v" data-inv="cash">&mdash;</div><div class="d">available across your accounts</div></div>
+          <div class="rf-card rf-stat"><div class="k">Assets held</div><div class="v" data-inv="count">&mdash;</div><div class="d" data-inv="asof">&nbsp;</div></div>
+        </div>
+
+        <section class="rf-card rf-mb">
+          <div class="rf-card-head">
+            <h3>Convert your balance</h3>
+            <div class="rf-card-actions rf-small rf-muted" data-inv-source>Live prices</div>
+          </div>
+          <p class="rf-small rf-muted hs-inv-lede">Tap an asset to turn part or all of your balance into it. You get a fraction of a share at the live price, booked the moment you confirm, and you can convert back to cash at any time.</p>
+          <div class="hs-assets" data-inv-assets>
+            <div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div>
+          </div>
+        </section>
+
+        <div class="rf-grid side">
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>Your holdings</h3></div>
+            <div class="rf-table-wrap">
+              <table class="rf-table">
+                <thead><tr><th>Asset</th><th class="num">Units</th><th class="num opt">Avg. price</th><th class="num opt">Price</th><th class="num">Value</th><th class="num">Gain / loss</th><th></th></tr></thead>
+                <tbody data-inv-holdings><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>Recent conversions</h3></div>
+            <ul class="hs-trades" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+          </section>
+        </div>
+
+        <p class="rf-small rf-muted rf-mt hs-inv-note">Prices come from public market data and may be delayed by up to 15 minutes outside US market hours. Each conversion is booked at the price shown when you confirm; if the price has moved more than 2% since you opened the sheet, we show you the new price and ask again. Investments are not FDIC insured, are not bank guaranteed and may lose value.</p>
+`;
+
 module.exports = [
   {
     file: 'signin.html',
@@ -1002,6 +1049,16 @@ module.exports = [
       title: `Deposit a check | ${BANK.name}`, description: 'Deposit a check with your phone.',
       heading: 'Deposit a check', sub: 'Photograph both sides and we will do the rest.',
       active: 'deposit', content: depositContent, extraScripts: ['/js/bank/money.js'],
+    },
+  },
+  {
+    file: 'invest.html',
+    build: appPage,
+    opts: {
+      title: `Invest | ${BANK.name}`, description: 'Convert your balance into listed assets at live prices.',
+      heading: 'Invest', sub: 'Turn cash into the S&amp;P 500, leading stocks, Bitcoin or gold - in one tap.',
+      active: 'invest', content: investContent, extraScripts: ['/js/bank/invest.js'],
+      actions: '<button class="rf-btn sm" type="button" data-inv-quick>Convert balance</button>',
     },
   },
   {

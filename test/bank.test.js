@@ -25,6 +25,7 @@ process.env.BANK_ENCRYPTION_KEY = 'test-key-not-for-production';
 process.env.BANK_COOKIE_INSECURE = '1';
 process.env.BANK_RATE_LIMIT_MAX = '5000';
 process.env.BANK_LOGIN_RATE_LIMIT = '500';
+process.env.MARKET_DATA_FIXTURE = '1';
 delete process.env.RESEND_API_KEY;
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -169,6 +170,148 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.strictEqual(absurd.status, 400);
       assert.match(absurd.body.message, /most you can send/i);
       ok(`overdraft refused: ${res.body.message}`);
+    }
+
+    /* ---- 5b. converting a balance into listed assets, and back ---- */
+    {
+      const markets_ = require(path.join(ROOT, 'src/bank/markets'));
+      markets_._setFixture(null);
+
+      // The ticker's feed is public.
+      const anon = client(base);
+      const feed = await anon.get('/api/bank/markets');
+      assert.strictEqual(feed.status, 200, feed.text);
+      const symbols = feed.body.assets.map((a) => a.symbol);
+      ['SPY', 'AAPL', 'AMZN', 'BTC', 'XAU', 'QQQ'].forEach((s) => assert.ok(symbols.includes(s), `${s} is listed`));
+      assert.ok(feed.body.assets.every((a) => a.quote && a.quote.price > 0), 'every asset has a price');
+      assert.match(feed.headers.get('cache-control') || '', /s-maxage/, 'the feed is cacheable at the edge');
+
+      const start = await customer.get('/api/bank/invest');
+      assert.strictEqual(start.status, 200, start.text);
+      const fundFrom = start.body.accounts.find((a) => a.id === checking.id);
+      assert.ok(fundFrom && fundFrom.available > 0, 'checking can fund a conversion');
+      assert.ok(!start.body.accounts.some((a) => a.isCredit), 'a credit card cannot fund one');
+
+      const balanceOf = async (id) => (await customer.get('/api/bank/accounts')).body.accounts.find((a) => a.id === id).balance;
+      const before = await balanceOf(checking.id);
+
+      // $500.00 of the S&P 500 at the fixture's $571.25.
+      const buy = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'SPY', amount: '500.00', quotedPrice: 571.25 });
+      assert.strictEqual(buy.status, 201, buy.text);
+      assert.strictEqual(buy.body.trade.units, '0.875273', 'units are rounded down to a millionth of a share');
+      assert.strictEqual(buy.body.trade.price, 57125, 'booked at the live price, in cents');
+      assert.strictEqual(buy.body.trade.amount, 50000);
+      assert.strictEqual(before - await balanceOf(checking.id), 50000, 'exactly $500.00 left checking');
+
+      // A quarter of savings into Bitcoin, by percentage.
+      const savingsAvail = start.body.accounts.find((a) => a.id === savings.id).available;
+      const btc = await customer.post('/api/bank/invest/convert', { accountId: savings.id, symbol: 'BTC', percent: 25 });
+      assert.strictEqual(btc.status, 201, btc.text);
+      assert.strictEqual(btc.body.trade.amount, Math.floor(savingsAvail / 4), '25% of what was available');
+      assert.ok(/^0\.\d{1,8}$/.test(btc.body.trade.units), 'Bitcoin is held to the satoshi');
+
+      // The doors.
+      const moved = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'AAPL', amount: '100', quotedPrice: 150 });
+      assert.strictEqual(moved.status, 409, 'a price that moved past the tolerance is not booked');
+      assert.strictEqual(moved.body.error, 'price_moved');
+      assert.strictEqual(moved.body.details.quote.price, 227.5, 'and the new price comes back to show');
+      const tooMuch = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'AAPL', amount: '9000000' });
+      assert.strictEqual(tooMuch.status, 400);
+      const tiny = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'AAPL', amount: '0.50' });
+      assert.strictEqual(tiny.status, 400, 'below the minimum');
+      const unknown = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'DOGE', amount: '10' });
+      assert.strictEqual(unknown.status, 400, 'only listed assets');
+      const noCsrf = await fetch(`${base}/api/bank/invest/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      assert.ok([401, 403].includes(noCsrf.status), 'signed out, nothing converts');
+
+      // The price rises 5%: the holding is worth more than it cost.
+      markets_._setFixture({ SPY: 599.81 });
+      const later = await customer.get('/api/bank/invest');
+      const spy = later.body.holdings.find((h) => h.symbol === 'SPY');
+      assert.strictEqual(spy.units, '0.875273');
+      assert.strictEqual(spy.costBasis, 50000);
+      assert.strictEqual(spy.value, Math.floor(875273 * 59981 / 1e6), 'valued at the new price');
+      assert.ok(spy.gain > 0 && later.body.totals.value > 0);
+
+      // Sell half back into checking, then all the Bitcoin.
+      const half = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'SPY', percent: 50, quotedPrice: 599.81 });
+      assert.strictEqual(half.status, 201, half.text);
+      assert.strictEqual(half.body.trade.units, '0.437636');
+      assert.strictEqual(half.body.trade.amount, Math.floor(437636 * 59981 / 1e6));
+      const afterHalf = (await customer.get('/api/bank/invest')).body.holdings.find((h) => h.symbol === 'SPY');
+      assert.strictEqual(afterHalf.units, '0.437637', 'the rest stays held');
+
+      const allBtc = await customer.post('/api/bank/invest/sell', { accountId: savings.id, symbol: 'BTC', all: true });
+      assert.strictEqual(allBtc.status, 201, allBtc.text);
+      const end = await customer.get('/api/bank/invest');
+      assert.ok(!end.body.holdings.some((h) => h.symbol === 'BTC'), 'selling everything closes the holding');
+      assert.strictEqual(end.body.trades.length, 4, 'every trade is on record');
+      const oversell = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'SPY', units: '5' });
+      assert.strictEqual(oversell.status, 400, 'you cannot sell what you do not hold');
+
+      // On the ledger as investments, and not counted as spending.
+      const tx = await customer.get('/api/bank/transactions?limit=10');
+      assert.ok(tx.body.transactions.some((t) => t.category === 'Investments' && /S&P 500/.test(t.description)));
+      const overview = await customer.get('/api/bank/overview');
+      assert.ok(!overview.body.spending.some((s) => s.category === 'Investments'), 'investing is not spending');
+
+      markets_._setFixture(null);
+      ok(`invest: $500.00 bought ${buy.body.trade.units} SPY at $571.25, half sold at $599.81, Bitcoin round trip, price-moved and overdraw refused`);
+    }
+
+    /* ---- 5c. each price provider is read the way it answers ---- */
+    {
+      const markets_ = require(path.join(ROOT, 'src/bank/markets'));
+      const realFetch = global.fetch;
+      const fixtureWas = process.env.MARKET_DATA_FIXTURE;
+      delete process.env.MARKET_DATA_FIXTURE;
+      const calls = [];
+      let yahooDown = false;
+      const respond = (body, status = 200) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
+      global.fetch = async (url) => {
+        const u = String(url);
+        calls.push(new URL(u).host);
+        if (u.includes('finance.yahoo.com')) {
+          if (yahooDown) return respond('rate limited', 429);
+          const sym = decodeURIComponent(u.split('/chart/')[1].split('?')[0]);
+          return respond({ chart: { result: [{ meta: { regularMarketPrice: sym === 'AAPL' ? 230.1 : 100, chartPreviousClose: sym === 'AAPL' ? 225 : 99, regularMarketTime: 1760000000 } }] } });
+        }
+        if (u.includes('stooq.com')) {
+          const syms = new URL(u).searchParams.get('s').split(' ').join('+').split('+');
+          const rows = syms.map((s) => `${s.toUpperCase()},2026-10-12,20:00:00,10,11,9,${s === 'xauusd' ? '2650.5' : s === 'aapl.us' ? '228.4' : '50'},${s === 'xauusd' ? '2600' : '49'}`);
+          return respond(['Symbol,Date,Time,Open,High,Low,Close,Prev', ...rows].join('\n'));
+        }
+        if (u.includes('coingecko.com')) {
+          return respond({ bitcoin: { usd: 64000, usd_24h_change: 2.5, last_updated_at: 1760000000 }, 'pax-gold': { usd: 2640 } });
+        }
+        if (u.includes('coinbase.com')) return respond({ data: { amount: '63900.00' } });
+        return respond('not found', 404);
+      };
+      try {
+        markets_._setFixture(null);
+        let list = await markets_.list();
+        const by = (s) => list.find((a) => a.symbol === s).quote;
+        assert.strictEqual(by('AAPL').price, 230.1);
+        assert.strictEqual(by('AAPL').source, 'Yahoo Finance');
+        assert.strictEqual(by('AAPL').change, 5.1);
+        assert.strictEqual(by('BTC').price, 64000);
+        assert.strictEqual(by('BTC').source, 'CoinGecko');
+        assert.strictEqual(by('BTC').changePct, 2.5);
+        assert.strictEqual(by('XAU').price, 2650.5, 'gold is spot XAU/USD from Stooq');
+        assert.ok(!calls.includes('finnhub.io'), 'Finnhub is skipped without a key');
+
+        yahooDown = true;
+        markets_._setFixture(null);
+        list = await markets_.list();
+        assert.strictEqual(by('AAPL').price, 228.4, 'when Yahoo refuses, stocks come from Stooq');
+        assert.strictEqual(by('AAPL').source, 'Stooq');
+        assert.strictEqual(by('AAPL').previousClose, 49, 'Stooq\'s previous close is used for the change');
+        ok('prices: Yahoo, Stooq and CoinGecko parsed; Stooq takes over when Yahoo refuses');
+      } finally {
+        global.fetch = realFetch;
+        if (fixtureWas) process.env.MARKET_DATA_FIXTURE = fixtureWas;
+        markets_._setFixture(null);
+      }
     }
 
     /* ---- 6. an outside transfer needs a code, then waits for review ---- */

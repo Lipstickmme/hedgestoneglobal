@@ -210,6 +210,12 @@ const NAV = [
     ],
   },
   {
+    group: 'Wealth',
+    items: [
+      { href: '/invest', label: 'Invest', icon: 'chart', key: 'invest' },
+    ],
+  },
+  {
     group: 'Account',
     items: [
       { href: '/cards', label: 'Cards', icon: 'card', key: 'cards' },
@@ -305,6 +311,7 @@ function appPage({ title, description, heading, sub, active, content, extraScrip
           <a class="rf-icon-btn" href="/profile" aria-label="Profile"><span class="rf-avatar sm" data-user-avatar>RF</span></a>
         </div>
       </header>
+${ticker()}
       <main class="rf-content${wide ? '' : ''}" id="rf-content">
         <div class="rf-notice rf-hide" data-announcement></div>
 ${content}
@@ -313,7 +320,7 @@ ${tabbar(active)}
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/bank/core.js', ...extraScripts]),
+    scripts(['/js/bank/core.js', '/js/ticker.js', ...extraScripts]),
   ].join('\n');
 }
 
@@ -355,6 +362,17 @@ ${content}
     scripts(['/js/bank/core.js', ...extraScripts]),
   ].join('\n');
 }
+
+/**
+ * The live price strip under the nav. Empty until /js/ticker.js fills it from
+ * /api/bank/markets, and it stays hidden if no price can be had.
+ */
+const ticker = () => `
+  <div class="hs-ticker" data-hs-ticker hidden role="region" aria-label="Live market prices">
+    <span class="hs-ticker-live"><i></i>Live</span>
+    <div class="hs-ticker-window"><div class="hs-ticker-track" data-hs-ticker-track></div></div>
+    <a class="hs-ticker-cta" href="/invest">Convert &rarr;</a>
+  </div>`;
 
 /* -------------------------------------------------------- marketing bits --- */
 
@@ -442,11 +460,12 @@ function marketingPage({ title, description, active, content, extraScripts = [],
   return [
     head({ title, description, bodyClass }),
     marketingNav(active),
+    ticker(),
     content,
     marketingFooter(),
     chatWidget(),
     `  <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/main.js', '/js/motion.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
+    scripts(['/js/main.js', '/js/motion.js', '/js/ticker.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
   ].join('\n');
 }
 

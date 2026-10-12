@@ -48,6 +48,7 @@ typing.
 | `/cards` | Freeze, unfreeze, set daily limits, report lost or stolen with same-day replacement |
 | `/alerts` | Every notification raised, and fine-grained control over which ones send |
 | `/messages` | Secure messages with the bank, inside the session |
+| `/invest` | Convert part or all of a balance into the S&P 500, Nasdaq-100, Apple, Amazon, Microsoft, NVIDIA, Alphabet, Tesla, Bitcoin or gold at live prices, in one tap; sell back to cash any time |
 | `/security` | Password, two-step verification, transfer PIN, security question, signed-in devices |
 | `/activity` | The customer's own audit trail, with device and IP against each entry |
 | `/profile` | Contact details, photo upload, documents on file |
