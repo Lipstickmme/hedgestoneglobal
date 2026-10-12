@@ -518,6 +518,8 @@
         return new Promise(() => {});
       }
       paintUser(session);
+      // Confirmed: lift the loader the head script put up.
+      document.documentElement.classList.remove('rf-booting');
     }
     // Not awaited: nothing on the page is blocked on a telephone number, and a
     // slow /config should not hold up the dashboard behind it.

@@ -259,6 +259,28 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok(`invest: $500.00 bought ${buy.body.trade.units} SPY at $571.25, half sold at $599.81, Bitcoin round trip, price-moved and overdraw refused`);
     }
 
+    /* ---- 5d. an active session keeps its cookies; an ended one loses them ---- */
+    {
+      const db_ = require(path.join(ROOT, 'src/bank/db')).db;
+      const mine = (await db_.sessions.find({ revoked_at: null })).filter((x) => x.csrf === customer.csrf)[0];
+      assert.ok(mine, 'the test session is on record');
+      await db_.sessions.update(mine.id, { last_seen_at: new Date(Date.now() - 5 * 60000).toISOString() });
+      const slid = await customer.get('/api/bank/auth/session');
+      const set = slid.headers.getSetCookie ? slid.headers.getSetCookie() : [];
+      assert.ok(set.some((c) => /^rf_session=/.test(c) && /Max-Age=\d+/.test(c)), 'the session cookie is re-issued as the session slides');
+      assert.ok(set.some((c) => /^rf_csrf=/.test(c)), 'and the CSRF cookie with it');
+
+      await db_.sessions.update(mine.id, { last_seen_at: new Date(Date.now() - 5 * 60000).toISOString() });
+      const feed = await customer.get('/api/bank/markets');
+      assert.ok(!(feed.headers.getSetCookie ? feed.headers.getSetCookie() : []).length, 'the CDN-cached price feed never carries a cookie');
+
+      const stale = await fetch(`${base}/api/bank/auth/session`, { headers: { Cookie: 'rf_session=gone; rf_csrf=gone' } });
+      const cleared = stale.headers.getSetCookie ? stale.headers.getSetCookie() : [];
+      assert.strictEqual((await stale.json()).authenticated, false);
+      assert.ok(cleared.some((c) => /^rf_csrf=;/.test(c) && /Max-Age=0/.test(c)), 'cookies from an ended session are cleared');
+      ok('sessions: cookies slide while active, are cleared once ended, and never ride on the price feed');
+    }
+
     /* ---- 5c. each price provider is read the way it answers ---- */
     {
       const markets_ = require(path.join(ROOT, 'src/bank/markets'));

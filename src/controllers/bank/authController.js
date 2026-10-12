@@ -211,7 +211,16 @@ const logout = asyncHandler(async (req, res) => {
 /** Who am I, and is my session still good? The app calls this on every load. */
 const session = asyncHandler(async (req, res) => {
   await ready();
-  if (!req.bankUser) return res.json({ authenticated: false });
+  if (!req.bankUser) {
+    // Cookies left behind by a session that has ended: clear them, so the next
+    // signed-in page knows at once that there is no session, instead of
+    // showing its loader while it asks.
+    if (/(?:^|;\s*)rf_(session|csrf)=/.test(req.headers.cookie || '')) {
+      auth.clearCookie(req, res, auth.SESSION_COOKIE || 'rf_session');
+      auth.clearCookie(req, res, auth.CSRF_COOKIE);
+    }
+    return res.json({ authenticated: false });
+  }
   const cfg = await settings.get();
   const unread = await alerts.unreadCount(req.bankUser.id);
   const unreadMessages = (await db.messages.find({ user_id: req.bankUser.id, from_side: 'bank', read_at: null })).length;

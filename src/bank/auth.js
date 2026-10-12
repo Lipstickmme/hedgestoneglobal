@@ -115,10 +115,12 @@ async function resolveSession(req) {
   const minutes = session.remember ? 60 * 24 * 30 : Number(cfg.sessionMinutes || 30);
   const nextExpiry = new Date(Date.now() + minutes * 60000).toISOString();
   // Only write when it actually moves, so reads do not thrash the store.
+  let slid = false;
   if (!session.last_seen_at || Date.now() - new Date(session.last_seen_at).getTime() > 60000) {
     await db.sessions.update(session.id, { last_seen_at: nowIso(), expires_at: nextExpiry });
+    slid = true;
   }
-  return { user, session };
+  return { user, session, slid: slid && token ? { token, minutes } : null };
 }
 
 async function destroySession(req, res) {
@@ -199,6 +201,15 @@ async function attach(req, res, next) {
     if (resolved) {
       req.bankUser = resolved.user;
       req.bankSession = resolved.session;
+      // The server slides a session forward as the customer works, so the
+      // cookies must slide with it. They used to keep the lifetime they were
+      // issued with, which signed an active customer out exactly thirty
+      // minutes after they signed in, mid-task.
+      if (resolved.slid) {
+        const maxAge = resolved.slid.minutes * 60;
+        setCookie(req, res, SESSION_COOKIE, resolved.slid.token, { maxAge });
+        if (resolved.session.csrf) setCookie(req, res, CSRF_COOKIE, resolved.session.csrf, { maxAge, httpOnly: false });
+      }
     }
   } catch (err) {
     console.warn('[hedgestone] session lookup failed:', err.message);

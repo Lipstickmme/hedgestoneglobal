@@ -18,6 +18,9 @@ const { asyncHandler, toCents } = require('../../bank/http');
  */
 const quotes = asyncHandler(async (req, res) => {
   const assets = await markets.list();
+  // Shared by everybody through the CDN, so it must never carry anybody's
+  // cookies - including a session the middleware has just slid forward.
+  res.removeHeader('Set-Cookie');
   res.set('Cache-Control', 'public, max-age=15, s-maxage=30, stale-while-revalidate=60');
   res.json({ assets, updatedAt: new Date().toISOString() });
 });

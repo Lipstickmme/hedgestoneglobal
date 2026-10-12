@@ -1668,3 +1668,18 @@ a.rf-auth-brand {
 .hs-dash-invest-v { padding: 4px 20px 12px; }
 .hs-dash-invest-v strong { display: block; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
 .hs-dash-invest-v small { color: var(--rf-ink-3); }
+
+/* ---- signed-in pages: nothing shows until the session is confirmed ---- */
+html.rf-gone body { visibility: hidden; }
+html.rf-booting .rf-shell { visibility: hidden; animation: rf-reveal 0s linear 8s forwards; }
+html.rf-booting body::after {
+  content: ""; position: fixed; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border-radius: 50%; border: 3px solid #dbe8e2; border-top-color: var(--rf-navy);
+  animation: rf-spin .8s linear infinite, rf-reveal-hide 0s linear 8s forwards;
+}
+@keyframes rf-reveal { to { visibility: visible; } }
+@keyframes rf-reveal-hide { to { visibility: hidden; opacity: 0; } }
+@keyframes rf-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  html.rf-booting body::after { animation: rf-reveal-hide 0s linear 8s forwards; border-top-color: #dbe8e2; }
+}

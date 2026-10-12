@@ -155,6 +155,25 @@ const icon = (name, size = 18) => {
 
 /* ----------------------------------------------------------------- head --- */
 
+/**
+ * The door on every signed-in page, run before anything is painted.
+ *
+ * These pages are static shells: the sidebar, the header and the skeleton
+ * cards are in the HTML, and the session is only checked by the first API
+ * call. Without this, a signed-out visitor - someone following a price in the
+ * ticker, an old bookmark - watched the dashboard draw itself for a second or
+ * two before being sent to sign in, which looks exactly like being signed in
+ * and then thrown out.
+ *
+ * The CSRF cookie is set and cleared alongside the session cookie and, unlike
+ * it, is readable here. No cookie means no session: go to sign in before the
+ * first paint. A cookie means there may be one: keep the shell hidden behind a
+ * small loader until core.js has confirmed it (rf-booting), and reveal it after
+ * eight seconds regardless, so a script that fails to load never leaves a
+ * blank page.
+ */
+const GATE = `<script>(function(){var d=document.documentElement;if(!/(?:^|;\\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>`;
+
 function head({ title, description, noindex = false, styles = [], bodyClass }) {
   return `<!doctype html>
 <html lang="en">
@@ -180,7 +199,7 @@ function head({ title, description, noindex = false, styles = [], bodyClass }) {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/css/fonts.css" />
   <link rel="stylesheet" href="/css/bank.css" />
-  ${styles.map((href) => `<link rel="stylesheet" href="${href}" />`).join('\n  ')}
+  ${styles.map((href) => `<link rel="stylesheet" href="${href}" />`).join('\n  ')}${bodyClass === 'rf-app' ? `\n  ${GATE}` : ''}
 </head>
 <body class="${bodyClass}">`;
 }

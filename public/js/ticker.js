@@ -19,6 +19,13 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   };
+  // Signed out, a price goes straight to sign-in and on to Invest afterwards,
+  // rather than opening a page that would only send them there.
+  var signedIn = /(?:^|;\s*)rf_csrf=/.test(document.cookie);
+  var dest = function (path) { return signedIn ? path : '/signin?next=' + encodeURIComponent(path); };
+  var cta = host.querySelector('.hs-ticker-cta');
+  if (cta) cta.setAttribute('href', dest('/invest'));
+
   var price = function (p) {
     return '$' + Number(p).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -27,7 +34,7 @@
     var q = a.quote;
     var dir = q.change > 0 ? 'up' : q.change < 0 ? 'down' : 'flat';
     var pct = q.changePct == null ? '' : (q.changePct > 0 ? '+' : '') + q.changePct.toFixed(2) + '%';
-    return '<a class="hs-tick ' + dir + '" data-sym="' + esc(a.symbol) + '" href="/invest?convert=' + encodeURIComponent(a.symbol) + '"'
+    return '<a class="hs-tick ' + dir + '" data-sym="' + esc(a.symbol) + '" href="' + esc(dest('/invest?convert=' + a.symbol)) + '"'
       + (dupe ? ' aria-hidden="true" tabindex="-1"' : '')
       + ' title="' + esc(a.detail + ' - ' + q.source + ', ' + new Date(q.asOf).toLocaleString()) + '">'
       + '<b>' + esc(a.name) + '</b>'
