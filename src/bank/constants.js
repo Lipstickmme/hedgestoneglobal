@@ -21,7 +21,7 @@ const BANK = {
   // validateRouting() in ids.js, which is what actually enforces this.
   routingNumber: '819264176',
   wireRoutingNumber: '819264176',
-  swift: 'RKFDUS44XXX',
+  swift: 'HDGSUS44XXX',
   fdicCert: '58412',
   nmls: '409127',
   email: 'support@hedgestonesfinance.com',

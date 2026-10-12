@@ -32,27 +32,28 @@ and local JSON files otherwise, so development works offline with no setup.
 
 ## Step 1: Add your images
 
-All current artwork is generated blueprint-style placeholder SVG. The five
-page-level images need no code change at all: **drop them into
-`public/assets/bank/` named `hedgestone1` to `hedgestone6`** and the next build picks them
-up. Any of `.webp`, `.avif`, `.jpg`, `.jpeg`, `.png` works, and `.webp` is chosen
-first if more than one is present.
+The page photographs live in `public/assets/img/` and need no code change to
+replace: drop in a file with the same name and the next build picks it up. Any
+of `.webp`, `.avif`, `.jpg`, `.jpeg`, `.png` works, and `.webp` is chosen first
+if more than one is present.
 
-| File | Where it appears | Suggested size |
-| ---- | ---------------- | -------------- |
-| `hedgestone1` | The home page hero and the first slide | 2400 x 1400 |
-| `hedgestone2` | The `/personal` header and the second slide | 1920 x 1200 |
-| `hedgestone3` | The `/business` header and the third slide | 1920 x 1200 |
-| `hedgestone4` | The security section and the `/rates` header | 1920 x 1200 |
-| `hedgestone5` | The contact section and the `/contact` header | 1920 x 1200 |
-| `hedgestone6` | The `/careers` header | 1920 x 1200 |
+| File | Where it appears |
+| ---- | ---------------- |
+| `hedgestonehero` | The home page hero |
+| `hedgestone2` | The home page security panel |
+| `hedgestone1` | The `/personal` header |
+| `hedgestone5` | The `/business` header |
+| `hedgestone4` | The `/rates` header |
+| `hedgestone` | The `/security-center` header |
+| `hedgestonefamily` | The `/open-account` header |
+| `hedgestone3` | The `/careers` header |
+| `hedgestone6` | The `/contact` header |
 
 Project and service artwork is named per item in `src/data/projects.json` and
 `src/data/services.json`, so those take any filename you like.
 
-`hedgestone1` carries the most weight: it is the first thing anyone sees, so pick the
-one that reads as the bank's signature and has calm space rather than busy
-detail in the middle, where headlines sit.
+`hedgestonehero` carries the most weight: it is the first thing anyone sees, so
+keep the subject on the right and calm space on the left, where the headline sits.
 
 The mapping lives in `src/data/images.json`. Each slot names the file it prefers
 and the placeholder it falls back on, so the site never shows a broken image
@@ -437,8 +438,8 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | Variable | Required | Purpose |
 | -------- | -------- | ------- |
 | `SUPABASE_URL` | for the database | Project URL (`VITE_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` accepted) |
-| `SUPABASE_ANON_KEY` | for chat and `/admin` | anon key; public by design, sent to the browser |
-| `SUPABASE_SERVICE_ROLE_KEY` | for the database | service_role key; server side only |
+| `SUPABASE_ANON_KEY` | for chat and `/admin` | anon key; public by design, sent to the browser (`SUPABASE_PUBLISHABLE_KEY` and the `NEXT_PUBLIC_` / `VITE_` forms accepted) |
+| `SUPABASE_SERVICE_ROLE_KEY` | for the database | service_role key; server side only (`SUPABASE_SECRET_KEY` accepted) |
 | `RESEND_API_KEY` | for email | Resend API key |
 | `FORM_TO` | for email | Where enquiries and chat land |
 | `FORM_FROM` | for email | Verified sender identity |
@@ -447,6 +448,9 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `MAILBOX_ADDRESS` | for inbound | The address that receives mail |
 | `FORWARD_TO` | for inbound | Where received mail is forwarded. No default: unset means nothing is forwarded |
 | `NOTIFY_WEBHOOK_URL` | no | Slack / Discord / desk webhook |
+| `RESEND_API_BASE` | no | Override for the Resend API base (default `https://api.resend.com`) |
+| `BANK_NAME` | no | Sender display name for replies and alerts (default `Hedgestone National Bank`; `STUDIO_NAME` accepted) |
+| `BANK_SHOW_DEV_CODES` | no | `1` returns one-time codes in responses and shows demo logins. Public demonstrations only |
 | `DATA_DIR` | no | Override local file storage path |
 | `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | no | API rate limiting (default 60000 / 30) |
 | `PORT` | no | Local port (default 3000) |
@@ -462,7 +466,16 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `PUBLIC_BASE_URL` | for email | Absolute base for the links inside alert emails. `BANK_BASE_URL` and `APP_URL` are accepted too, for when Vercel refuses the `PUBLIC_` prefix |
 | `BANK_RATE_LIMIT_MAX` | no | Requests per minute per IP against `/api/bank` (default 300) |
 | `BANK_LOGIN_RATE_LIMIT` | no | Sign-in attempts per five minutes per IP (default 20) |
-| `BANK_COOKIE_INSECURE` | no | `1` drops the Secure flag from the session cookie, for plain HTTP locally |
+| `BANK_COOKIE_INSECURE` | no | `1` drops the Secure flag from the session cookie, for plain HTTP locally. Never on Vercel |
+
+**Minimum for a working production deployment:** `SUPABASE_URL`,
+`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `BANK_ENCRYPTION_KEY`,
+`BANK_ADMIN_EMAIL`, `BANK_ADMIN_PASSWORD`, `PUBLIC_BASE_URL`. Add
+`RESEND_API_KEY`, `FORM_TO`, `FORM_FROM` and `BANK_ALERT_FROM` for email, which
+one-time codes depend on. Set each for **Production and Preview**, then
+redeploy. `.env.example` lists every variable with the same grouping.
+
+Do not set `PORT`, `DATA_DIR`, `NODE_ENV` or `BANK_COOKIE_INSECURE` on Vercel.
 
 Legacy aliases `CONTACT_NOTIFY_EMAIL` and `NOTIFY_FROM` still work if `FORM_TO` and
 `FORM_FROM` are unset.
@@ -494,6 +507,21 @@ sidebar gains **Admin console**. A customer who types `/console` is sent back
 to their dashboard.
 
 ## Troubleshooting
+
+**The deployment is blocked or never starts: "Git author ... must have access to
+the team on Vercel", or "could not associate the committer with a GitHub
+user".** Vercel only builds commits whose author it can match to a member of
+the project, and on the Hobby plan only to the owner. A commit written by a bot
+or tool under its own address is refused before the build runs. Push a commit
+authored by your own GitHub identity (`git commit --allow-empty -m redeploy`
+with your `user.email` set to your GitHub address), or in Vercel open the latest
+deployment and choose **Redeploy**.
+
+**The build succeeds and then fails with `No entrypoint found in output
+directory: "public"`.** The Framework Preset in Vercel's project settings is not
+**Other**. `vercel.json` sets `"framework": null`, but a preset chosen in the
+dashboard overrides it. Change it to **Other** and redeploy.
+
 
 **`/signin` says "Something went wrong (404)", or a request "did not reach the
 bank".** The request was answered before it got to this application. Every
