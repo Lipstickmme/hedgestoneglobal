@@ -1,0 +1,13 @@
+# Anchored with a leading slash on purpose. An unanchored pattern like "data/"
+# matches at ANY depth, which would also exclude src/data (the content the
+# build reads) and break the deploy.
+
+# Local runtime storage at the repo root
+/data/
+
+# Not needed by the deployment
+/docs/
+/supabase/
+/test/
+/.github/
+*.log

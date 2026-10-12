@@ -1,0 +1,98 @@
+[
+  {
+    "id": "everyday-banking",
+    "title": "Everyday banking",
+    "summary": "Checking and savings that do the boring parts properly: no monthly fee, early direct deposit and a balance you can trust.",
+    "detail": "Everyday Checking carries no monthly service fee and no minimum. Pay is available up to two days early when your employer files it early. Savings sits at 4.35% APY with no tiers to chase and no introductory rate that quietly expires.",
+    "points": [
+      "No monthly service fee and no minimum balance",
+      "Direct deposit up to two days early",
+      "60,000 fee-free ATMs nationwide",
+      "Instant sends to anyone with a US bank account"
+    ]
+  },
+  {
+    "id": "saving-and-growth",
+    "title": "Saving and growth",
+    "summary": "High-yield savings, money market and certificates, insured to the FDIC limit and priced without games.",
+    "detail": "Round-ups sweep spare change into a goal you name. Certificates run from three months to five years and pay interest monthly rather than at maturity, so the money is doing something either way.",
+    "points": [
+      "4.35% APY on High-Yield Savings",
+      "Goal buckets and automatic round-ups",
+      "Certificates from 3 to 60 months",
+      "FDIC insured to $250,000 per depositor"
+    ]
+  },
+  {
+    "id": "cards-and-credit",
+    "title": "Cards and credit",
+    "summary": "A debit card you can freeze in a tap and a credit card that pays 2% on everything without a category calendar.",
+    "detail": "Freeze and unfreeze instantly, set your own daily limits, and turn international or online use on and off. Report a card lost and a replacement goes out the same day, with the new number available to spend online immediately.",
+    "points": [
+      "2% unlimited cash back, no categories",
+      "Freeze, unfreeze and set limits instantly",
+      "No foreign transaction fee",
+      "Zero liability on unauthorised transactions"
+    ]
+  },
+  {
+    "id": "payments-and-transfers",
+    "title": "Payments and transfers",
+    "summary": "ACH, domestic and international wires, bill pay and instant sends, each with a receipt you can quote down a phone line.",
+    "detail": "Every payment carries a confirmation number, and every ACH an actual trace number, so when something goes missing the receiving bank has something to search on. Outgoing payments to a new recipient are reviewed before they leave.",
+    "points": [
+      "ACH transfers at no charge",
+      "Domestic wires $25, international $45",
+      "Scheduled and recurring payments",
+      "Trace numbers and IMAD references on every wire"
+    ]
+  },
+  {
+    "id": "business-banking",
+    "title": "Business banking",
+    "summary": "Operating accounts, payroll files, merchant settlement and a treasury team that answers the phone.",
+    "detail": "Business checking with transaction allowances that suit a real operating rhythm, dual approval on outgoing payments, and role-based access so a bookkeeper can reconcile without being able to move money.",
+    "points": [
+      "Dual approval on outgoing payments",
+      "Role-based access for staff and bookkeepers",
+      "Same-day ACH origination",
+      "Merchant settlement next business day"
+    ]
+  },
+  {
+    "id": "borrowing",
+    "title": "Borrowing",
+    "summary": "Mortgages, auto loans and lines of credit, underwritten by people who will explain the answer either way.",
+    "detail": "Pre-approval in one business day on most applications, with a named underwriter you can reach. Rates are posted publicly and do not move between quote and close without a documented reason.",
+    "points": [
+      "Pre-approval in one business day",
+      "A named underwriter on every file",
+      "No prepayment penalties",
+      "Equal Housing Lender"
+    ]
+  },
+  {
+    "id": "security-and-fraud",
+    "title": "Security and fraud",
+    "summary": "Two-step verification, alerts that arrive in seconds and a fraud line that is open every hour of the year.",
+    "detail": "Sign-ins, payments and profile changes each raise an alert. Anything unusual on an outgoing payment is held for review before it leaves rather than recovered afterwards, which is the only version of that job that actually works.",
+    "points": [
+      "Two-step verification on sign-in and payments",
+      "Alerts within seconds of money moving",
+      "Held review on new recipients",
+      "A fraud line open every hour of the year"
+    ]
+  },
+  {
+    "id": "wealth-and-retirement",
+    "title": "Wealth and retirement",
+    "summary": "IRAs, brokerage referrals and a planner who will tell you when you do not need one.",
+    "detail": "Traditional and Roth IRAs opened alongside your everyday accounts, with contributions automated out of checking and a yearly review that is a conversation rather than a sales call.",
+    "points": [
+      "Traditional and Roth IRAs",
+      "Automated contributions from checking",
+      "Annual review with a planner",
+      "No commission on deposit products"
+    ]
+  }
+]

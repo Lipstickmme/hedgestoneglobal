@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Client services desk | Rockfield National Bank</title>
+  <meta name="description" content="Staff desk for website enquiries, applications, chat and mail." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#11213a" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/css/fonts.css" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/bank.css" />
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="page-admin">
+
+  <main class="admin" id="admin">
+    <section class="admin-gate" id="admin-boot">
+      <div class="admin-card"><p class="admin-note">Checking access&hellip;</p></div>
+    </section>
+
+    <section class="admin-gate" id="admin-unconfigured" hidden>
+      <div class="admin-card">
+        <span class="eyebrow">Rockfield / Client services desk</span>
+        <h1>Backend not connected.</h1>
+        <div id="admin-missing"></div>
+        <p class="admin-note">Set it in the deployment's environment variables and reload. Nothing needs rebuilding, but the change only reaches a running deployment after a redeploy.</p>
+        <p class="admin-note"><a href="/api/health">/api/health</a> lists everything the server can see.</p>
+        <a class="admin-back" href="/">Back to site</a>
+      </div>
+    </section>
+
+    <section class="admin-gate" id="admin-login" hidden>
+      <form class="admin-card" id="login-form" novalidate>
+        <span class="eyebrow">Rockfield / Client services desk</span>
+        <h1>Staff sign in.</h1>
+        <p class="admin-note" id="login-note">Website enquiries, live chat and the shared mailbox. Customer accounts are in the <a href="/console">banking console</a>.</p>
+        <div class="field"><label for="login-email">Email</label><input type="email" id="login-email" name="email" autocomplete="username" required /></div>
+        <div class="field"><label for="login-password">Password</label><input type="password" id="login-password" name="password" autocomplete="current-password" required /></div>
+        <div class="err" id="login-error" role="alert"></div>
+        <button type="submit" class="btn" id="login-btn">Sign in <span class="arw">&rsaquo;</span></button>
+        <a class="admin-back" href="/">Back to site</a>
+      </form>
+    </section>
+
+    <div class="admin-shell" id="admin-shell" hidden>
+      <header class="admin-bar">
+        <a class="admin-brand" href="/">
+          <img src="/assets/bank/logo-light.png" alt="Rockfield National Bank" width="240" height="143" />
+          <span>Client services desk</span>
+        </a>
+        <div class="admin-bar-end">
+          <a class="admin-signout" href="/console" style="text-decoration:none">Banking console</a>
+          <span class="admin-who" id="admin-who"></span>
+          <button type="button" class="admin-signout" id="admin-signout">Sign out</button>
+        </div>
+      </header>
+
+      <nav class="admin-tabs" id="admin-tabs" role="tablist" aria-label="Sections">
+        <button type="button" class="admin-tab is-active" role="tab" data-tab="enquiries" aria-selected="true">Enquiries<span class="tally" data-tally="enquiries">0</span></button>
+        <button type="button" class="admin-tab" role="tab" data-tab="applications" aria-selected="false">Applications<span class="tally" data-tally="applications">0</span></button>
+        <button type="button" class="admin-tab" role="tab" data-tab="chat" aria-selected="false">Live chat<span class="tally" data-tally="chat">0</span></button>
+        <button type="button" class="admin-tab" role="tab" data-tab="email" aria-selected="false">Email<span class="tally" data-tally="email">0</span></button>
+        <button type="button" class="admin-tab" role="tab" data-tab="settings" aria-selected="false">Settings</button>
+      </nav>
+
+      <p class="admin-alert" id="admin-alert" role="alert" hidden></p>
+
+      <div class="admin-body">
+        <section class="admin-panel" data-panel="enquiries">
+          <div class="admin-split">
+            <ul class="admin-list" id="enquiry-list"><li class="admin-empty">Loading&hellip;</li></ul>
+            <div class="admin-detail" id="enquiry-detail"><p class="admin-empty">Pick an enquiry to read it.</p></div>
+          </div>
+        </section>
+
+        <section class="admin-panel" data-panel="applications" hidden>
+          <div class="admin-split">
+            <ul class="admin-list" id="application-list"><li class="admin-empty">Loading&hellip;</li></ul>
+            <div class="admin-detail" id="application-detail"><p class="admin-empty">Pick an application to read it.</p></div>
+          </div>
+        </section>
+
+        <section class="admin-panel" data-panel="chat" hidden>
+          <div class="admin-split">
+            <ul class="admin-list" id="chat-list"><li class="admin-empty">Loading&hellip;</li></ul>
+            <div class="admin-detail" id="chat-detail"><p class="admin-empty">Pick a conversation to read and reply.</p></div>
+          </div>
+        </section>
+
+        <section class="admin-panel" data-panel="email" hidden>
+          <div class="admin-split">
+            <ul class="admin-list" id="email-list"><li class="admin-empty">Loading&hellip;</li></ul>
+            <div class="admin-detail" id="email-detail"><p class="admin-empty">Pick a thread to read it.</p></div>
+          </div>
+        </section>
+        <section class="admin-panel" data-panel="settings" hidden>
+          <div class="admin-settings" id="settings-panel"><p class="admin-empty">Loading&hellip;</p></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script src="/js/supabase-lite.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

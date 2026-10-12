@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in | Rockfield National Bank</title>
+  <meta name="description" content="Sign in to Rockfield National Bank online banking." />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#11213a" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Rockfield National Bank" />
+  <meta property="og:title" content="Sign in | Rockfield National Bank" />
+  <meta property="og:description" content="Sign in to Rockfield National Bank online banking." />
+  <meta property="og:image" content="https://rockfieldglobalfinance.com/assets/bank/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Sign in | Rockfield National Bank" />
+  <meta name="twitter:description" content="Sign in to Rockfield National Bank online banking." />
+  <meta name="twitter:image" content="https://rockfieldglobalfinance.com/assets/bank/og-image.png" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/css/fonts.css" />
+  <link rel="stylesheet" href="/css/bank.css" />
+  
+</head>
+<body class="rf-auth">
+  <div class="rf-auth-wrap">
+    <section class="rf-auth-aside">
+      <a class="brandline" href="/" aria-label="Rockfield National Bank home">
+        <img class="rf-lockup" src="/assets/bank/logo-light.png" alt="Rockfield National Bank" width="240" height="143" />
+      </a>
+      <h2>Your money, held the way a bank should hold it.</h2>
+      <p>Banking built on bedrock. Deposits insured by the FDIC to the maximum permitted by law, and a real person on the phone when you need one.</p>
+      <ul class="rf-auth-points">
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="m4.4 12.3 4.9 4.9L19.6 6.7"/></g></svg><span>Two-step verification on every sign-in and every payment</span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="m4.4 12.3 4.9 4.9L19.6 6.7"/></g></svg><span>Instant alerts the moment money moves</span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="m4.4 12.3 4.9 4.9L19.6 6.7"/></g></svg><span>Zero liability on unauthorised card transactions</span></li>
+        <li><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="m4.4 12.3 4.9 4.9L19.6 6.7"/></g></svg><span>FDIC Certificate 58412 &middot; NMLS 409127</span></li>
+      </ul>
+      <div class="rf-auth-foot">
+        Rockfield National Bank will never call, text or email to ask for your password or a one-time code.<br />
+        Report anything suspicious on <span data-site="fraudPhone">our fraud line</span>.<br />
+        &copy; 2026 Rockfield National Bank, N.A.. Member FDIC. Equal Housing Lender.
+      </div>
+    </section>
+    <section class="rf-auth-panel">
+      <a class="rf-auth-brand" href="/" aria-label="Rockfield National Bank home">
+        <img src="/assets/bank/logomark-light.png" alt="" width="53" height="28" />
+        <span>
+          <strong>Rockfield National Bank</strong>
+          <small>Online banking</small>
+        </span>
+      </a>
+
+      <div class="rf-auth-box">
+        <h1>Sign in to online banking</h1>
+        <p class="lede">Your session ends after 30 minutes of inactivity.</p>
+
+        <div class="rf-card">
+          <div class="rf-card-body">
+            <div class="rf-notice rf-hide" data-announcement></div>
+
+            <form id="rf-signin-form" novalidate>
+              <div class="rf-field">
+                <label for="rf-email">Email address</label>
+                <input class="rf-input" type="email" id="rf-email" name="email" autocomplete="username" required />
+              </div>
+              <div class="rf-field">
+                <label for="rf-password">Password</label>
+                <input class="rf-input" type="password" id="rf-password" name="password" autocomplete="current-password" required />
+              </div>
+              <label class="rf-check">
+                <input type="checkbox" name="remember" />
+                <span>Keep me signed in on this device</span>
+              </label>
+              <div class="rf-notice bad rf-hide" data-form-error></div>
+              <button class="rf-btn block" type="submit" data-submit>Sign in</button>
+            </form>
+
+            <form id="rf-verify-form" class="rf-hide" novalidate>
+              <p class="rf-small rf-muted">We sent a six-digit code to <strong data-sent-to></strong>. It expires in ten minutes.</p>
+              <div class="rf-field">
+                <label class="rf-label" for="rf-code-0">Verification code</label>
+                <div class="rf-otp" data-otp>
+                  <input id="rf-code-0" inputmode="numeric" maxlength="1" autocomplete="one-time-code" />
+                  <input inputmode="numeric" maxlength="1" />
+                  <input inputmode="numeric" maxlength="1" />
+                  <input inputmode="numeric" maxlength="1" />
+                  <input inputmode="numeric" maxlength="1" />
+                  <input inputmode="numeric" maxlength="1" />
+                </div>
+              </div>
+              <div class="rf-devcode rf-hide" data-dev-code></div>
+              <div class="rf-notice bad rf-hide" data-form-error></div>
+              <button class="rf-btn block" type="submit" data-submit>Verify and continue</button>
+              <div class="rf-auth-alt">
+                <button type="button" class="rf-btn link" data-resend>Send a new code</button> &middot;
+                <button type="button" class="rf-btn link" data-back>Start again</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="rf-auth-alt">
+          <a href="/forgot">Forgotten your password?</a> &middot;
+          <a href="/open-account">Open an account</a>
+        </div>
+
+        <div class="rf-card rf-mt rf-hide" data-demo-card>
+          <div class="rf-card-body tight rf-small">
+            <strong>Demonstration sign-ins</strong>
+            <div class="rf-spread rf-mt" style="margin-top:8px">
+              <span>Customer &mdash; <code class="rf-mono">demo@rockfieldglobalfinance.com</code> / <code class="rf-mono">Bedrock#Demo2026</code></span>
+              <button class="rf-btn ghost sm" data-fill="customer">Use</button>
+            </div>
+            <div class="rf-spread" style="margin-top:8px">
+              <span>Administrator &mdash; <code class="rf-mono">admin@rockfieldglobalfinance.com</code> / <code class="rf-mono">Rockfield#Admin2026</code></span>
+              <button class="rf-btn ghost sm" data-fill="admin">Use</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="rf-toasts" id="rf-toasts"></div>
+  <script src="/js/bank/core.js" defer></script>
+  <script src="/js/bank/signin.js" defer></script>
+</body>
+</html>

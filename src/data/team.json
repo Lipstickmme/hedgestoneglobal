@@ -1,0 +1,5 @@
+[
+  { "id": "client-services", "name": "Client services", "detail": "Open 8am to 9pm ET, six days a week." },
+  { "id": "payments", "name": "Payments operations", "detail": "Reviews and releases outgoing wires and ACH." },
+  { "id": "fraud", "name": "Fraud and disputes", "detail": "Open every hour of the year, including holidays." }
+]

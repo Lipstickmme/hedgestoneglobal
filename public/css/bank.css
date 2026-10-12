@@ -1,0 +1,1379 @@
+/* ==========================================================================
+   Rockfield National Bank - application styling
+   Loaded after styles.css. The marketing pages borrow the tokens and the
+   components; the signed-in application uses the shell, the tables and the
+   forms below.
+   ========================================================================== */
+
+:root {
+  /* Ink and paper.
+
+     Lifted off the old warm grey: paper is a cool near-white, the surfaces are
+     pure white, and the rules are lighter. The page reads brighter and the
+     cards actually separate from it, which they did not when both were beige.
+     Ink went down rather than up - on a brighter ground the old near-black was
+     harsher than it needed to be. */
+  --rf-ink: #101725;
+  --rf-ink-2: #3d4757;
+  --rf-ink-3: #6a7587;
+  --rf-ink-4: #9aa4b4;
+  --rf-paper: #f4f7fb;
+  --rf-surface: #ffffff;
+  --rf-surface-2: #f8fafd;
+  --rf-surface-3: #eef2f8;
+  --rf-line: #dfe6f0;
+  --rf-line-2: #edf1f7;
+
+  /* Brand */
+  --rf-navy: #11213a;
+  --rf-navy-2: #1b3457;
+  --rf-navy-3: #2d5c93;
+  --rf-brass: #b08341;
+  --rf-brass-2: #caa062;
+  --rf-brass-soft: #f6ecda;
+
+  /* Money */
+  --rf-credit: #1b7a53;
+  --rf-credit-soft: #e4f2ea;
+  --rf-debit: #a3352b;
+  --rf-debit-soft: #fae9e7;
+  --rf-pending: #8a6a1f;
+  --rf-pending-soft: #fbf1d8;
+  --rf-info: #1f5c8f;
+  --rf-info-soft: #e5eff7;
+
+  --rf-radius: 16px;
+  --rf-radius-sm: 10px;
+  --rf-radius-lg: 24px;
+  /* Two lights rather than one: a tight contact shadow that sits the card on
+     the page, and a wide soft one that gives it somewhere to sit. */
+  --rf-shadow: 0 1px 2px rgba(16, 23, 37, .04), 0 12px 28px -16px rgba(16, 23, 37, .22);
+  --rf-shadow-lg: 0 2px 4px rgba(16, 23, 37, .04), 0 32px 64px -28px rgba(17, 33, 58, .38);
+  --rf-shadow-hover: 0 2px 6px rgba(16, 23, 37, .06), 0 26px 50px -22px rgba(17, 33, 58, .34);
+
+  /* Glass. One set of values so every frosted surface is the same material:
+     a translucent white, a blurred backdrop, a bright top edge where the light
+     catches and a darker rule underneath. */
+  --rf-glass-bg: rgba(255, 255, 255, .62);
+  --rf-glass-line: rgba(255, 255, 255, .75);
+  --rf-glass-blur: saturate(180%) blur(18px);
+  --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .6) inset, 0 18px 40px -22px rgba(17, 33, 58, .5);
+  /* The same material over a photograph or a navy panel, where white glass
+     would wash the type out instead of holding it. */
+  --rf-glass-dark-bg: rgba(14, 26, 46, .42);
+  --rf-glass-dark-line: rgba(255, 255, 255, .18);
+
+  /* Button colours, themed here so the variants below keep the cascade. */
+  --rf-btn-face: var(--rf-navy);
+  --rf-btn-edge: var(--rf-navy);
+  --rf-btn-ghost-face: #ffffff;
+  --rf-btn-ghost-edge: var(--rf-line);
+
+  /* One easing for everything that moves, so the site has a single tempo. */
+  --rf-ease: cubic-bezier(.2, .7, .3, 1);
+  --rf-tilt: 240ms var(--rf-ease);
+  /* Type.
+
+     The supplied logo is set in classic roman caps, so the page is built
+     around a serif rather than the geometric sans it had before. Libre
+     Baskerville is the workhorse - a transitional face with the weight an
+     institution wants - and Cormorant Garamond carries the large headlines,
+     where Baskerville's sturdiness turns heavy. Source Sans 3 is a humanist
+     sans with classical proportions: it sits with a serif in a way a grotesk
+     does not, and stays legible down at table and label sizes. */
+  --rf-sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --rf-display: "Libre Baskerville", Georgia, "Times New Roman", serif;
+  --rf-headline: "Cormorant Garamond", "Libre Baskerville", Georgia, serif;
+  --rf-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --rf-sidebar: 258px;
+}
+
+/* --------------------------------------------------------------- resets -- */
+
+.rf-app *,
+.rf-auth *,
+.rf-console *,
+.rf-site * { box-sizing: border-box; }
+
+body.rf-app,
+body.rf-auth,
+body.rf-console,
+body.rf-site {
+  margin: 0;
+  background: var(--rf-paper);
+  color: var(--rf-ink);
+  font-family: var(--rf-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rf-app a, .rf-auth a, .rf-console a, .rf-site a { color: inherit; }
+
+/* An anchor styled as a button keeps the button's own colour: the blanket rule
+   above is more specific than .rf-btn and would otherwise repaint the label in
+   body ink, which on a navy button is invisible. One rule, because every
+   variant already declares its ink as --btn-ink - so this does not need to
+   know which variants exist. */
+.rf-app a.rf-btn, .rf-auth a.rf-btn, .rf-console a.rf-btn, .rf-site a.rf-btn { color: var(--btn-ink); }
+
+/* ---------------------------------------------------------------- shell -- */
+
+.rf-shell { display: flex; min-height: 100vh; }
+
+.rf-side {
+  width: var(--rf-sidebar);
+  flex: 0 0 var(--rf-sidebar);
+  background: var(--rf-navy);
+  color: #e8edf4;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 40;
+}
+
+.rf-side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+/* The mark's tile. The artwork inside is inline SVG stroked with currentColor,
+   so one geometry serves the navy sidebar and the white nav; only the colour
+   of this box changes between them. */
+/* The mark, cut out of the supplied logo artwork. No tile behind it: the
+   drawing is line work with its own white space built in, and boxing it up
+   only fights that. */
+.rf-mark {
+  display: block; height: 28px; width: auto; flex: 0 0 auto;
+}
+.rf-mark.on-paper { height: 46px; }
+
+/* The whole lockup - mark over ROCKFIELD over BANK - where a panel is tall
+   enough to give it room. */
+.rf-lockup { display: block; height: auto; max-width: 100%; }
+
+.rf-side-brand strong { font-family: var(--rf-display); font-size: 14px; letter-spacing: .01em; display: block; }
+.rf-side-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8ea4c2; }
+
+.rf-nav { padding: 14px 12px; flex: 1; overflow-y: auto; }
+.rf-nav-group { margin: 0 0 18px; }
+.rf-nav-group h6 {
+  margin: 0 0 6px; padding: 0 10px;
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #7c92b1; font-weight: 600;
+}
+
+.rf-nav a {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 9px;
+  color: #cdd8e8; text-decoration: none;
+  font-size: 14px; font-weight: 500;
+  transition: background .15s ease, color .15s ease;
+}
+.rf-nav a:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+.rf-nav a.is-active { background: rgba(255, 255, 255, .13); color: #fff; }
+.rf-nav a svg { width: 17px; height: 17px; flex: 0 0 17px; opacity: .85; }
+.rf-nav a .rf-pip {
+  margin-left: auto; background: var(--rf-brass); color: #22160a;
+  border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; min-width: 20px; text-align: center;
+}
+
+.rf-side-foot { padding: 14px; border-top: 1px solid rgba(255, 255, 255, .09); font-size: 12px; color: #8ea4c2; }
+.rf-side-foot .rf-side-user { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rf-side-foot .rf-side-user strong { color: #fff; font-size: 13px; display: block; }
+.rf-side-foot .rf-side-user span { font-size: 11px; }
+
+.rf-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex: 0 0 34px;
+  background: linear-gradient(150deg, #3a5f92, #23385a);
+  display: grid; place-items: center; color: #fff; font-weight: 600; font-size: 13px;
+  object-fit: cover; overflow: hidden;
+}
+.rf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rf-avatar.lg { width: 64px; height: 64px; flex-basis: 64px; font-size: 22px; }
+.rf-avatar.sm { width: 26px; height: 26px; flex-basis: 26px; font-size: 11px; }
+
+.rf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.rf-top {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(255, 255, 255, .84);
+  border-bottom: 1px solid var(--rf-line);
+  padding: 12px 26px;
+  display: flex; align-items: center; gap: 14px;
+}@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rf-top {
+    background: var(--rf-glass-bg);
+    -webkit-backdrop-filter: var(--rf-glass-blur);
+    backdrop-filter: var(--rf-glass-blur);
+  }
+}
+
+.rf-top h1 { margin: 0; font-family: var(--rf-sans); font-weight: 600; font-size: 20px; letter-spacing: -.005em; }
+.rf-top .rf-top-sub { font-size: 12.5px; color: var(--rf-ink-3); margin: 0; }
+.rf-top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.rf-burger {
+  display: none; width: 38px; height: 38px; border-radius: 9px;
+  border: 1px solid var(--rf-line); background: var(--rf-surface); cursor: pointer;
+  align-items: center; justify-content: center;
+}
+.rf-burger span { display: block; width: 16px; height: 1.6px; background: var(--rf-ink); box-shadow: 0 5px 0 var(--rf-ink), 0 -5px 0 var(--rf-ink); }
+
+.rf-content { padding: 24px 26px 64px; flex: 1; }
+
+/* The bottom bar. Hidden until the sidebar goes away; see Responsive. */
+.rf-tabbar { display: none; }
+.rf-content.narrow { max-width: 940px; }
+
+/* ------------------------------------------------------------- surfaces -- */
+
+.rf-card {
+  background: var(--rf-surface);
+  border: 1px solid var(--rf-line);
+  border-radius: var(--rf-radius);
+  box-shadow: var(--rf-shadow);
+}
+/* Cards that are a link, or a thing you pick, lift and lean under the cursor.
+   A card that is only a container does not - the tilt means "this responds",
+   and spending it on everything spends it on nothing. */
+.rf-card.interactive, a.rf-card, .rf-product, .rf-acct {
+  transition: transform var(--rf-tilt), box-shadow var(--rf-tilt), border-color var(--rf-tilt);
+  transform: perspective(900px);
+}
+.rf-card.interactive:hover, a.rf-card:hover, .rf-product:hover {
+  transform: perspective(900px) translateY(-4px) rotateX(2.2deg);
+  box-shadow: var(--rf-shadow-hover);
+  border-color: #cfdaeb;
+}
+.rf-card + .rf-card { margin-top: 16px; }
+/* ...but not where the container is already doing the spacing.
+
+   A grid or a flex row lays cards out side by side, and the margin above put
+   every card after the first 16px lower than the first - which then stretched
+   to the height of the row to cover the gap. The visible symptom was the
+   dashboard's four headline figures sitting on two different lines, the
+   leftmost floating above its neighbours. */
+:where(.rf-grid, .rf-row, .rf-stack, .rf-inline, .rf-spread) > .rf-card + .rf-card { margin-top: 0; }
+.rf-card-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 15px 18px; border-bottom: 1px solid var(--rf-line-2);
+}
+.rf-card-head h2, .rf-card-head h3 {
+  margin: 0; font-family: var(--rf-sans); font-size: 15.5px; letter-spacing: 0; font-weight: 600;
+}
+.rf-card-head .rf-card-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.rf-card-body { padding: 18px; }
+.rf-card-body.tight { padding: 12px 18px; }
+.rf-card-foot { padding: 12px 18px; border-top: 1px solid var(--rf-line-2); background: var(--rf-surface-2); border-radius: 0 0 var(--rf-radius) var(--rf-radius); font-size: 13px; color: var(--rf-ink-3); }
+
+.rf-grid { display: grid; gap: 16px; }
+.rf-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rf-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rf-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rf-grid.side { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.rf-grid.side-left { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
+
+/* ---------------------------------------------------------------- stats -- */
+
+.rf-stat { padding: 16px 18px; }
+.rf-stat .k { font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--rf-ink-3); font-weight: 600; }
+/* nowrap, so that a figure too long for its tile overflows and /js/bank/core.js
+   can see it and bring the type down. Left to wrap, "$22,198," would sit on
+   one line and "030.77" on the next, and nothing would look wrong enough to
+   measure. */
+.rf-stat .v { font-family: var(--rf-display); font-size: 25px; letter-spacing: 0; margin: 6px 0 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rf-stat .d { font-size: 12.5px; color: var(--rf-ink-3); }
+.rf-stat .d.up { color: var(--rf-credit); }
+.rf-stat .d.down { color: var(--rf-debit); }
+
+/* -------------------------------------------------------------- amounts -- */
+
+.rf-amt { font-family: var(--rf-mono); font-variant-numeric: tabular-nums; font-weight: 500; letter-spacing: -.01em; }
+.rf-amt.credit { color: var(--rf-credit); }
+.rf-amt.debit { color: var(--rf-ink); }
+.rf-amt.big { font-family: var(--rf-display); font-size: 28px; letter-spacing: 0; }
+
+/* --------------------------------------------------------------- badges -- */
+
+.rf-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .01em;
+  background: var(--rf-surface-3); color: var(--rf-ink-2);
+  border: 1px solid transparent; white-space: nowrap;
+}
+.rf-badge.ok, .rf-badge.completed, .rf-badge.active, .rf-badge.posted, .rf-badge.verified, .rf-badge.sent, .rf-badge.accepted { background: var(--rf-credit-soft); color: var(--rf-credit); }
+.rf-badge.pending, .rf-badge.pending_review, .rf-badge.pending_verification, .rf-badge.review, .rf-badge.scheduled, .rf-badge.processing, .rf-badge.queued { background: var(--rf-pending-soft); color: var(--rf-pending); }
+.rf-badge.bad, .rf-badge.rejected, .rf-badge.failed, .rf-badge.suspended, .rf-badge.closed, .rf-badge.blocked, .rf-badge.frozen, .rf-badge.lost, .rf-badge.stolen { background: var(--rf-debit-soft); color: var(--rf-debit); }
+.rf-badge.info, .rf-badge.not_configured { background: var(--rf-info-soft); color: var(--rf-info); }
+.rf-badge.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* -------------------------------------------------------------- buttons -- */
+
+/* Buttons.
+ *
+ * One shape, one height, one border, one shadow rule, one hover. A variant
+ * changes the fill and nothing else - which is the whole point: three buttons
+ * sitting side by side should read as three of the same object in different
+ * colours, not as three different components that happen to be near each
+ * other.
+ *
+ * Every variant therefore sets exactly two custom properties and lets the
+ * shared block below do the work.
+ */
+.rf-btn {
+  /* Indirected through theme tokens on :root rather than set here directly.
+     A dark-theme rule written as `:root:not([...]) .rf-btn` would out-specify
+     every `.rf-btn.brass` and `.rf-btn.glass` below it and repaint the whole
+     family navy. Theming the token instead leaves the cascade between the base
+     and its variants exactly where it belongs. */
+  --btn-face: var(--rf-btn-face);
+  --btn-edge: var(--rf-btn-edge);
+  --btn-ink: #fff;
+
+  position: relative; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 42px; padding: 0 20px;
+  border: 1px solid var(--btn-edge);
+  border-radius: 6px;
+  background: var(--btn-face);
+  color: var(--btn-ink);
+  font: 600 14px/1 var(--rf-sans);
+  letter-spacing: .01em;
+  cursor: pointer; text-decoration: none; white-space: nowrap;
+  box-shadow: 0 1px 1px rgba(16, 23, 37, .06);
+  transition: transform var(--rf-tilt), box-shadow var(--rf-tilt),
+              background var(--rf-tilt), border-color var(--rf-tilt), filter var(--rf-tilt);
+  transform: perspective(600px);
+}
+.rf-btn svg { width: 16px; height: 16px; flex: 0 0 16px; }
+
+/* The lift, identical on every variant. */
+.rf-btn:hover {
+  transform: perspective(600px) translateY(-2px) rotateX(6deg);
+  box-shadow: 0 10px 20px -10px rgba(16, 23, 37, .45);
+  filter: brightness(1.07);
+}
+.rf-btn:active {
+  transform: perspective(600px) translateY(0) rotateX(0);
+  box-shadow: 0 1px 1px rgba(16, 23, 37, .06);
+  filter: brightness(.96);
+}
+.rf-btn:focus-visible { outline: 2px solid var(--rf-brass); outline-offset: 2px; }
+.rf-btn[disabled], .rf-btn.is-busy { opacity: .5; pointer-events: none; }
+
+/* ---- the variants: a face, an edge, an ink, and nothing else ---- */
+
+.rf-btn.brass  { --btn-face: var(--rf-brass); --btn-edge: #9a7137; --btn-ink: #fff; }
+.rf-btn.danger { --btn-face: var(--rf-debit); --btn-edge: #8a2b23; }
+.rf-btn.ghost  { --btn-face: var(--rf-btn-ghost-face); --btn-edge: var(--rf-btn-ghost-edge); --btn-ink: var(--rf-ink); }
+.rf-btn.ghost:hover { --btn-edge: #b9c6d8; }
+/* Over a photograph, where a white button would punch a hole in the picture. */
+.rf-btn.glass  { --btn-face: rgba(255, 255, 255, .1); --btn-edge: rgba(255, 255, 255, .55); }
+.rf-btn.glass:hover { --btn-face: rgba(255, 255, 255, .2); --btn-edge: rgba(255, 255, 255, .8); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rf-btn.glass { -webkit-backdrop-filter: var(--rf-glass-blur); backdrop-filter: var(--rf-glass-blur); }
+}
+
+/* ---- sizes, which change the box and never the colours ---- */
+
+.rf-btn.lg { min-height: 50px; padding: 0 28px; font-size: 15.5px; }
+.rf-btn.sm { min-height: 32px; padding: 0 13px; font-size: 13px; gap: 6px; }
+.rf-btn.sm svg { width: 14px; height: 14px; flex: 0 0 14px; }
+.rf-btn.block { width: 100%; }
+/* A full-width button leaning back looks like the form is falling over. */
+.rf-btn.block:hover { transform: perspective(600px) translateY(-2px); }
+
+/* The one member of the family that is not an object: a link is text. */
+.rf-btn.link {
+  --btn-face: none; --btn-edge: transparent; --btn-ink: var(--rf-navy-3);
+  min-height: 0; padding: 2px 0; box-shadow: none;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.rf-btn.link:hover {
+  --btn-ink: var(--rf-navy);
+  transform: none; filter: none; box-shadow: none;
+}
+
+.rf-icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--rf-line); background: var(--rf-surface); cursor: pointer; position: relative;
+}
+.rf-icon-btn:hover { background: var(--rf-surface-3); }
+.rf-icon-btn .rf-pip {
+  position: absolute; top: -3px; right: -3px; background: var(--rf-debit); color: #fff;
+  border-radius: 999px; font-size: 10px; font-weight: 700; padding: 1px 5px; border: 2px solid var(--rf-paper);
+}
+
+/* ---------------------------------------------------------------- forms -- */
+
+.rf-field { margin-bottom: 14px; }
+.rf-field > label, .rf-label {
+  display: block; font-size: 12.5px; font-weight: 600; color: var(--rf-ink-2); margin-bottom: 5px;
+}
+.rf-field .hint { font-size: 12px; color: var(--rf-ink-3); margin-top: 5px; }
+.rf-field .err { font-size: 12px; color: var(--rf-debit); margin-top: 5px; min-height: 0; }
+
+.rf-input, .rf-select, .rf-textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--rf-line); border-radius: var(--rf-radius-sm);
+  background: var(--rf-surface); color: var(--rf-ink);
+  font: 400 14.5px/1.4 var(--rf-sans);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.rf-input:focus, .rf-select:focus, .rf-textarea:focus {
+  outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13);
+}
+.rf-input[readonly] { background: var(--rf-surface-3); color: var(--rf-ink-2); }
+.rf-textarea { min-height: 96px; resize: vertical; }
+.rf-input.mono, .rf-select.mono { font-family: var(--rf-mono); letter-spacing: .02em; }
+
+/* A date, as three lists instead of a calendar.
+
+   The year takes the most room of the three because it is the one somebody
+   scrolls; the day the least, because it is two digits. Each select keeps the
+   browser's own control, which on a phone means the system wheel picker and
+   on a desktop a list you can type the first characters into - both better at
+   1961 than a month grid is. */
+.rf-dateparts { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .78fr) minmax(0, 1.05fr); gap: 8px; }
+.rf-dateparts .rf-select { min-width: 0; padding-left: 10px; padding-right: 6px; }
+
+/* Wherever a date sits in a filter bar rather than a form, the label goes
+   beside it: a stack of label-over-control in a row of bare inputs reads as a
+   different kind of thing, which it is not. */
+.rf-datefield { display: flex; align-items: center; gap: 8px; }
+.rf-datefield .rf-label { margin: 0; font-size: 12.5px; color: var(--rf-ink-3); white-space: nowrap; }
+.rf-datefield .rf-dateparts { grid-template-columns: repeat(3, auto); }
+.rf-datefield .rf-select { width: auto; }
+
+/* A field in a row that sets its own spacing. */
+.rf-field-flush { margin-bottom: 0; }
+.rf-input.money { font-family: var(--rf-mono); font-size: 17px; }
+
+.rf-row { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rf-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rf-row.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.rf-check { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; margin-bottom: 9px; cursor: pointer; }
+.rf-check input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--rf-navy); }
+.rf-check span small { display: block; color: var(--rf-ink-3); font-size: 12px; }
+
+.rf-switch { display: flex; align-items: center; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--rf-line-2); }
+.rf-switch:last-child { border-bottom: 0; }
+.rf-switch .t { flex: 1; font-size: 13.5px; }
+.rf-switch .t small { display: block; color: var(--rf-ink-3); font-size: 12px; }
+.rf-switch input { appearance: none; width: 40px; height: 23px; border-radius: 999px; background: var(--rf-line); position: relative; cursor: pointer; transition: background .15s ease; flex: 0 0 40px; }
+.rf-switch input::after { content: ""; position: absolute; top: 2.5px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s ease; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.rf-switch input:checked { background: var(--rf-credit); }
+.rf-switch input:checked::after { transform: translateX(16px); }
+.rf-switch input:disabled { opacity: .5; cursor: not-allowed; }
+
+.rf-segment { display: inline-flex; background: var(--rf-surface-3); border-radius: 999px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.rf-segment button {
+  border: 0; background: none; padding: 7px 14px; border-radius: 999px;
+  font: 600 13px/1 var(--rf-sans); color: var(--rf-ink-2); cursor: pointer;
+}
+.rf-segment button.is-active { background: var(--rf-surface); color: var(--rf-ink); box-shadow: var(--rf-shadow); }
+
+/* --------------------------------------------------------------- tables -- */
+
+.rf-table { width: 100%; border-collapse: collapse; font-size: 13.8px; }
+.rf-table th {
+  text-align: left; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--rf-ink-3); font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--rf-line);
+  white-space: nowrap; background: var(--rf-surface-2);
+}
+.rf-table td { padding: 11px 14px; border-bottom: 1px solid var(--rf-line-2); vertical-align: middle; }
+.rf-table tbody tr:last-child td { border-bottom: 0; }
+.rf-table tbody tr.clickable { cursor: pointer; }
+.rf-table tbody tr.clickable:hover { background: var(--rf-surface-2); }
+.rf-table td.num, .rf-table th.num { text-align: right; font-family: var(--rf-mono); font-variant-numeric: tabular-nums; }
+.rf-table .sub { display: block; font-size: 12px; color: var(--rf-ink-3); }
+/* The wrapper is both the backstop - a table that still will not fit scrolls
+   rather than breaking the card - and, further down, the box the table asks
+   how much room it has. A table's problem is the width of its column, which
+   is not the width of the screen. */
+.rf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; container: rf-table / inline-size; }
+
+.rf-list { list-style: none; margin: 0; padding: 0; }
+.rf-list li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px; border-bottom: 1px solid var(--rf-line-2);
+}
+.rf-list li:last-child { border-bottom: 0; }
+.rf-list .t { flex: 1; min-width: 0; }
+.rf-list .t strong { display: block; font-weight: 600; font-size: 14px; }
+.rf-list .t span { font-size: 12.5px; color: var(--rf-ink-3); }
+
+.rf-empty { padding: 44px 20px; text-align: center; color: var(--rf-ink-3); }
+.rf-empty svg { width: 34px; height: 34px; opacity: .4; margin-bottom: 10px; }
+.rf-empty strong { display: block; color: var(--rf-ink-2); font-size: 15px; margin-bottom: 4px; font-family: var(--rf-display); }
+
+/* ---------------------------------------------------------- account tile -- */
+
+.rf-acct {
+  display: block; text-decoration: none; padding: 16px 18px;
+  border: 1px solid var(--rf-line); border-radius: var(--rf-radius);
+  background: var(--rf-surface); box-shadow: var(--rf-shadow);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.rf-acct:hover { transform: perspective(900px) translateY(-4px) rotateX(2.2deg); box-shadow: var(--rf-shadow-hover); }
+.rf-acct .top { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.rf-acct .top strong { font-size: 14px; }
+.rf-acct .no { font-family: var(--rf-mono); font-size: 12px; color: var(--rf-ink-3); }
+.rf-acct .bal { font-family: var(--rf-display); font-size: 23px; letter-spacing: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rf-acct .meta { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--rf-ink-3); }
+.rf-acct.credit .bal { color: var(--rf-debit); }
+
+/* --------------------------------------------------------- payment card -- */
+
+.rf-plastic {
+  position: relative; aspect-ratio: 1.586; border-radius: 16px; padding: 20px;
+  color: #fff; overflow: hidden; box-shadow: var(--rf-shadow-lg);
+  background: linear-gradient(140deg, #1b3457 0%, #11213a 55%, #0a1526 100%);
+  display: flex; flex-direction: column; justify-content: space-between;
+  max-width: 380px;
+}
+.rf-plastic.brass { background: linear-gradient(140deg, #a9793a 0%, #7d5526 60%, #4a3115 100%); }
+.rf-plastic.is-frozen { filter: saturate(.25) brightness(1.05); }
+.rf-plastic::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(120% 80% at 85% 10%, rgba(255,255,255,.16), transparent 60%);
+  pointer-events: none;
+}
+.rf-plastic .brandline { display: flex; align-items: center; justify-content: space-between; font-family: var(--rf-display); font-size: 14px; letter-spacing: .02em; }
+.rf-plastic .chip { width: 38px; height: 28px; border-radius: 5px; background: linear-gradient(140deg, #e6cd93, #b3923f); opacity: .92; }
+.rf-plastic .pan { font-family: var(--rf-mono); font-size: 17px; letter-spacing: .09em; }
+.rf-plastic .foot { display: flex; justify-content: space-between; align-items: flex-end; font-size: 11.5px; }
+.rf-plastic .foot .k { display: block; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; opacity: .65; }
+.rf-plastic .scheme { font-family: var(--rf-display); font-size: 15px; font-weight: 700; letter-spacing: .02em; }
+
+/* --------------------------------------------------------------- charts -- */
+
+.rf-bars { display: flex; align-items: flex-end; gap: 14px; height: 150px; padding-top: 8px; }
+.rf-bars .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+.rf-bars .pair { display: flex; gap: 3px; align-items: flex-end; height: 100%; width: 100%; justify-content: center; }
+.rf-bars .bar { width: 13px; border-radius: 4px 4px 0 0; min-height: 3px; }
+.rf-bars .bar.in { background: var(--rf-credit); opacity: .85; }
+.rf-bars .bar.out { background: var(--rf-navy-3); opacity: .8; }
+.rf-bars .lbl { font-size: 11px; color: var(--rf-ink-3); }
+
+.rf-ring { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.rf-ring svg { width: 138px; height: 138px; flex: 0 0 138px; }
+.rf-ring .legend { flex: 1; min-width: 190px; }
+.rf-ring .legend li { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 13px; border: 0; }
+.rf-ring .legend .sw { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 9px; }
+.rf-ring .legend .amt { margin-left: auto; font-family: var(--rf-mono); font-size: 12.5px; }
+
+.rf-spark { display: block; width: 100%; height: 44px; }
+
+/* --------------------------------------------------------------- modals -- */
+
+.rf-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(12, 18, 28, .52);
+  -webkit-backdrop-filter: saturate(120%) blur(8px);
+  backdrop-filter: saturate(120%) blur(8px); z-index: 90;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 5vh 16px; overflow-y: auto;
+}
+.rf-modal {
+  background: var(--rf-surface); border-radius: var(--rf-radius-lg);
+  border: 1px solid var(--rf-glass-line);
+  width: 100%; max-width: 560px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 40px 80px -30px rgba(8, 16, 30, .6);
+  animation: rf-rise .26s var(--rf-ease);
+}
+.rf-modal.wide { max-width: 860px; }
+.rf-modal.narrow { max-width: 440px; }
+@keyframes rf-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rf-modal-head { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--rf-line-2); }
+.rf-modal-head h3 { margin: 0; font-family: var(--rf-sans); font-weight: 600; font-size: 18px; letter-spacing: 0; }
+.rf-modal-head button { margin-left: auto; border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--rf-ink-3); }
+.rf-modal-body { padding: 22px; }
+.rf-modal-foot { padding: 16px 22px; border-top: 1px solid var(--rf-line-2); display: flex; gap: 10px; justify-content: flex-end; background: var(--rf-surface-2); border-radius: 0 0 var(--rf-radius-lg) var(--rf-radius-lg); }
+
+/* --------------------------------------------------------------- toasts -- */
+
+.rf-toasts { position: fixed; right: 18px; bottom: 18px; z-index: 100; display: flex; flex-direction: column; gap: 9px; max-width: 380px; }
+.rf-toast {
+  background: var(--rf-navy); color: #fff; padding: 12px 16px; border-radius: 12px;
+  box-shadow: var(--rf-shadow-lg); font-size: 13.5px; display: flex; gap: 10px; align-items: flex-start;
+  animation: rf-rise .2s ease;
+}
+.rf-toast.ok { background: #12543a; }
+.rf-toast.bad { background: #7c261d; }
+.rf-toast strong { display: block; font-size: 13.5px; }
+.rf-toast span { opacity: .85; font-size: 12.5px; }
+
+/* --------------------------------------------------------------- notice -- */
+
+.rf-notice {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 12px 15px; border-radius: var(--rf-radius-sm);
+  background: var(--rf-info-soft); color: #163e5f; font-size: 13.5px;
+  border: 1px solid rgba(31, 92, 143, .18); margin-bottom: 16px;
+}
+.rf-notice.warn { background: var(--rf-pending-soft); color: #6d5312; border-color: rgba(138, 106, 31, .22); }
+.rf-notice.bad { background: var(--rf-debit-soft); color: #7c261d; border-color: rgba(163, 53, 43, .2); }
+.rf-notice.ok { background: var(--rf-credit-soft); color: #14603f; border-color: rgba(27, 122, 83, .2); }
+.rf-notice strong { display: block; }
+
+/* ----------------------------------------------------------------- tabs -- */
+
+.rf-tabs { display: flex; gap: 3px; border-bottom: 1px solid var(--rf-line); overflow-x: auto; margin-bottom: 18px; }
+.rf-tabs button {
+  border: 0; background: none; padding: 11px 15px; cursor: pointer;
+  font: 600 13.5px/1 var(--rf-sans); color: var(--rf-ink-3);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.rf-tabs button:hover { color: var(--rf-ink); }
+.rf-tabs button.is-active { color: var(--rf-navy); border-bottom-color: var(--rf-brass); }
+
+/* -------------------------------------------------------------- details -- */
+
+.rf-dl { display: grid; grid-template-columns: minmax(120px, 38%) 1fr; gap: 0; font-size: 13.5px; }
+.rf-dl dt { color: var(--rf-ink-3); padding: 8px 0; border-bottom: 1px solid var(--rf-line-2); }
+.rf-dl dd { margin: 0; padding: 8px 0; border-bottom: 1px solid var(--rf-line-2); text-align: right; font-weight: 500; }
+.rf-dl dt:last-of-type, .rf-dl dd:last-of-type { border-bottom: 0; }
+.rf-dl dd.mono { font-family: var(--rf-mono); font-size: 12.5px; }
+
+.rf-copy { border: 0; background: none; cursor: pointer; color: var(--rf-navy-3); padding: 0 0 0 6px; font-size: 12px; }
+
+/* ------------------------------------------------------------- timeline -- */
+
+.rf-timeline { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--rf-line); }
+.rf-timeline li { position: relative; padding: 0 0 18px 16px; }
+.rf-timeline li::before {
+  content: ""; position: absolute; left: -25px; top: 4px;
+  width: 11px; height: 11px; border-radius: 50%; background: var(--rf-line); border: 2px solid var(--rf-surface);
+}
+.rf-timeline li.ok::before { background: var(--rf-credit); }
+.rf-timeline li.warn::before { background: var(--rf-pending); }
+.rf-timeline li.bad::before { background: var(--rf-debit); }
+.rf-timeline strong { display: block; font-size: 13.5px; }
+.rf-timeline span { font-size: 12px; color: var(--rf-ink-3); }
+
+/* ------------------------------------------------------------ skeletons -- */
+
+.rf-skel { background: linear-gradient(90deg, var(--rf-surface-3) 25%, var(--rf-line-2) 37%, var(--rf-surface-3) 63%); background-size: 400% 100%; animation: rf-shimmer 1.3s infinite; border-radius: 6px; height: 14px; }
+@keyframes rf-shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+
+/* ---------------------------------------------------------------- utils -- */
+
+.rf-muted { color: var(--rf-ink-3); }
+.rf-small { font-size: 12.5px; }
+.rf-mono { font-family: var(--rf-mono); }
+.rf-right { text-align: right; }
+.rf-center { text-align: center; }
+.rf-nowrap { white-space: nowrap; }
+.rf-stack { display: flex; flex-direction: column; gap: 14px; }
+.rf-inline { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.rf-spread { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rf-mt { margin-top: 16px; }
+.rf-mb { margin-bottom: 16px; }
+.rf-hide { display: none !important; }
+.rf-divider { height: 1px; background: var(--rf-line-2); margin: 16px 0; border: 0; }
+.rf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ==========================================================================
+   Sign-in and the other pages you meet before you are anybody
+   ========================================================================== */
+
+.rf-auth-wrap { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
+
+.rf-auth-aside {
+  background: linear-gradient(150deg, #16294a 0%, #0d1a2e 60%, #091421 100%);
+  color: #e9eef6; padding: 44px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+.rf-auth-aside::after {
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background:
+    radial-gradient(60% 40% at 80% 15%, rgba(176, 131, 65, .28), transparent 70%),
+    radial-gradient(50% 40% at 10% 90%, rgba(41, 74, 119, .5), transparent 70%);
+}
+.rf-auth-aside > * { position: relative; z-index: 1; }
+.rf-auth-aside .brandline { display: flex; align-items: center; gap: 11px; margin-bottom: auto; }
+.rf-auth-aside h2 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(29px, 3.5vw, 44px); line-height: 1.14; letter-spacing: 0; margin: 0 0 14px; }
+.rf-auth-aside p { color: #b9c7db; font-size: 15px; max-width: 42ch; margin: 0 0 26px; }
+.rf-auth-points { list-style: none; padding: 0; margin: 0 0 30px; display: grid; gap: 11px; }
+.rf-auth-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #cfdaea; }
+.rf-auth-points svg { width: 17px; height: 17px; flex: 0 0 17px; color: var(--rf-brass-2); margin-top: 1px; }
+.rf-auth-foot { font-size: 11.5px; color: #8093ad; line-height: 1.7; border-top: 1px solid rgba(255,255,255,.1); padding-top: 16px; }
+
+.rf-auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
+
+/* The lockup, for the widths where the aside is not on screen to carry it.
+
+   Below 900px the left-hand panel is gone, and with it the only place the
+   bank's name and mark appeared: a customer arrived at a sign-in form with
+   nothing on the page saying whose it was. The mark is the light one on a
+   navy ground, which is the same file the application sidebar already loads
+   and works in either theme - the alternative, dark line work, disappears on
+   a dark page. */
+/* `a.` rather than `.`: the reset a few rules up sets every anchor inside
+   .rf-auth to `color: inherit`, which outranks a bare class and left the name
+   in ink on a navy ground - invisible. */
+a.rf-auth-brand {
+  display: none; align-items: center; gap: 12px;
+  width: 100%; max-width: 408px; margin: 0 0 20px;
+  padding: 14px 18px; border-radius: var(--rf-radius);
+  background: var(--rf-navy); color: #fff; text-decoration: none;
+  box-shadow: var(--rf-shadow);
+}
+.rf-auth-brand img { height: 30px; width: auto; flex: 0 0 auto; }
+.rf-auth-brand strong { display: block; font-family: var(--rf-display); font-size: 15px; letter-spacing: .01em; color: #fff; }
+.rf-auth-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #9db3d1; margin-top: 2px; }
+.rf-auth-box { width: 100%; max-width: 408px; }
+.rf-auth-box h1 { font-family: var(--rf-headline); font-weight: 600; font-size: 32px; letter-spacing: 0; margin: 0 0 6px; }
+.rf-auth-box .lede { color: var(--rf-ink-3); margin: 0 0 24px; font-size: 14.5px; }
+.rf-auth-box .rf-card { padding: 24px; }
+.rf-auth-alt { text-align: center; margin-top: 20px; font-size: 13.5px; color: var(--rf-ink-3); }
+
+.rf-otp { display: flex; gap: 9px; justify-content: space-between; }
+.rf-otp input {
+  width: 100%; aspect-ratio: .78; text-align: center; font: 600 22px/1 var(--rf-mono);
+  border: 1px solid var(--rf-line); border-radius: var(--rf-radius-sm); background: var(--rf-surface);
+}
+.rf-otp input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13); }
+
+.rf-devcode {
+  margin-top: 14px; padding: 11px 14px; border-radius: var(--rf-radius-sm);
+  background: var(--rf-pending-soft); color: #6d5312; font-size: 12.5px; border: 1px dashed rgba(138, 106, 31, .4);
+}
+.rf-devcode code { font-family: var(--rf-mono); font-size: 15px; font-weight: 600; letter-spacing: .18em; }
+
+/* ------------------------------------------------------ reduced motion -- */
+
+/* Everything above that moves, stops.
+
+   The tilt is decoration; the state it signals is carried by the shadow and
+   the border colour, which stay. Blur is not motion and is left alone. */
+@media (prefers-reduced-motion: reduce) {
+  .rf-btn,
+  .rf-card.interactive, a.rf-card, .rf-product, .rf-acct {
+    transition-property: box-shadow, background, border-color, filter;
+    transform: none;
+  }
+  .rf-btn:hover, .rf-btn:active { transform: none; }
+  .rf-btn:hover, .rf-btn:active,
+  .rf-card.interactive:hover, a.rf-card:hover, .rf-product:hover, .rf-acct:hover {
+    transform: none;
+  }
+  .rf-modal { animation: none; }
+  .rf-toast { animation: none; }
+}
+
+/* ==========================================================================
+   Marketing pages (the public bank site)
+   ========================================================================== */
+
+.rf-hero {
+  position: relative; padding: clamp(70px, 11vw, 130px) 0 clamp(50px, 7vw, 90px);
+  background: linear-gradient(160deg, #16294a 0%, #0e1c32 55%, #0a1424 100%);
+  color: #eef2f8; overflow: hidden; isolation: isolate;
+}
+/* The home hero's height is set against the screen's height, not its width.
+
+   Scaled on width, a 1366 x 610 laptop was given the same 168px of air above
+   the eyebrow as a 27in monitor, which put the two buttons 56px below the
+   fold: the first thing a visitor is meant to do was the one thing they could
+   not see. Height is what "above the fold" is measured in, so that is what
+   the padding reads. */
+.rf-hero.tall { padding: clamp(52px, 10vh, 132px) 0 clamp(40px, 7vh, 88px); }
+.rf-hero.compact { padding: clamp(58px, 8vw, 96px) 0 clamp(38px, 5vw, 62px); }
+
+/* The photograph, as a photograph.
+
+   It used to sit at 30% opacity over the gradient, which left it looking like
+   a mistake rather than a picture. Now it is opaque and the scrim below does
+   the work of keeping type legible - which is the same job done in the right
+   order. */
+.rf-hero-photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  z-index: -2;
+}
+
+/* The scrim. Dark and near-opaque on the left where the words are, clearing to
+   almost nothing on the right so the picture is still a picture. The second
+   gradient keeps the bottom edge dark enough for the glass panel to read. */
+.rf-hero.has-photo::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(100deg, rgba(8, 16, 30, .78) 0%, rgba(9, 18, 33, .62) 40%, rgba(10, 20, 36, .26) 72%, rgba(10, 20, 36, .1) 100%),
+    linear-gradient(to top, rgba(8, 16, 30, .5) 0%, transparent 52%);
+}
+.rf-hero::after {
+  content: ""; position: absolute; inset: 0; opacity: .55; pointer-events: none; z-index: -1;
+  background:
+    radial-gradient(55% 45% at 78% 12%, rgba(176, 131, 65, .3), transparent 70%),
+    radial-gradient(45% 45% at 8% 88%, rgba(41, 74, 119, .55), transparent 70%);
+}
+/* Over a photograph the brass wash is a tint, not a light source. */
+.rf-hero.has-photo::after { opacity: .22; }
+
+/* The two pages with no photograph of their own get the mark instead, drawn
+   large and faint off the right edge. */
+.rf-hero-mark {
+  position: absolute; top: 50%; right: -60px; transform: translateY(-50%);
+  height: 78%; width: auto; opacity: .09; z-index: -1; pointer-events: none;
+}
+
+.rf-hero .wrap { position: relative; z-index: 1; }
+.rf-hero-copy { max-width: 46rem; }
+.rf-hero h1 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(46px, 7.4vw, 88px); line-height: 1.04; letter-spacing: 0; margin: 0 0 22px; color: #fff; }
+.rf-hero p.lede { font-size: clamp(17px, 1.8vw, 21px); line-height: 1.55; color: #d8e0ec; max-width: 52ch; margin: 0 0 32px; }
+.rf-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--rf-brass-2); font-weight: 600; margin-bottom: 18px; }
+.rf-hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* The figures, on glass. Sitting them on a frosted panel over the photograph
+   is what stops them reading as four numbers floating on a building. */
+.rf-hero-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 20px; margin-top: clamp(28px, 4vh, 56px); padding: 22px 26px;
+  border-radius: var(--rf-radius-lg);
+}
+.rf-hero-stats .k { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a7b8d0; }
+.rf-hero-stats .v { font-family: var(--rf-display); font-size: clamp(20px, 2.1vw, 24px); letter-spacing: 0; color: #fff; }
+
+/* ---------------------------------------------------------------- glass -- */
+
+/* One frosted material, used wherever something floats over something else.
+
+   backdrop-filter is the whole effect, and it is not universal, so the
+   background colour underneath is opaque enough to carry the panel on its own
+   where the filter does nothing. @supports then thins it out and turns the
+   blur on, rather than the other way round. */
+/* The panel form, for glass that floats over a photograph. The two sticky
+   bars use the same tokens but keep their own rules, because a nav wants one
+   border along the bottom rather than four around it. */
+.rf-glass {
+  background: rgba(17, 33, 58, .72);
+  border: 1px solid var(--rf-glass-dark-line);
+  box-shadow: var(--rf-glass-shadow);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rf-glass {
+    background: var(--rf-glass-dark-bg);
+    -webkit-backdrop-filter: var(--rf-glass-blur);
+    backdrop-filter: var(--rf-glass-blur);
+  }
+}
+
+.rf-section { padding: clamp(52px, 7vw, 92px) 0; }
+.rf-section.alt { background: var(--rf-surface); border-block: 1px solid var(--rf-line); }
+.rf-section h2 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(30px, 3.8vw, 46px); line-height: 1.12; letter-spacing: 0; margin: 0 0 12px; }
+.rf-section .section-lede { color: var(--rf-ink-3); font-size: 16px; max-width: 60ch; margin: 0 0 34px; }
+
+.rf-product {
+  display: flex; flex-direction: column; padding: 26px;
+  background: var(--rf-surface); border: 1px solid var(--rf-line);
+  border-radius: var(--rf-radius-lg); box-shadow: var(--rf-shadow); height: 100%;
+}
+.rf-product .rate { font-family: var(--rf-display); font-size: 31px; letter-spacing: 0; color: var(--rf-navy); }
+.rf-product .rate small { font-size: 13px; color: var(--rf-ink-3); letter-spacing: 0; }
+.rf-product h3 { font-family: var(--rf-display); font-size: 17px; margin: 14px 0 7px; letter-spacing: 0; }
+.rf-product p { color: var(--rf-ink-3); font-size: 14px; margin: 0 0 16px; }
+.rf-product ul { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 8px; }
+.rf-product li { font-size: 13.5px; display: flex; gap: 9px; align-items: flex-start; }
+.rf-product li svg { width: 15px; height: 15px; flex: 0 0 15px; color: var(--rf-credit); margin-top: 2px; }
+.rf-product .rf-btn { margin-top: auto; }
+
+.rf-feature { display: flex; gap: 14px; align-items: flex-start; }
+.rf-feature .ic {
+  width: 40px; height: 40px; flex: 0 0 40px; border-radius: 11px;
+  background: var(--rf-brass-soft); color: #7c5720; display: grid; place-items: center;
+}
+.rf-feature h3 { font-family: var(--rf-display); font-size: 16px; margin: 0 0 5px; }
+.rf-feature p { margin: 0; color: var(--rf-ink-3); font-size: 14px; }
+
+.rf-disclosure { font-size: 11.5px; color: var(--rf-ink-3); line-height: 1.7; }
+
+/* Solid white, not frosted.
+
+   The logo is black line work drawn on white, so the bar it sits in should be
+   the same white - a tinted or translucent bar puts a faint rectangle around
+   the artwork wherever the page behind it is dark. */
+.rf-marketing-nav {
+  position: sticky; top: 0; z-index: 50;
+  background: #fff;
+  border-bottom: 1px solid var(--rf-line);
+}
+.rf-marketing-nav .inner { display: flex; align-items: center; gap: 22px; padding: 13px 0; }
+.rf-marketing-nav .brandline { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.rf-marketing-nav .brandline strong { font-family: var(--rf-display); font-size: 15px; letter-spacing: .01em; }
+.rf-marketing-nav .brandline small { display: block; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-3); }
+.rf-marketing-nav nav { display: flex; gap: 4px; margin-left: 14px; }
+/* Nav items are marked by a rule beneath them rather than a filled pill.
+
+   The pill was painted with --rf-surface-3, which is a dark token in the dark
+   theme - and since this bar keeps its white ground in both themes, the
+   selected item came out as near-black text on a near-black pill. Colours here
+   are therefore fixed rather than themed: the bar is always white, so its
+   contents are always dark on white. */
+.rf-marketing-nav nav a {
+  position: relative;
+  padding: 9px 2px 8px; margin: 0 11px;
+  text-decoration: none; font-size: 14.5px; font-weight: 500;
+  color: #3d4757;
+  transition: color .16s var(--rf-ease);
+}
+.rf-marketing-nav nav a::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--rf-brass); transform: scaleX(0); transform-origin: center;
+  transition: transform .2s var(--rf-ease);
+}
+.rf-marketing-nav nav a:hover { color: #101725; }
+.rf-marketing-nav nav a:hover::after { transform: scaleX(1); }
+.rf-marketing-nav nav a.is-active { color: #101725; font-weight: 600; }
+.rf-marketing-nav nav a.is-active::after { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) {
+  .rf-marketing-nav nav a::after { transition: none; }
+}
+.rf-marketing-nav .spacer { margin-left: auto; }
+.rf-marketing-nav .actions { display: flex; gap: 9px; align-items: center; }
+
+.rf-footer { background: var(--rf-navy); color: #b9c7db; padding: 52px 0 26px; font-size: 13.5px; }
+.rf-footer a { color: #cfdaea; text-decoration: none; display: block; padding: 4px 0; }
+.rf-footer a:hover { color: #fff; text-decoration: underline; }
+.rf-footer h5 { color: #fff; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 10px; }
+.rf-footer .cols { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; padding-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.rf-footer .legal { padding-top: 22px; font-size: 11.5px; color: #7f91ab; line-height: 1.8; }
+.rf-footer .legal strong { color: #a8b8ce; }
+
+.wrap { width: min(1180px, 100% - 44px); margin-inline: auto; }
+
+/* ==========================================================================
+   Statement, printable
+   ========================================================================== */
+
+.rf-statement { background: #fff; padding: 34px; border: 1px solid var(--rf-line); border-radius: var(--rf-radius); }
+.rf-statement-head { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid var(--rf-navy); padding-bottom: 18px; margin-bottom: 20px; }
+.rf-statement-head h2 { font-family: var(--rf-display); margin: 0 0 4px; font-size: 22px; }
+.rf-statement-head .addr { font-size: 12.5px; color: var(--rf-ink-3); line-height: 1.6; }
+.rf-statement-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+.rf-statement-summary .box { background: var(--rf-surface-2); border: 1px solid var(--rf-line-2); border-radius: var(--rf-radius-sm); padding: 12px 14px; }
+.rf-statement-summary .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--rf-ink-3); }
+.rf-statement-summary .v { font-family: var(--rf-mono); font-size: 16px; font-weight: 500; white-space: nowrap; }
+
+@media print {
+  .rf-side, .rf-top, .rf-toasts, .rf-no-print { display: none !important; }
+  body.rf-app { background: #fff; }
+  .rf-content { padding: 0; }
+  .rf-statement { border: 0; padding: 0; }
+  .rf-table th { background: #fff; }
+  a[href]::after { content: ""; }
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .rf-grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rf-grid.side, .rf-grid.side-left { grid-template-columns: minmax(0, 1fr); }
+  .rf-footer .cols { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .rf-auth-wrap { grid-template-columns: minmax(0, 1fr); }
+  .rf-auth-aside { display: none; }
+  /* The aside took the lockup with it, so the panel carries it instead. */
+  .rf-auth-panel { flex-direction: column; justify-content: flex-start; padding: 28px 20px 48px; }
+  a.rf-auth-brand { display: flex; }
+  .rf-auth-box h1 { font-size: 26px; }
+  .rf-side {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    transform: translateX(-100%); transition: transform .22s ease;
+    box-shadow: var(--rf-shadow-lg);
+  }
+  .rf-side.is-open { transform: none; }
+  /* The Menu tab opens the drawer now, so the header keeps its width for the
+     one thing a phone header is for: saying which screen you are on. */
+  .rf-burger { display: none; }
+  .rf-content { padding: 18px 16px calc(84px + env(safe-area-inset-bottom)); }
+  .rf-top { padding: 11px 16px; }
+
+  /* The bottom bar.
+
+     Four places and a way back to the rest, thumb-height, over a pane of the
+     same glass as the header. It sits below the drawer and below the scrim,
+     so opening the menu covers it rather than leaving it floating over the
+     dimmed page. */
+  .rf-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 38;
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    background: var(--rf-surface);
+    border-top: 1px solid var(--rf-line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .rf-tabbar {
+      background: rgba(255, 255, 255, .94);
+      -webkit-backdrop-filter: var(--rf-glass-blur);
+      backdrop-filter: var(--rf-glass-blur);
+    }
+  }
+  .rf-tabbar a, .rf-tabbar button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 9px 2px 10px; min-height: 56px;
+    border: 0; background: none; cursor: pointer;
+    color: var(--rf-ink-3); text-decoration: none;
+    font: 500 10.5px/1.1 var(--rf-sans); letter-spacing: .01em;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rf-tabbar svg { opacity: .75; }
+  .rf-tabbar .is-active { color: var(--rf-navy-3); }
+  .rf-tabbar .is-active svg { opacity: 1; }
+  .rf-tabbar span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rf-grid.cols-3, .rf-grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
+  .rf-row, .rf-row.three, .rf-row.four { grid-template-columns: minmax(0, 1fr); }
+  .rf-statement-summary { grid-template-columns: repeat(2, 1fr); }
+  .rf-marketing-nav nav { display: none; }
+  .rf-scrim { position: fixed; inset: 0; background: rgba(10, 16, 26, .5); z-index: 39; }
+
+  /* On a narrow screen the copy fills the width, so the scrim has to cover it
+     rather than clearing to the right. */
+  .rf-hero.has-photo::before {
+    background:
+      linear-gradient(180deg, rgba(8, 16, 30, .62) 0%, rgba(9, 18, 33, .76) 100%),
+      linear-gradient(to top, rgba(8, 16, 30, .5) 0%, transparent 58%);
+  }
+  .rf-hero-stats { padding: 18px 18px; gap: 14px; }
+  /* The watermark would otherwise push the page sideways. */
+  .rf-hero-mark { right: -120px; opacity: .05; }
+  .rf-hero-actions .rf-btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* The nav at phone width.
+
+   The bank's full name plus two buttons does not fit across 390px, and the
+   name was wrapping onto three lines while the buttons ran off the edge. The
+   name shortens to the mark and "Rockfield", and "Open an account" gives way
+   to Sign in - the page below is one long argument for opening an account, so
+   the button is not the only route to it. */
+@media (max-width: 620px) {
+  .rf-marketing-nav .inner { gap: 12px; padding: 10px 0; }
+  .rf-marketing-nav .brandline strong { font-size: 15px; white-space: nowrap; }
+  .rf-marketing-nav .brandline .rf-full-name { display: none; }
+  .rf-marketing-nav .brandline small { display: none; }
+  .rf-marketing-nav .actions .rf-btn.ghost { display: none; }
+}
+
+@media (max-width: 620px) {
+  .rf-statement { padding: 18px; }
+  .rf-statement-head { flex-direction: column; gap: 14px; }
+  .rf-footer .cols { grid-template-columns: minmax(0, 1fr); }
+  .rf-modal-foot { flex-direction: column-reverse; }
+  .rf-modal-foot .rf-btn { width: 100%; }
+
+  /* The header, at phone width.
+
+     The greeting and its sub-line were taking three lines of a 390px screen
+     and squeezing the buttons beside them. A phone header carries the name of
+     the screen; the sentence under it is desktop furniture. */
+  .rf-top { padding: 10px 14px; gap: 10px; }
+  .rf-top > div { min-width: 0; }
+  .rf-top h1 { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rf-top .rf-top-sub { display: none; }
+  .rf-top-actions { gap: 6px; }
+
+  /* The headline figures.
+
+     Four cards down a single column spent 440px before the first account
+     appeared. The total leads, full width, because it is the number the app
+     was opened for; the rest tile two-up under it. */
+  .rf-grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .rf-stat { padding: 13px 14px; }
+  .rf-stat .k { font-size: 10.5px; letter-spacing: .08em; }
+  .rf-stat .v { font-size: 20px; margin: 5px 0 1px; }
+  .rf-stat .d { font-size: 11.5px; }
+
+  [data-totals] > .rf-card:first-child,
+  [data-totals] > .rf-card:last-child { grid-column: 1 / -1; }
+  [data-totals] > .rf-card:first-child {
+    background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; padding: 18px;
+  }
+  [data-totals] > .rf-card:first-child .k { color: #9db3d1; }
+  [data-totals] > .rf-card:first-child .v { font-size: 33px; margin: 7px 0 3px; }
+  [data-totals] > .rf-card:first-child .d { color: #a9bcd6; }
+
+  /* Account tiles: the balance is the point, so it keeps its size. */
+  .rf-acct { padding: 15px 16px; }
+  .rf-acct .meta { gap: 10px; flex-wrap: wrap; }
+
+  /* A section heading on a phone is a label, not a display line. */
+  .rf-content h2 { font-size: 16px; }
+
+  /* Safari zooms the whole page when a control it focuses is under 16px, and
+     the page never quite comes back. Nothing marks a web page out from an app
+     faster. */
+  .rf-input, .rf-select, .rf-textarea { font-size: 16px; }
+
+  /* The transaction filters: seven stacked fields put the first transaction
+     below the fold twice over. Search keeps the width it needs; the rest pair
+     off. */
+  .rf-app [data-filters] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 10px; }
+  .rf-app [data-filters] > .rf-field:first-child,
+  .rf-app [data-filters] > .rf-inline,
+  /* Three selects in half a column leaves each one too narrow to read its own
+     placeholder: "M...", "", "Ye...". A date takes the full width. */
+  .rf-app [data-filters] > .rf-field-date { grid-column: 1 / -1; }
+  .rf-app [data-filters] .rf-btn { flex: 1 1 auto; justify-content: center; }
+
+  /* The header action duplicates a tab six inches lower. */
+  .rf-top-actions > .rf-btn { display: none; }
+
+  /* A label on the left and three buttons on the right is a desktop shape.
+     At this width the buttons were being squeezed into the label; let the pair
+     break onto two lines instead of fighting over one. */
+  .rf-spread { flex-wrap: wrap; }
+  .rf-card-head { flex-wrap: wrap; padding: 13px 15px; }
+}
+
+/* Tables, when the column they sit in is too narrow for them.
+
+   A seven-column table in 390px wraps every description onto four lines and
+   pushes the amount off the right edge, where nobody scrolls to find it. It
+   is not only a phone problem: the dashboard's activity table lives in two
+   thirds of the content column, so on a 1100px laptop it was already running
+   past the card and into the horizontal scroll that .rf-table-wrap keeps as a
+   backstop.
+
+   So the columns a phone can do without are marked `opt` in the markup, and
+   they leave as soon as the table is cramped rather than only on a phone.
+   What is left is what a banking app shows: what it was, when, how much.
+
+   The action buttons at the end of a row stop being a single nowrap line at
+   the same point - three ghost buttons side by side are the widest column on
+   half these tables. */
+@media (max-width: 1180px) {
+  .rf-table .opt { display: none; }
+  .rf-table td.rf-right { white-space: normal; }
+  .rf-table td.rf-right .rf-inline { justify-content: flex-end; }
+}
+
+/* And the same again where the screen is wide but the column is not: the
+   dashboard's activity table gets two thirds of the content width on any
+   monitor, and the bill payees table shares its row with a form. Asking the
+   viewport about either of those gets the wrong answer. */
+@container rf-table (max-width: 700px) {
+  .rf-table .opt { display: none; }
+  .rf-table td.rf-right { white-space: normal; }
+  .rf-table td.rf-right .rf-inline { justify-content: flex-end; }
+}
+
+@media (max-width: 720px) {
+  /* A second tier: the column that still leaves a trimmed table a couple of
+     dozen pixels too wide on a 360px phone, and only there. */
+  .rf-table .opt-sm { display: none; }
+  .rf-table { font-size: 12.8px; }
+  .rf-table th { padding: 8px; font-size: 10px; letter-spacing: .07em; }
+  .rf-table td { padding: 9px 8px; }
+  .rf-table td.num, .rf-table th.num { font-size: 12.5px; }
+  .rf-table .sub { font-size: 11px; }
+  .rf-table .rf-btn.sm { min-height: 30px; padding: 0 9px; font-size: 12px; }
+  /* The date is a column of its own on a wide screen and a stamp beside the
+     description on a narrow one. Stacking the year under the day keeps it to
+     about fifty pixels, which is the difference between the amount landing
+     inside the card and being pushed off its right edge. */
+  .rf-table td.rf-nowrap { line-height: 1.25; }
+}
+
+/* ==========================================================================
+   Dark mode. The application follows the device; the marketing pages keep
+   their own palette, which is already dark where it matters.
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-rf-theme="light"]) {
+    --rf-ink: #eef1f6;
+    --rf-ink-2: #c2c9d5;
+    --rf-ink-3: #949db0;
+    --rf-ink-4: #6f7889;
+    --rf-paper: #0b0f17;
+    --rf-surface: #141a25;
+    --rf-surface-2: #19202c;
+    --rf-surface-3: #212936;
+    --rf-line: #2a3342;
+    --rf-line-2: #222a37;
+    /* The glass inverts: a dark translucent pane with a faint light edge,
+       rather than a white one, which on a dark page reads as fog. */
+    --rf-glass-bg: rgba(20, 26, 37, .6);
+    --rf-glass-line: rgba(255, 255, 255, .1);
+    --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 18px 40px -22px rgba(0, 0, 0, .9);
+    --rf-btn-face: var(--rf-navy-3);
+    --rf-btn-edge: #3d6494;
+    --rf-btn-ghost-face: var(--rf-surface-2);
+    --rf-btn-ghost-edge: var(--rf-line);
+    --rf-credit-soft: #10291f;
+    --rf-debit-soft: #2e1614;
+    --rf-pending-soft: #2a2312;
+    --rf-info-soft: #122231;
+    --rf-brass-soft: #2c2213;
+    --rf-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -18px rgba(0, 0, 0, .8);
+  }
+  :root:not([data-rf-theme="light"]) .rf-top { background: rgba(11, 15, 23, .82); }
+  :root:not([data-rf-theme="light"]) .rf-tabbar { background: var(--rf-surface); }
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root:not([data-rf-theme="light"]) .rf-tabbar { background: rgba(11, 15, 23, .82); }
+  }
+  :root:not([data-rf-theme="light"]) .rf-tabbar .is-active { color: #7fa8d8; }
+  /* The marketing nav keeps its white ground in the dark theme.
+
+     The logo is black line work drawn on white; on a dark bar the artwork
+     disappears. Rather than keep a second inverted copy of somebody else's
+     logo in step, the bar stays white and its own text is pinned to the light
+     palette - which is a deliberate band across the top of a dark page, not
+     an accident. */
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav { background: #fff; border-bottom-color: #dfe6f0; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline strong { color: #101725; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline small { color: #3d4757; }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost,
+  /* ...and on hover too.
+
+     The generic dark-theme hover below gives a ghost button a dark face,
+     which is right everywhere except here: this bar keeps its white ground,
+     so its buttons keep their light one. Both selectors used to weigh the
+     same and the hover came later, so "Open an account" went to near-black
+     ink on a near-black face the moment the pointer touched it - a button
+     that erased itself. Naming the hover here settles it on this bar
+     without touching the rule for everywhere else. */
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover {
+    --btn-face: #fff; --btn-edge: #dfe6f0; --btn-ink: #101725;
+  }
+  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover { --btn-edge: #b9c6d8; }
+  /* The lift still reads on a dark page, but a light border does not: the
+     hover edge goes up in brightness instead of down. */
+  :root:not([data-rf-theme="light"]) .rf-card.interactive:hover,
+  :root:not([data-rf-theme="light"]) a.rf-card:hover,
+  :root:not([data-rf-theme="light"]) .rf-product:hover { border-color: #3b4759; }
+  :root:not([data-rf-theme="light"]) .rf-modal { border-color: rgba(255, 255, 255, .08); }
+
+  /* The headline rate is navy, which on a dark card is very nearly the card.
+     Brass is the other brand colour and it holds at this size. */
+  :root:not([data-rf-theme="light"]) .rf-product .rate { color: var(--rf-brass-2); }
+
+  /* Buttons in the dark theme.
+
+     Navy on near-black reads as a hole rather than a button, and a white ghost
+     button is a hole in the other direction. Only the two default tokens move:
+     brass stays brass and glass stays glass, because their rules set --btn-face
+     themselves and nothing here reaches past them. */
+  :root:not([data-rf-theme="light"]) .rf-btn.ghost:hover { --btn-face: var(--rf-surface-3); --btn-edge: #3b4759; }
+  :root:not([data-rf-theme="light"]) .rf-btn.link { --btn-ink: #7fa8d8; }
+
+  /* Same problem in the other direction: a near-white rule over a dark card. */
+  :root:not([data-rf-theme="light"]) .rf-glass { border-color: rgba(255, 255, 255, .14); }
+  :root:not([data-rf-theme="light"]) .rf-section.alt { background: var(--rf-surface); }
+  :root:not([data-rf-theme="light"]) .rf-statement { background: var(--rf-surface); }
+  :root:not([data-rf-theme="light"]) .rf-notice { color: #bcd6ea; }
+  :root:not([data-rf-theme="light"]) .rf-notice.warn { color: #e5cf90; }
+  :root:not([data-rf-theme="light"]) .rf-notice.bad { color: #efb3ab; }
+  :root:not([data-rf-theme="light"]) .rf-notice.ok { color: #9ad9ba; }
+}
+
+/* ==========================================================================
+   Pieces the public site inherits from the template's scripts.
+
+   /js/main.js, /js/careers.js, /js/apply.js and /js/chat.js write markup with
+   their own class names. The bank pages no longer load the template's
+   stylesheet, so those class names are dressed here instead - in the bank's
+   palette, and nowhere near the application shell above.
+   ========================================================================== */
+
+/* Field validation, written by the form scripts. */
+.rf-site .err { font-size: 12px; color: var(--rf-debit); margin-top: 5px; }
+.rf-site .field.invalid .rf-input,
+.rf-site .field.invalid .rf-select,
+.rf-site .field.invalid .rf-textarea { border-color: var(--rf-debit); box-shadow: 0 0 0 3px rgba(163, 53, 43, .12); }
+.rf-site .form-status { margin: 4px 0 12px; min-height: 18px; color: var(--rf-ink-3); }
+.rf-site .form-status.ok { color: var(--rf-credit); }
+.rf-site .form-status.bad { color: var(--rf-debit); }
+.rf-site .honeypot { position: absolute; left: -9999px; }
+
+/* The role list on /careers, written by /js/careers.js. */
+.rf-site .roles { display: grid; gap: 14px; }
+.rf-site .role {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 20px; align-items: center;
+  background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: var(--rf-radius);
+  padding: 20px 22px; box-shadow: var(--rf-shadow);
+}
+.rf-site .role .team { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--rf-brass); font-weight: 600; }
+.rf-site .role h3 { font-family: var(--rf-display); font-size: 17px; margin: 5px 0 6px; letter-spacing: 0; }
+.rf-site .role .role-sum { margin: 0; color: var(--rf-ink-3); font-size: 14px; max-width: 62ch; }
+.rf-site .role .role-meta { font-size: 12.5px; color: var(--rf-ink-3); text-align: right; white-space: nowrap; }
+.rf-site .role .apply {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  background: var(--rf-navy); color: #fff; padding: 9px 16px; border-radius: 999px;
+  font: 600 13.5px/1 var(--rf-sans); white-space: nowrap;
+}
+.rf-site .role .apply:hover { background: var(--rf-navy-2); }
+.rf-site .arw { font-size: 1.1em; line-height: 1; }
+
+/* The role summary beside the application form, written by /js/apply.js. */
+.rf-site #apply-role-meta .row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--rf-line-2); font-size: 13.5px; }
+.rf-site #apply-role-meta .k { color: var(--rf-ink-3); }
+.rf-site #apply-role-meta .val { font-weight: 500; }
+
+@media (max-width: 800px) {
+  .rf-site .role { grid-template-columns: minmax(0, 1fr); }
+  .rf-site .role .role-meta { text-align: left; }
+}
+
+/* ---------------------------------------------------------- live chat --- */
+
+.chat { position: fixed; right: 20px; bottom: 20px; z-index: 70; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.chat-toggle {
+  width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--rf-navy); color: #fff; display: grid; place-items: center;
+  box-shadow: var(--rf-shadow-lg); transition: transform .15s ease, background .15s ease;
+}
+.chat-toggle:hover { background: var(--rf-navy-2); transform: translateY(-2px); }
+.chat-toggle .i-close { display: none; }
+.chat-toggle[aria-expanded="true"] .i-open { display: none; }
+.chat-toggle[aria-expanded="true"] .i-close { display: block; }
+
+.chat-panel {
+  width: min(370px, calc(100vw - 32px)); height: min(520px, calc(100vh - 130px));
+  background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 18px;
+  box-shadow: var(--rf-shadow-lg); display: flex; flex-direction: column; overflow: hidden;
+}
+.chat-panel[hidden] { display: none; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--rf-navy); color: #fff; }
+.chat-head-id { display: flex; align-items: center; gap: 10px; }
+.chat-head-id .dot { width: 8px; height: 8px; border-radius: 50%; background: #45c48a; box-shadow: 0 0 0 3px rgba(69, 196, 138, .25); }
+.chat-head strong { display: block; font-size: 14px; font-family: var(--rf-display); }
+.chat-head small { display: block; font-size: 11.5px; color: #9fb2cc; }
+.chat-min { margin-left: auto; background: none; border: 0; color: #cfdaea; font-size: 22px; line-height: 1; cursor: pointer; }
+
+.chat-log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--rf-surface-2); }
+.chat-msg { max-width: 84%; padding: 10px 13px; border-radius: 14px; font-size: 13.8px; line-height: 1.5; white-space: pre-wrap; }
+.chat-msg.agent { background: var(--rf-surface); border: 1px solid var(--rf-line); align-self: flex-start; border-bottom-left-radius: 5px; }
+.chat-msg.user { background: var(--rf-navy); color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; }
+.chat-msg.typing { color: var(--rf-ink-3); font-style: italic; }
+
+.chat-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--rf-line-2); background: var(--rf-surface); }
+/* A form control does not inherit `color` - it takes the browser's own, which
+   is black. On the dark theme that is black type in a near-black field: what
+   the visitor types disappears as they type it. Every other input in the
+   application sets this; the chat box was the one that did not. */
+.chat-form input {
+  flex: 1; border: 1px solid var(--rf-line); border-radius: 999px; padding: 10px 14px;
+  font: 400 14px/1.4 var(--rf-sans); background: var(--rf-surface); color: var(--rf-ink);
+}
+.chat-form input::placeholder { color: var(--rf-ink-4); opacity: 1; }
+.chat-form input:focus { outline: none; border-color: var(--rf-navy-3); box-shadow: 0 0 0 3px rgba(41, 74, 119, .13); }
+.chat-form button { border: 0; background: var(--rf-navy); color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: grid; place-items: center; }
+.chat-form button:hover { background: var(--rf-navy-2); }
+
+@media (max-width: 520px) {
+  .chat { right: 12px; bottom: 12px; }
+  .chat-panel { height: min(70vh, 520px); }
+}

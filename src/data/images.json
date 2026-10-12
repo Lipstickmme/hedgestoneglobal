@@ -1,0 +1,57 @@
+{
+  "_comment": "Page-level image slots. Every placement on the site has its own slot and no photograph is used twice, so a visitor never meets the same picture on two pages. Each slot lists the files it would like, best first, and the placeholder it falls back on if none is there. Names are matched without regard to case and any of .webp .avif .jpg .jpeg .png .svg works, with .webp preferred, so replacing a photograph is a file drop into public/assets/img/ and needs no code change. The fallbacks are the generated placeholder artwork that ships with the build.",
+  "slots": {
+    "hero": {
+      "_where": "Home page hero background. Wants a wide frame with empty sky or plaza on the left, because the headline sits over it.",
+      "prefer": ["rockfield1", "rf1"],
+      "fallback": "/assets/bank/hero.svg"
+    },
+    "homeSecurity": {
+      "_where": "The security panel on the home page, beside 'Held before it leaves'.",
+      "prefer": ["rockfield4", "rf4"],
+      "fallback": "/assets/bank/security.svg"
+    },
+    "personalHeader": {
+      "_where": "/personal",
+      "prefer": ["rockfamily", "rockfield7", "rf7"],
+      "fallback": "/assets/bank/personal.svg"
+    },
+    "businessHeader": {
+      "_where": "/business",
+      "prefer": ["rockfield3", "rf3"],
+      "fallback": "/assets/bank/business.svg"
+    },
+    "ratesHeader": {
+      "_where": "/rates",
+      "prefer": ["rockfield2", "rf2"],
+      "fallback": "/assets/bank/personal.svg"
+    },
+    "securityHeader": {
+      "_where": "/security-center",
+      "prefer": ["rockfieldhero", "rockfield0", "rf0"],
+      "fallback": "/assets/bank/security.svg"
+    },
+    "openAccountHeader": {
+      "_where": "/open-account",
+      "prefer": ["rockfield", "rf"],
+      "fallback": "/assets/bank/hero.svg"
+    },
+    "careersHeader": {
+      "_where": "/careers",
+      "prefer": ["rockfield6", "rf6"],
+      "fallback": "/assets/bank/hero.svg"
+    },
+    "contactHeader": {
+      "_where": "/contact",
+      "prefer": ["rockfield5", "rf5"],
+      "fallback": "/assets/bank/mobile.svg"
+    }
+  },
+  "stories": {
+    "_comment": "Customer stories in src/data/projects.json refer to these by key rather than by path, so the photography can be swapped without editing the copy.",
+    "logistics": { "prefer": ["story-logistics"], "fallback": "/assets/bank/story-logistics.svg" },
+    "property": { "prefer": ["story-property"], "fallback": "/assets/bank/story-property.svg" },
+    "retail": { "prefer": ["story-retail"], "fallback": "/assets/bank/story-retail.svg" },
+    "personal": { "prefer": ["story-personal"], "fallback": "/assets/bank/story-personal.svg" }
+  }
+}

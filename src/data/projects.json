@@ -1,0 +1,78 @@
+[
+  {
+    "id": "meridian-logistics",
+    "name": "Meridian Logistics",
+    "sector": "Business banking",
+    "location": "Columbus, OH",
+    "year": 2025,
+    "metric": "2 days",
+    "metricLabel": "cut from payroll settlement",
+    "image": "logistics",
+    "client": "Meridian Logistics Inc",
+    "status": "Client since 2019",
+    "duration": "640 employees on payroll",
+    "services": [
+      "Business banking",
+      "Payments and transfers"
+    ],
+    "blurb": "Same-day ACH origination took two days out of a payroll run for 640 drivers.",
+    "overview": "Meridian ran payroll through a processor that took three business days to settle, which meant funding on Tuesday for a Friday pay date. Moving origination onto Rockfield same-day ACH, with dual approval held by their controller and CFO, brought funding to the day before and removed the float they were carrying purely to cover the gap."
+  },
+  {
+    "id": "harrow-street",
+    "name": "Harrow Street Residences",
+    "sector": "Commercial lending",
+    "location": "Columbus, OH",
+    "year": 2024,
+    "metric": "$14.2m",
+    "metricLabel": "construction facility",
+    "image": "property",
+    "client": "Harrow Street Residences LLC",
+    "status": "Drawn and performing",
+    "duration": "28-month build",
+    "services": [
+      "Borrowing",
+      "Business banking"
+    ],
+    "blurb": "A construction facility drawn against surveyed progress rather than a fixed calendar.",
+    "overview": "Eighty-four units on a constrained site, financed on a facility that released against surveyed progress rather than a fixed schedule. The developer kept a named underwriter through the whole build, which mattered twice when the programme moved."
+  },
+  {
+    "id": "field-and-vine",
+    "name": "Field & Vine Grocers",
+    "sector": "Merchant services",
+    "location": "Dublin, OH",
+    "year": 2025,
+    "metric": "Next day",
+    "metricLabel": "card settlement",
+    "image": "retail",
+    "client": "Field & Vine Holdings",
+    "status": "Nine stores",
+    "duration": "Client since 2021",
+    "services": [
+      "Business banking",
+      "Cards and credit"
+    ],
+    "blurb": "Next-business-day settlement across nine stores, reconciled against the operating account automatically.",
+    "overview": "Card settlement arriving on different days across nine stores made reconciliation a weekly argument. Settlement now lands next business day into one operating account with store-level references on every deposit, and the bookkeeper has read-only access that cannot move money."
+  },
+  {
+    "id": "ellis-household",
+    "name": "The Ellis household",
+    "sector": "Personal banking",
+    "location": "Columbus, OH",
+    "year": 2026,
+    "metric": "4.35%",
+    "metricLabel": "APY on savings",
+    "image": "personal",
+    "client": "Personal banking client",
+    "status": "Client since 2020",
+    "duration": "Checking, savings and a card",
+    "services": [
+      "Everyday banking",
+      "Saving and growth"
+    ],
+    "blurb": "Round-ups and an automatic sweep the day after payday, with nothing to remember.",
+    "overview": "Two salaries landing on different days and a savings habit that kept losing to the month. A sweep the day after each payday and round-ups on card spending did what a budgeting app had not, because neither of them required a decision."
+  }
+]

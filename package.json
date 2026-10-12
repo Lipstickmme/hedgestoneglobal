@@ -1,0 +1,40 @@
+{
+  "name": "rockfield-bank",
+  "version": "1.2.2",
+  "description": "Rockfield National Bank: online banking, staff console and public site",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node scripts/build-pages.js && node --watch server.js",
+    "build": "node scripts/build-pages.js",
+    "build:brand": "node scripts/build-brand.js",
+    "build:fonts": "node scripts/build-fonts.js",
+    "prestart": "node scripts/build-pages.js",
+    "seed": "node scripts/seed-bank.js",
+    "check:vercel": "node scripts/check-vercel-upload.js",
+    "test": "node test/api.test.js && node test/bank.test.js",
+    "test:api": "node test/api.test.js",
+    "test:bank": "node test/bank.test.js",
+    "test:browser": "node test/bank-browser.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "banking",
+    "fintech",
+    "express",
+    "online-banking",
+    "ledger"
+  ],
+  "author": "Rockfield National Bank",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

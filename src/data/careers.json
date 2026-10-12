@@ -1,0 +1,58 @@
+[
+  {
+    "id": "personal-banker",
+    "title": "Personal Banker",
+    "team": "Retail",
+    "location": "Columbus, OH",
+    "type": "Full time",
+    "summary": "Open accounts, sit with people through the hard conversations about money, and know when to escalate rather than improvise."
+  },
+  {
+    "id": "payments-operations-analyst",
+    "title": "Payments Operations Analyst",
+    "team": "Payments",
+    "location": "Columbus, OH",
+    "type": "Full time",
+    "summary": "Review and release outgoing wires and ACH files, and hold the ones that should not go."
+  },
+  {
+    "id": "fraud-investigator",
+    "title": "Fraud Investigator",
+    "team": "Financial Crime",
+    "location": "Hybrid",
+    "type": "Full time",
+    "summary": "Work claims end to end: the customer call, the evidence, the provisional credit and the decision."
+  },
+  {
+    "id": "bsa-aml-officer",
+    "title": "BSA / AML Officer",
+    "team": "Compliance",
+    "location": "Columbus, OH",
+    "type": "Full time",
+    "summary": "Own the sanctions and monitoring programme, and be the person who can say no to the business."
+  },
+  {
+    "id": "core-platform-engineer",
+    "title": "Core Platform Engineer",
+    "team": "Technology",
+    "location": "Remote (US)",
+    "type": "Full time",
+    "summary": "Build the ledger, the alerting and the interfaces the rest of the bank runs on. Correctness first, always."
+  },
+  {
+    "id": "commercial-relationship-manager",
+    "title": "Commercial Relationship Manager",
+    "team": "Business Banking",
+    "location": "Columbus, OH",
+    "type": "Full time",
+    "summary": "Carry a book of operating businesses and know their cash cycle better than their bookkeeper does."
+  },
+  {
+    "id": "credit-underwriter",
+    "title": "Credit Underwriter",
+    "team": "Lending",
+    "location": "Hybrid",
+    "type": "Full time",
+    "summary": "Underwrite consumer and small business credit, and write decisions a customer can actually read."
+  }
+]

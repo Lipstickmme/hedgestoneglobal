@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open an account | Rockfield National Bank</title>
+  <meta name="description" content="Start an application for a Rockfield checking, savings or business account." />
+  <meta name="theme-color" content="#11213a" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Rockfield National Bank" />
+  <meta property="og:title" content="Open an account | Rockfield National Bank" />
+  <meta property="og:description" content="Start an application for a Rockfield checking, savings or business account." />
+  <meta property="og:image" content="https://rockfieldglobalfinance.com/assets/bank/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Open an account | Rockfield National Bank" />
+  <meta name="twitter:description" content="Start an application for a Rockfield checking, savings or business account." />
+  <meta name="twitter:image" content="https://rockfieldglobalfinance.com/assets/bank/og-image.png" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/css/fonts.css" />
+  <link rel="stylesheet" href="/css/bank.css" />
+  
+</head>
+<body class="rf-site">
+
+  <header class="rf-marketing-nav">
+    <div class="wrap inner">
+      <a class="brandline" href="/" aria-label="Rockfield National Bank home">
+        <img class="rf-mark on-paper" src="/assets/bank/logomark-dark.png" alt="" width="87" height="46" />
+        <span>
+          <strong>Rockfield<span class="rf-full-name"> National Bank</span></strong>
+          <small>Member FDIC</small>
+        </span>
+      </a>
+      <nav>
+        <a href="/personal">Personal</a>
+        <a href="/business">Business</a>
+        <a href="/rates">Rates &amp; fees</a>
+        <a href="/security-center">Security</a>
+        <a href="/support">Support</a>
+      </nav>
+      <span class="spacer"></span>
+      <div class="actions">
+        <a class="rf-btn ghost sm" href="/open-account">Open an account</a>
+        <a class="rf-btn sm" href="/signin">Sign in</a>
+      </div>
+    </div>
+  </header>
+
+  
+  <header class="rf-hero compact has-photo">
+    <img class="rf-hero-photo" src="/assets/img/rockfield.png" alt="" aria-hidden="true" />
+    <div class="wrap">
+      <span class="rf-eyebrow">Open an account</span>
+      <h1 style="font-size:clamp(32px,4.6vw,52px)">Start the application.</h1>
+      <p class="lede">Tell us what you need and a banker calls you back the same business day to finish it with you.</p>
+    </div>
+  </header>
+
+  <section class="rf-section">
+    <div class="wrap">
+      <div class="rf-grid side" style="gap:44px;align-items:start">
+        <div>
+          <h2 style="font-size:26px">What you will need</h2>
+          <dl class="rf-dl" style="max-width:480px">
+            <dt>Identity</dt><dd>A driver&rsquo;s licence, state ID or passport</dd>
+            <dt>Tax</dt><dd>Your Social Security number or ITIN</dd>
+            <dt>Address</dt><dd>Somewhere we can post a card</dd>
+            <dt>Opening deposit</dt><dd>From $0 on Everyday Checking</dd>
+          </dl>
+          <div class="rf-notice" style="margin-top:22px">
+            <div><strong>Why this is a message and not a form full of secrets.</strong>
+            Accounts at Rockfield are opened by a banker who verifies your identity properly. Never send a Social Security number, a password or a card number through a web form.</div>
+          </div>
+          <p style="margin-top:22px"><a class="rf-btn ghost" href="/rates">See rates and fees first</a></p>
+        </div>
+        
+      <form class="rf-card" id="open-account-form" data-contact-form novalidate style="padding:24px">
+        <h3 style="font-family:var(--rf-display);font-size:19px;margin:0 0 4px">Tell us what you need</h3>
+        <p class="rf-small rf-muted" style="margin:0 0 18px">A banker calls you back the same business day.</p>
+        <div class="rf-row">
+          <div class="rf-field field"><label for="open-account-form-name">Name</label><input class="rf-input" type="text" id="open-account-form-name" name="name" autocomplete="name" required /><div class="err" data-err="name"></div></div>
+          <div class="rf-field field"><label for="open-account-form-email">Email</label><input class="rf-input" type="email" id="open-account-form-email" name="email" autocomplete="email" required /><div class="err" data-err="email"></div></div>
+        </div>
+        <div class="rf-row">
+          <div class="rf-field field"><label for="open-account-form-company">Phone <span class="rf-muted">(optional)</span></label><input class="rf-input" type="text" id="open-account-form-company" name="company" autocomplete="tel" /><div class="err" data-err="company"></div></div>
+          <div class="rf-field field"><label for="open-account-form-service">What is this about?</label>
+            <select class="rf-select" id="open-account-form-service" name="service">
+              <option value="">Select</option>
+              <option>Opening an account</option>
+              <option>An existing account</option>
+              <option>A payment or transfer</option>
+              <option>Fraud or a disputed transaction</option>
+              <option>Borrowing</option>
+              <option>Business banking</option>
+              <option>Careers</option>
+              <option>Something else</option>
+            </select><div class="err" data-err="service"></div>
+          </div>
+        </div>
+        <div class="rf-field field"><label for="open-account-form-message">How can we help?</label><textarea class="rf-textarea" id="open-account-form-message" name="message" placeholder="Tell us what you need. Never include a password, a full card number or a one-time code." required></textarea><div class="err" data-err="message"></div></div>
+        <div class="honeypot" aria-hidden="true" style="position:absolute;left:-9999px"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+        <div class="form-status rf-small" data-form-status role="status" aria-live="polite"></div>
+        <button type="submit" class="rf-btn block" data-submit>Send message</button>
+        <p class="rf-small rf-muted" style="margin:12px 0 0">A banker replies the same business day. For anything urgent, call <strong data-site="phone">our client services desk</strong>.</p>
+      </form>
+      </div>
+    </div>
+  </section>
+
+  <footer class="rf-footer">
+    <div class="wrap">
+      <div class="cols">
+        <div>
+          <img class="rf-lockup" src="/assets/bank/logo-light.png" alt="Rockfield National Bank" width="190" height="113" style="margin-bottom:16px" />
+          <p style="margin:0 0 12px;max-width:34ch">Banking built on bedrock. Personal and business banking since 1924.</p>
+          <p style="margin:0;font-size:12.5px" data-site-row="address" hidden><span data-site="address"></span></p>
+        </div>
+        <div>
+          <h5>Bank</h5>
+          <a href="/personal">Personal banking</a>
+          <a href="/business">Business banking</a>
+          <a href="/rates">Rates and fees</a>
+          <a href="/open-account">Open an account</a>
+        </div>
+        <div>
+          <h5>Support</h5>
+          <a href="/support">Help centre</a>
+          <a href="/security-center">Security centre</a>
+          <a href="#" data-site-row="phone" data-site="phone" hidden></a>
+          <a href="mailto:support@rockfieldglobalfinance.com">support@rockfieldglobalfinance.com</a>
+        </div>
+        <div>
+          <h5>Legal</h5>
+          <a href="/legal#privacy">Privacy notice</a>
+          <a href="/legal#terms">Online banking agreement</a>
+          <a href="/legal#disclosures">Truth in Savings</a>
+          <a href="/legal#accessibility">Accessibility</a>
+        </div>
+      </div>
+      <div class="legal">
+        <strong>Rockfield National Bank, N.A.</strong> &middot; Member FDIC &middot; Equal Housing Lender &middot; FDIC Certificate 58412 &middot; NMLS ID 409127<br />
+        Deposits are insured by the Federal Deposit Insurance Corporation up to $250,000 per depositor, per insured bank, for each account ownership category.
+        Annual Percentage Yields shown are accurate as of October 10, 2026 and may change after account opening. Fees may reduce earnings.
+        Credit products are subject to credit approval.<br />
+        This is a demonstration application. Rockfield National Bank is a fictional institution: the routing number, account numbers and card numbers used here are synthetic and address no real financial institution.<br />
+        &copy; 2026 Rockfield National Bank, N.A.. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <div class="chat" id="chat" aria-live="polite">
+    <button class="chat-toggle" id="chat-toggle" aria-label="Open live chat" aria-expanded="false">
+      <svg class="i-open" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>
+      <svg class="i-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="chat-panel" id="chat-panel" hidden>
+      <div class="chat-head">
+        <div class="chat-head-id">
+          <span class="dot"></span>
+          <div>
+            <strong>Rockfield Client Services</strong>
+            <small>Typically replies in a few minutes</small>
+          </div>
+        </div>
+        <button class="chat-min" id="chat-min" aria-label="Minimise chat">&minus;</button>
+      </div>
+      <div class="chat-log" id="chat-log"></div>
+      <form class="chat-form" id="chat-form">
+        <input type="text" id="chat-input" name="text" placeholder="Ask us about an account" autocomplete="off" maxlength="2000" />
+        <button type="submit" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+  <div class="rf-toasts" id="rf-toasts"></div>
+  <script src="/js/main.js" defer></script>
+  <script src="/js/supabase-lite.js" defer></script>
+  <script src="/js/chat.js" defer></script>
+</body>
+</html>

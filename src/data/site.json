@@ -1,0 +1,7 @@
+{
+  "_comment": "The bank's public contact details. The address and the telephone number are deliberately blank: they are per-deployment, and an invented number on a live bank's contact page is a number somebody rings. An operator sets them at the staff console under Settings, and every page picks them up on its next load with no rebuild. Anything left blank has its row left out of the page entirely rather than printed empty.",
+  "address": "",
+  "email": "support@rockfieldglobalfinance.com",
+  "phone": "",
+  "hours": ""
+}
