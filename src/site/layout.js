@@ -93,7 +93,7 @@ function footer() {
   <footer class="footer">
     <div class="wrap footer-top">
       <div class="footer-brand">
-        <img class="brand-logo footer-logo" src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="54" />
+        <img class="brand-logo footer-logo" src="/assets/bank/logo-dark.png" alt="Hedgestone Global Bank" width="240" height="54" />
         <p>Personal and business banking since 1924. Member FDIC.</p>
       </div>
       <div class="col">

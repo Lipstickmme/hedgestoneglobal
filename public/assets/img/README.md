@@ -17,7 +17,7 @@ Rename a file to the name in the first column and it takes that place.
 | Name                | Where it appears            | What suits it                                     |
 | ------------------- | --------------------------- | ------------------------------------------------- |
 | `hedgestone-family` | Home, 'For the whole family' panel | Square crop: people centred |
-| `hedgestone-mobile` | Home, 'Your bank, in your pocket' band | Wide; subject in the middle third, calm space on the left |
+| `hedgestone-mobile` | Home page landing hero | Wide; subject in the middle third, calm space on the left for the headline |
 | `hedgestone2`       | Home security panel         | One person going through their money, unhurried    |
 | `hedgestonefamily`  | `/personal` header          | People at home, banking on a phone                 |
 | `hedgestone5`       | `/business` header          | A conversation across a desk                       |

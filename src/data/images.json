@@ -9,7 +9,7 @@
       "fallback": "/assets/bank/personal.svg"
     },
     "homeMobile": {
-      "_where": "Home page, the 'Your bank, in your pocket' band. Wide; subject in the middle third.",
+      "_where": "Home page landing hero, full width. Subject in the middle third, calm space on the left for the headline.",
       "prefer": [
         "hedgestone-mobile"
       ],

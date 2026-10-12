@@ -231,7 +231,7 @@ function sidebar(active) {
   return `
     <aside class="rf-side" id="rf-side">
       <div class="rf-side-brand">
-        <img class="rf-mark" src="/assets/bank/logomark-light.png" alt="" width="23" height="28" />
+        <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
           <strong>${BANK.shortName}</strong>
           <small>Online banking</small>
@@ -324,7 +324,7 @@ function authPage({ title, description, content, extraScripts = [] }) {
     `  <div class="rf-auth-wrap">
     <section class="rf-auth-aside">
       <a class="brandline" href="/" aria-label="${BANK.name} home">
-        <img class="rf-lockup" src="/assets/bank/logo-light.png" alt="${BANK.name}" width="240" height="54" />
+        <img class="rf-lockup" src="/assets/bank/logo-dark.png" alt="${BANK.name}" width="240" height="54" />
       </a>
       <h2>Your money, held the way a bank should hold it.</h2>
       <p>${BANK.tagline} Deposits insured by the FDIC to the maximum permitted by law, and a real person on the phone when you need one.</p>
@@ -342,7 +342,7 @@ function authPage({ title, description, content, extraScripts = [] }) {
     </section>
     <section class="rf-auth-panel">
       <a class="rf-auth-brand" href="/" aria-label="${BANK.name} home">
-        <img src="/assets/bank/logomark-light.png" alt="" width="23" height="28" />
+        <img src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
           <strong>${BANK.name}</strong>
           <small>Online banking</small>
@@ -376,7 +376,7 @@ function marketingNav(active = '') {
       </nav>
       <span class="spacer"></span>
       <div class="actions">
-        <a class="hs-login" href="/signin">Log in</a>
+        <a class="rf-btn ghost sm hs-login" href="/signin">Log in</a>
         <a class="rf-btn sm" href="/open-account">Get started</a>
       </div>
     </div>
@@ -389,7 +389,7 @@ function marketingFooter() {
     <div class="wrap">
       <div class="cols">
         <div>
-          <img class="rf-lockup" src="/assets/bank/logo-light.png" alt="${BANK.name}" width="200" height="45" style="margin-bottom:16px" />
+          <img class="rf-lockup" src="/assets/bank/logo-dark.png" alt="${BANK.name}" width="200" height="45" style="margin-bottom:16px" />
           <p style="margin:0 0 12px;max-width:34ch">${BANK.tagline} Personal and business banking since ${BANK.established}.</p>
           <p style="margin:0;font-size:12.5px" data-site-row="address" hidden><span data-site="address"></span></p>
         </div>

@@ -40,7 +40,7 @@ if more than one is present.
 | File | Where it appears |
 | ---- | ---------------- |
 | `hedgestone-family` | The home page, 'For the whole family' panel |
-| `hedgestone-mobile` | The home page, 'Your bank, in your pocket' band |
+| `hedgestone-mobile` | The home page landing hero |
 | `hedgestone2` | The home page security panel |
 | `hedgestonefamily` | The `/personal` header |
 | `hedgestone5` | The `/business` header |

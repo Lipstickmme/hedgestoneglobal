@@ -17,12 +17,12 @@
   --rf-ink-2: #3b4a6b;
   --rf-ink-3: #637089;
   --rf-ink-4: #9aa3b8;
-  --rf-paper: #f4f9f7;
+  --rf-paper: #f5f6f8;
   --rf-surface: #ffffff;
-  --rf-surface-2: #f7fbf9;
-  --rf-surface-3: #e9f4ef;
-  --rf-line: #dbe8e2;
-  --rf-line-2: #eaf2ee;
+  --rf-surface-2: #fafbfc;
+  --rf-surface-3: #eef0f3;
+  --rf-line: #e2e5ea;
+  --rf-line-2: #eef0f3;
 
   /* Brand */
   --rf-navy: #0b6b50;
@@ -117,8 +117,9 @@ body.rf-site {
 .rf-side {
   width: var(--rf-sidebar);
   flex: 0 0 var(--rf-sidebar);
-  background: var(--rf-navy);
-  color: #e6efea;
+  background: #ffffff;
+  color: var(--rf-ink-2);
+  border-right: 1px solid var(--rf-line);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -132,7 +133,7 @@ body.rf-site {
   align-items: center;
   gap: 10px;
   padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, .09);
+  border-bottom: 1px solid var(--rf-line);
 }
 
 /* The mark's tile. The artwork inside is inline SVG stroked with currentColor,
@@ -151,33 +152,34 @@ body.rf-site {
 .rf-lockup { display: block; height: auto; max-width: 100%; }
 
 .rf-side-brand strong { font-family: var(--rf-display); font-size: 14px; letter-spacing: .01em; display: block; }
-.rf-side-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #8db6aa; }
+.rf-side-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-3); }
+.rf-side-brand strong { color: var(--rf-ink); }
 
 .rf-nav { padding: 14px 12px; flex: 1; overflow-y: auto; }
 .rf-nav-group { margin: 0 0 18px; }
 .rf-nav-group h6 {
   margin: 0 0 6px; padding: 0 10px;
-  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #7c92b1; font-weight: 600;
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-4); font-weight: 700;
 }
 
 .rf-nav a {
   display: flex; align-items: center; gap: 11px;
   padding: 9px 11px; border-radius: 9px;
-  color: #cde0d8; text-decoration: none;
+  color: var(--rf-ink-2); text-decoration: none;
   font-size: 14px; font-weight: 500;
   transition: background .15s ease, color .15s ease;
 }
-.rf-nav a:hover { background: rgba(255, 255, 255, .07); color: #fff; }
-.rf-nav a.is-active { background: rgba(255, 255, 255, .13); color: #fff; }
+.rf-nav a:hover { background: var(--rf-surface-3); color: var(--rf-ink); }
+.rf-nav a.is-active { background: #e6f4ee; color: var(--rf-navy); font-weight: 600; }
 .rf-nav a svg { width: 17px; height: 17px; flex: 0 0 17px; opacity: .85; }
 .rf-nav a .rf-pip {
-  margin-left: auto; background: var(--rf-brass); color: #22160a;
+  margin-left: auto; background: var(--rf-navy); color: #fff;
   border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; min-width: 20px; text-align: center;
 }
 
-.rf-side-foot { padding: 14px; border-top: 1px solid rgba(255, 255, 255, .09); font-size: 12px; color: #8db6aa; }
+.rf-side-foot { padding: 14px; border-top: 1px solid var(--rf-line); font-size: 12px; color: var(--rf-ink-3); }
 .rf-side-foot .rf-side-user { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.rf-side-foot .rf-side-user strong { color: #fff; font-size: 13px; display: block; }
+.rf-side-foot .rf-side-user strong { color: var(--rf-ink); font-size: 13px; display: block; }
 .rf-side-foot .rf-side-user span { font-size: 11px; }
 
 .rf-avatar {
@@ -680,23 +682,23 @@ body.rf-site {
 .rf-auth-wrap { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
 
 .rf-auth-aside {
-  background: linear-gradient(150deg, #155248 0%, #0b332e 60%, #06211d 100%);
-  color: #e8f0ec; padding: 44px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden;
+  background: linear-gradient(160deg, #ffffff 0%, #f3f5f7 60%, #e9ecf0 100%);
+  color: var(--rf-ink); border-right: 1px solid var(--rf-line); padding: 44px 48px; display: flex; flex-direction: column; position: relative; overflow: hidden;
 }
 .rf-auth-aside::after {
   content: ""; position: absolute; inset: 0; opacity: .5;
   background:
-    radial-gradient(60% 40% at 80% 15%, rgba(46, 190, 140, .28), transparent 70%),
-    radial-gradient(50% 40% at 10% 90%, rgba(35, 128, 111, .5), transparent 70%);
+    radial-gradient(60% 40% at 85% 10%, rgba(46, 190, 140, .14), transparent 70%),
+    radial-gradient(50% 40% at 5% 95%, rgba(12, 29, 74, .06), transparent 70%);
 }
 .rf-auth-aside > * { position: relative; z-index: 1; }
 .rf-auth-aside .brandline { display: flex; align-items: center; gap: 11px; margin-bottom: auto; }
 .rf-auth-aside h2 { font-family: var(--rf-headline); font-weight: 600; font-size: clamp(29px, 3.5vw, 44px); line-height: 1.14; letter-spacing: 0; margin: 0 0 14px; }
-.rf-auth-aside p { color: #b7d0c7; font-size: 15px; max-width: 42ch; margin: 0 0 26px; }
+.rf-auth-aside p { color: var(--rf-ink-2); font-size: 15px; max-width: 42ch; margin: 0 0 26px; }
 .rf-auth-points { list-style: none; padding: 0; margin: 0 0 30px; display: grid; gap: 11px; }
-.rf-auth-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #cfe2db; }
-.rf-auth-points svg { width: 17px; height: 17px; flex: 0 0 17px; color: var(--rf-brass-2); margin-top: 1px; }
-.rf-auth-foot { font-size: 11.5px; color: #8093ad; line-height: 1.7; border-top: 1px solid rgba(255,255,255,.1); padding-top: 16px; }
+.rf-auth-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--rf-ink-2); }
+.rf-auth-points svg { width: 17px; height: 17px; flex: 0 0 17px; color: var(--rf-navy); margin-top: 1px; }
+.rf-auth-foot { font-size: 11.5px; color: var(--rf-ink-3); line-height: 1.7; border-top: 1px solid var(--rf-line); padding-top: 16px; }
 
 .rf-auth-panel { display: flex; align-items: center; justify-content: center; padding: 40px 24px; }
 
@@ -715,12 +717,12 @@ a.rf-auth-brand {
   display: none; align-items: center; gap: 12px;
   width: 100%; max-width: 408px; margin: 0 0 20px;
   padding: 14px 18px; border-radius: var(--rf-radius);
-  background: var(--rf-navy); color: #fff; text-decoration: none;
+  background: #fff; color: var(--rf-ink); text-decoration: none; border: 1px solid var(--rf-line);
   box-shadow: var(--rf-shadow);
 }
 .rf-auth-brand img { height: 30px; width: auto; flex: 0 0 auto; }
-.rf-auth-brand strong { display: block; font-family: var(--rf-display); font-size: 15px; letter-spacing: .01em; color: #fff; }
-.rf-auth-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #9cc4b8; margin-top: 2px; }
+.rf-auth-brand strong { display: block; font-family: var(--rf-display); font-size: 15px; letter-spacing: .01em; color: var(--rf-ink); }
+.rf-auth-brand small { display: block; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--rf-ink-3); margin-top: 2px; }
 .rf-auth-box { width: 100%; max-width: 408px; }
 .rf-auth-box h1 { font-family: var(--rf-headline); font-weight: 600; font-size: 32px; letter-spacing: 0; margin: 0 0 6px; }
 .rf-auth-box .lede { color: var(--rf-ink-3); margin: 0 0 24px; font-size: 14.5px; }
@@ -932,13 +934,13 @@ a.rf-auth-brand {
 .rf-marketing-nav .spacer { margin-left: auto; }
 .rf-marketing-nav .actions { display: flex; gap: 9px; align-items: center; }
 
-.rf-footer { background: var(--rf-navy); color: #b7d0c7; padding: 52px 0 26px; font-size: 13.5px; }
-.rf-footer a { color: #cfe2db; text-decoration: none; display: block; padding: 4px 0; }
-.rf-footer a:hover { color: #fff; text-decoration: underline; }
-.rf-footer h5 { color: #fff; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 10px; }
-.rf-footer .cols { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; padding-bottom: 30px; border-bottom: 1px solid rgba(255,255,255,.12); }
-.rf-footer .legal { padding-top: 22px; font-size: 11.5px; color: #7f91ab; line-height: 1.8; }
-.rf-footer .legal strong { color: #a8b8ce; }
+.rf-footer { background: linear-gradient(180deg, #f7f8fa 0%, #eceef2 100%); color: var(--rf-ink-2); padding: 56px 0 28px; font-size: 13.5px; border-top: 1px solid var(--rf-line); }
+.rf-footer a { color: var(--rf-ink-2); text-decoration: none; display: block; padding: 4px 0; }
+.rf-footer a:hover { color: var(--rf-navy); text-decoration: underline; }
+.rf-footer h5 { color: var(--rf-ink); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 10px; }
+.rf-footer .cols { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; padding-bottom: 30px; border-bottom: 1px solid var(--rf-line); }
+.rf-footer .legal { padding-top: 22px; font-size: 11.5px; color: var(--rf-ink-3); line-height: 1.8; }
+.rf-footer .legal strong { color: var(--rf-ink-2); }
 
 .wrap { width: min(1180px, 100% - 44px); margin-inline: auto; }
 
@@ -1180,97 +1182,12 @@ a.rf-auth-brand {
 }
 
 /* ==========================================================================
-   Dark mode. The application follows the device; the marketing pages keep
-   their own palette, which is already dark where it matters.
+   One theme. The bank is always presented light - white surfaces over a soft
+   grey ground - whatever the device prefers, so contrast is designed once and
+   holds everywhere.
    ========================================================================== */
+:root { color-scheme: light; }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-rf-theme="light"]) {
-    --rf-ink: #eef4f1;
-    --rf-ink-2: #c2c9d5;
-    --rf-ink-3: #949db0;
-    --rf-ink-4: #6f7889;
-    --rf-paper: #07100e;
-    --rf-surface: #101b19;
-    --rf-surface-2: #15211f;
-    --rf-surface-3: #1c2a27;
-    --rf-line: #26372f;
-    --rf-line-2: #1f2e2a;
-    /* The glass inverts: a dark translucent pane with a faint light edge,
-       rather than a white one, which on a dark page reads as fog. */
-    --rf-glass-bg: rgba(16, 27, 25, .6);
-    --rf-glass-line: rgba(255, 255, 255, .1);
-    --rf-glass-shadow: 0 1px 0 rgba(255, 255, 255, .06) inset, 0 18px 40px -22px rgba(0, 0, 0, .9);
-    --rf-btn-face: var(--rf-navy-3);
-    --rf-btn-edge: #36a08b;
-    --rf-btn-ghost-face: var(--rf-surface-2);
-    --rf-btn-ghost-edge: var(--rf-line);
-    --rf-credit-soft: #10291f;
-    --rf-debit-soft: #2e1614;
-    --rf-pending-soft: #2a2312;
-    --rf-info-soft: #122231;
-    --rf-brass-soft: #301b12;
-    --rf-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -18px rgba(0, 0, 0, .8);
-  }
-  :root:not([data-rf-theme="light"]) .rf-top { background: rgba(7, 16, 14, .82); }
-  :root:not([data-rf-theme="light"]) .rf-tabbar { background: var(--rf-surface); }
-  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    :root:not([data-rf-theme="light"]) .rf-tabbar { background: rgba(7, 16, 14, .82); }
-  }
-  :root:not([data-rf-theme="light"]) .rf-tabbar .is-active { color: #7fd6c1; }
-  /* The marketing nav keeps its white ground in the dark theme.
-
-     The logo is black line work drawn on white; on a dark bar the artwork
-     disappears. Rather than keep a second inverted copy of somebody else's
-     logo in step, the bar stays white and its own text is pinned to the light
-     palette - which is a deliberate band across the top of a dark page, not
-     an accident. */
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav { background: #fff; border-bottom-color: #dce5dd; }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline strong { color: #0f1d1b; }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .brandline small { color: #3a4a46; }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost,
-  /* ...and on hover too.
-
-     The generic dark-theme hover below gives a ghost button a dark face,
-     which is right everywhere except here: this bar keeps its white ground,
-     so its buttons keep their light one. Both selectors used to weigh the
-     same and the hover came later, so "Open an account" went to near-black
-     ink on a near-black face the moment the pointer touched it - a button
-     that erased itself. Naming the hover here settles it on this bar
-     without touching the rule for everywhere else. */
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover {
-    --btn-face: #fff; --btn-edge: #dce5dd; --btn-ink: #0f1d1b;
-  }
-  :root:not([data-rf-theme="light"]) .rf-marketing-nav .rf-btn.ghost:hover { --btn-edge: #b7cfc6; }
-  /* The lift still reads on a dark page, but a light border does not: the
-     hover edge goes up in brightness instead of down. */
-  :root:not([data-rf-theme="light"]) .rf-card.interactive:hover,
-  :root:not([data-rf-theme="light"]) a.rf-card:hover,
-  :root:not([data-rf-theme="light"]) .rf-product:hover { border-color: #384a45; }
-  :root:not([data-rf-theme="light"]) .rf-modal { border-color: rgba(255, 255, 255, .08); }
-
-  /* The headline rate is navy, which on a dark card is very nearly the card.
-     Brass is the other brand colour and it holds at this size. */
-  :root:not([data-rf-theme="light"]) .rf-product .rate { color: var(--rf-brass-2); }
-
-  /* Buttons in the dark theme.
-
-     Navy on near-black reads as a hole rather than a button, and a white ghost
-     button is a hole in the other direction. Only the two default tokens move:
-     brass stays brass and glass stays glass, because their rules set --btn-face
-     themselves and nothing here reaches past them. */
-  :root:not([data-rf-theme="light"]) .rf-btn.ghost:hover { --btn-face: var(--rf-surface-3); --btn-edge: #384a45; }
-  :root:not([data-rf-theme="light"]) .rf-btn.link { --btn-ink: #7fa8d8; }
-
-  /* Same problem in the other direction: a near-white rule over a dark card. */
-  :root:not([data-rf-theme="light"]) .rf-glass { border-color: rgba(255, 255, 255, .14); }
-  :root:not([data-rf-theme="light"]) .rf-section.alt { background: var(--rf-surface); }
-  :root:not([data-rf-theme="light"]) .rf-statement { background: var(--rf-surface); }
-  :root:not([data-rf-theme="light"]) .rf-notice { color: #bfe3d8; }
-  :root:not([data-rf-theme="light"]) .rf-notice.warn { color: #f6b896; }
-  :root:not([data-rf-theme="light"]) .rf-notice.bad { color: #efb3ab; }
-  :root:not([data-rf-theme="light"]) .rf-notice.ok { color: #9ad9ba; }
-}
 
 /* ==========================================================================
    Pieces the public site inherits from the template's scripts.
@@ -1389,23 +1306,21 @@ a.rf-auth-brand {
    single green call to action. */
 .hs-nav-logo { display: block; height: 40px; width: auto; }
 .rf-marketing-nav nav a { font-weight: 500; color: var(--rf-ink); }
-.hs-login { font-weight: 600; font-size: 14px; color: var(--rf-ink); text-decoration: none; padding: 8px 10px; }
-.hs-login:hover { color: var(--rf-navy); }
-@media (max-width: 720px) { .hs-nav-logo { height: 32px; } .hs-login { display: none; } }
+@media (max-width: 720px) { .hs-nav-logo { height: 32px; } .rf-marketing-nav .hs-login { display: none; } }
 
 /* ----------------------------------------------------------------- hero -- */
 .hs-home {
   position: relative; overflow: hidden; isolation: isolate;
-  background: linear-gradient(180deg, #f4faf8 0%, #eef7f3 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f3f4f7 100%);
   padding-top: clamp(40px, 7vh, 88px);
 }
 .hs-home-bg span { position: absolute; border-radius: 50%; filter: blur(70px); z-index: -1; pointer-events: none; }
-.hs-home-bg span:nth-child(1) { width: 640px; height: 640px; right: -160px; top: -200px; background: rgba(46, 190, 140, .22); animation: hs-drift-a 24s ease-in-out infinite alternate; }
+.hs-home-bg span:nth-child(1) { width: 640px; height: 640px; right: -160px; top: -200px; background: rgba(46, 190, 140, .14); animation: hs-drift-a 24s ease-in-out infinite alternate; }
 .hs-home-bg span:nth-child(2) { width: 520px; height: 520px; left: -220px; bottom: -140px; background: rgba(12, 29, 74, .07); animation: hs-drift-b 30s ease-in-out infinite alternate; }
 
 .hs-home-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: clamp(24px, 4vw, 56px); align-items: center; }
 .hs-kicker { display: block; font-size: 13px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--rf-brass); margin-bottom: 14px; }
-.hs-home h1 {
+.hs-home .hs-home-title, .hs-home h1 {
   margin: 0 0 20px; font-weight: 800; letter-spacing: -.035em; line-height: 1.02;
   font-size: clamp(40px, 5vw, 68px); color: var(--rf-ink);
 }
@@ -1506,11 +1421,11 @@ a.rf-auth-brand {
 .hs-toast small { display: block; color: var(--rf-ink-3); }
 
 /* Trust strip. */
-.hs-trust { margin-top: clamp(24px, 4vh, 48px); background: rgba(220, 243, 234, .55); border-top: 1px solid #dbeee6; padding: 26px 0 30px; }
+.hs-trust { margin-top: clamp(24px, 4vh, 48px); background: #f0f2f5; border-top: 1px solid var(--rf-line); border-bottom: 1px solid var(--rf-line); padding: 26px 0 30px; }
 .hs-trust-k { text-align: center; margin: 0 0 18px; font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--rf-brass); }
 .hs-trust-row { display: grid; grid-template-columns: repeat(4, 1fr); }
 .hs-trust-row > div { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 12px; }
-.hs-trust-row > div + div { border-left: 1px solid #cfe3da; }
+.hs-trust-row > div + div { border-left: 1px solid #d9dde3; }
 .hs-trust-row .hs-ic { background: transparent; width: auto; height: auto; color: var(--rf-navy); }
 .hs-trust-row b { display: block; font-size: 26px; font-weight: 800; color: var(--rf-ink); letter-spacing: -.02em; line-height: 1.1; }
 .hs-trust-row b.sm { font-size: 18px; }
@@ -1520,7 +1435,7 @@ a.rf-auth-brand {
 .hs-split-grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: clamp(32px, 6vw, 84px); align-items: center; }
 .hs-photo { position: relative; margin: 0; }
 .hs-photo img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 28px; box-shadow: var(--rf-shadow-lg); }
-.hs-photo::before { content: ""; position: absolute; inset: 18px -18px -18px 18px; border-radius: 28px; background: linear-gradient(135deg, #c7ecdd, #e9f6f0); z-index: -1; }
+.hs-photo::before { content: ""; position: absolute; inset: 18px -18px -18px 18px; border-radius: 28px; background: linear-gradient(135deg, #e3e7ec, #f3f5f7); z-index: -1; }
 .hs-float-note {
   position: absolute; left: -24px; bottom: 32px; display: flex; gap: 12px; align-items: center;
   background: #fff; border-radius: 18px; padding: 14px 18px; min-width: 250px;
@@ -1537,10 +1452,16 @@ a.rf-auth-brand {
 
 /* ------------------------------------------------------ mobile photo band -- */
 .hs-band { position: relative; overflow: hidden; isolation: isolate; padding: clamp(80px, 12vw, 150px) 0; color: #fff; }
+/* As the landing hero it fills the first screen, with the copy centred in it. */
+.hs-band-hero { min-height: min(calc(100vh - 66px), 760px); display: flex; align-items: center; padding: clamp(64px, 10vh, 120px) 0; }
+.hs-band-hero h1 { font-size: clamp(40px, 5.4vw, 68px); font-weight: 800; letter-spacing: -.035em; line-height: 1.04; margin: 0 0 18px; color: #fff; }
+.hs-band-hero .hs-band-photo { animation: hs-settle 2.4s var(--rf-ease) both; }
+@keyframes hs-settle { from { transform: scale(1.1); } to { transform: scale(1); } }
+.hs-home-title { margin: 0 0 20px; font-weight: 800; letter-spacing: -.035em; line-height: 1.04; font-size: clamp(38px, 4.6vw, 62px); color: var(--rf-ink); }
 .hs-band-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 60% 30%; z-index: -2; transform: scale(1.08); transition: transform 1.6s var(--rf-ease); }
 .hs-band.is-in .hs-band-photo { transform: scale(1); }
 .hs-band::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(95deg, rgba(6, 46, 36, .92) 0%, rgba(8, 66, 50, .78) 38%, rgba(8, 66, 50, .2) 70%, transparent 100%); }
-.hs-band-copy { max-width: 520px; }
+.hs-band-copy { max-width: 660px; }
 .hs-band .rf-eyebrow { color: #7fe0bb; }
 .hs-band h2 { font-size: clamp(32px, 4vw, 50px); font-weight: 800; letter-spacing: -.03em; line-height: 1.08; margin: 0 0 16px; }
 .hs-band p { color: #d6efe5; font-size: 17px; line-height: 1.6; margin: 0 0 28px; }
@@ -1595,9 +1516,14 @@ a.rf-auth-brand {
 
 @media (prefers-reduced-motion: reduce) {
   .hs-in, .hs-phone, .hs-card3d, .hs-card-face, .hs-card-face::before, .hs-toast, .hs-slab,
-  .hs-cta::after, .hs-grad, .hs-tx li, .hs-bar span, .hs-float-note, .hs-home-bg span { animation: none !important; }
+  .hs-cta::after, .hs-grad, .hs-band-hero .hs-band-photo, .hs-tx li, .hs-bar span, .hs-float-note, .hs-home-bg span { animation: none !important; }
   .hs-tx li { opacity: 1; }
   .hs-band-photo { transform: none; transition: none; }
   .hs-motion [data-hs-reveal] { opacity: 1; transform: none; transition: none; }
   .rf-site .rf-card:hover, .rf-site .rf-product:hover, .hs-features li:hover .hs-ic { transform: none; }
 }
+
+/* On the photograph the primary action is white, so it reads at a glance
+   against the green scrim instead of melting into it. */
+.hs-band .hs-cta { --btn-face: #ffffff; --btn-edge: #ffffff; --btn-ink: #0a5a44; box-shadow: 0 14px 30px -14px rgba(0, 0, 0, .45); }
+.hs-band .hs-cta:hover { --btn-face: #eef7f3; --btn-edge: #eef7f3; }

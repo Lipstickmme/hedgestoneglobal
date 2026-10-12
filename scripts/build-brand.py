@@ -71,6 +71,17 @@ def lighten(rgba, amount):
     return out
 
 
+def on_dark(rgba):
+    """The H for dark grounds: white and mint, the way the app icon draws it."""
+    out = rgba.copy()
+    lum = out[..., :3].astype(float).mean(axis=2)
+    t = np.clip((lum - 40) / 100, 0, 1)[..., None]
+    white = np.array([255, 255, 255], float)
+    mint = np.array([170, 233, 208], float)
+    out[..., :3] = (white * (1 - t) + mint * t).astype(np.uint8)
+    return out
+
+
 def save(arr, name, height=None):
     im = Image.fromarray(arr, 'RGBA')
     if height:
@@ -117,12 +128,12 @@ def main():
     mark = crop(mark, bbox(mark, pad=4))
 
     save(full, 'logo-dark.png', height=160)
-    light = lighten(full, 0.42)
+    light = on_dark(full)
     wm = is_wordmark(full)
     light[wm, 0:3] = 255
     save(light, 'logo-light.png', height=160)
     save(mark, 'logomark-dark.png', height=160)
-    save(lighten(mark, 0.42), "logomark-light.png", height=160)
+    save(on_dark(mark), "logomark-light.png", height=160)
 
     for size, name in [(512, 'icon-512.png'), (512, '../../favicon.png'), (180, '../../apple-touch-icon.png')]:
         icon(mark, size).save(os.path.join(BRAND, name), optimize=True)

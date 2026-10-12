@@ -120,12 +120,27 @@ ui.shield30 = svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-
 const ceo = leadership[0];
 
 const homeContent = `
+  <section class="hs-band hs-band-hero">
+    <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" fetchpriority="high" />
+    <div class="wrap">
+      <div class="hs-band-copy">
+        <span class="rf-eyebrow hs-in" style="--d:0ms">Your bank, in your pocket</span>
+        <h1 class="hs-in" style="--d:90ms">Bank from anywhere. Feel at home everywhere.</h1>
+        <p class="hs-in" style="--d:180ms">Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the street corner or the other side of the world.</p>
+        <div class="hs-actions hs-in" style="--d:270ms">
+          <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
+          <a class="hs-textlink light" href="/security-center">How we keep you safe</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="hs-home">
     <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
     <div class="wrap hs-home-grid">
       <div class="hs-home-copy">
         <span class="hs-kicker hs-in" style="--d:0ms">Global banking for a stronger tomorrow</span>
-        <h1 class="hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h1>
+        <h2 class="hs-home-title hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h2>
         <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
         <div class="hs-actions hs-in" style="--d:240ms">
           <a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a>
@@ -211,20 +226,6 @@ const homeContent = `
     </div>
   </section>
 
-  <section class="hs-band">
-    <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" loading="lazy" />
-    <div class="wrap">
-      <div class="hs-band-copy">
-        <span class="rf-eyebrow">Your bank, in your pocket</span>
-        <h2>Bank from anywhere. Feel at home everywhere.</h2>
-        <p>Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the street corner or the other side of the world.</p>
-        <div class="hs-actions">
-          <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
-          <a class="hs-textlink light" href="/security-center">How we keep you safe</a>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <section class="rf-section alt">
     <div class="wrap">
@@ -760,7 +761,7 @@ const deskContent = `
     <div class="admin-shell" id="admin-shell" hidden>
       <header class="admin-bar">
         <a class="admin-brand" href="/">
-          <img src="/assets/bank/logo-light.png" alt="Hedgestone Global Bank" width="240" height="54" />
+          <img src="/assets/bank/logo-dark.png" alt="Hedgestone Global Bank" width="240" height="54" />
           <span>Client services desk</span>
         </a>
         <div class="admin-bar-end">
