@@ -159,10 +159,21 @@
         box.innerHTML = '<strong>$0.00</strong><small>Turn part of your balance into the S&amp;P 500, Bitcoin, gold or leading stocks, in one tap.</small>';
         return;
       }
-      const top = inv.holdings.slice(0, 3);
+      // The breakdown: how the portfolio is split, then every holding.
+      const L = window.HSAssets || { logo: () => '', color: () => '#0b6b50' };
+      const total = inv.totals.value || 1;
+      const rows = inv.holdings.map((h) => ({ ...h, share: h.value == null ? 0 : (h.value / total) * 100 }));
+      const pct = (n) => `${n >= 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
       box.innerHTML = `<strong>${money(inv.totals.value)}</strong>
-        <small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}</span> all time</small>
-        <ul class="hs-dash-holdings">${top.map((h) => `<li><span><b>${esc(h.name)}</b><em>${esc(h.units)} ${esc(h.symbol)}</em></span><span class="v">${h.value == null ? '&mdash;' : money(h.value)}${h.dayChangePct == null ? '' : `<em class="${h.dayChangePct >= 0 ? 'up' : 'down'}">${h.dayChangePct >= 0 ? '+' : ''}${Number(h.dayChangePct).toFixed(2)}% today</em>`}</span></li>`).join('')}</ul>`;
+        <small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; cost ${money(inv.totals.cost)} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}${inv.totals.gainPct == null ? '' : ` (${pct(inv.totals.gainPct)})`}</span> all time</small>
+        <div class="hs-alloc" role="img" aria-label="${esc(rows.map((h) => `${h.name} ${h.share.toFixed(0)}%`).join(', '))}">
+          ${rows.map((h) => `<span style="width:${Math.max(h.share, 1.5).toFixed(2)}%;background:${L.color(h.symbol)}" title="${esc(h.name)} ${h.share.toFixed(1)}%"></span>`).join('')}
+        </div>
+        <ul class="hs-dash-holdings">${rows.map((h) => `<li>
+          ${L.logo(h.symbol, 34, h.name)}
+          <span class="n"><b>${esc(h.name)}</b><em>${esc(h.units)} ${esc(h.symbol)} &middot; ${h.share.toFixed(1)}% of portfolio</em></span>
+          <span class="v">${h.value == null ? '&mdash;' : money(h.value)}<em class="${(h.gain || 0) >= 0 ? 'up' : 'down'}">${h.gain == null ? '' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}${h.gainPct == null ? '' : ` (${pct(h.gainPct)})`}`}</em>${h.dayChangePct == null ? '' : `<em class="day ${h.dayChangePct >= 0 ? 'up' : 'down'}">${pct(h.dayChangePct)} today</em>`}</span>
+        </li>`).join('')}</ul>`;
     }).catch(() => {});
 
     const heading = qs('.rf-top h1');

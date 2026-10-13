@@ -216,7 +216,7 @@ const dashboardContent = `
 
           <div class="rf-stack">
             <section class="rf-card hs-dash-invest">
-              <div class="rf-card-head"><h3>Invest</h3><div class="rf-card-actions"><a class="rf-btn ghost sm" href="/invest">Open</a></div></div>
+              <div class="rf-card-head hs-dash-invest-head"><h3>${icon('chart', 18)} Investments</h3><div class="rf-card-actions"><a class="rf-btn sm hs-open-invest" href="/invest">Open Invest &rarr;</a></div></div>
               <div class="hs-dash-invest-v" data-dash-invest><strong>&mdash;</strong><small>Turn part of your balance into listed assets.</small></div>
               <div class="hs-chips" aria-label="Convert in one tap">
                 <a href="/invest?convert=SPY">S&amp;P 500</a><a href="/invest?convert=BTC">Bitcoin</a><a href="/invest?convert=XAU">Gold</a>
@@ -353,6 +353,16 @@ const transfersContent = `
                 <div class="rf-field" data-to-internal hidden>
                   <label for="t-to">To</label>
                   <select class="rf-select" id="t-to" name="toAccountId"></select>
+                </div>
+
+                <div class="rf-field" data-to-member hidden>
+                  <label for="t-member">Send to</label>
+                  <div class="hs-member-find">
+                    <input class="rf-input" id="t-member" name="memberQuery" placeholder="Their email, phone or Hedgestone account number" autocomplete="off" />
+                    <button class="rf-btn ghost" type="button" data-member-find>Find</button>
+                  </div>
+                  <div class="hint">Instant and free between Hedgestone customers. You will see who it is before anything is sent.</div>
+                  <div class="hs-member-card" data-member-card hidden></div>
                 </div>
 
                 <div class="rf-field" data-to-beneficiary hidden>

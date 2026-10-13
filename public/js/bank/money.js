@@ -68,9 +68,19 @@
 
     const paintDestinations = () => {
       const from = fromSelect.value;
-      qs('#t-to').innerHTML = options.accounts
-        .filter((a) => a.id !== from)
-        .map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)}</option>`).join('');
+      const others = options.accounts.filter((a) => a.id !== from);
+      // One account means nowhere to move money between - say so, and point
+      // at paying another Hedgestone customer instead of a blank list.
+      qs('#t-to').innerHTML = others.length
+        ? others.map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)}</option>`).join('')
+        : '<option value="" disabled selected>You have no other account to move money to</option>';
+      const hint = qs('[data-to-internal] .hint') || (() => {
+        const el = document.createElement('div');
+        el.className = 'hint';
+        qs('[data-to-internal]').appendChild(el);
+        return el;
+      })();
+      hint.innerHTML = others.length ? '' : 'To pay another person at Hedgestone, choose <button type="button" class="rf-btn link sm" data-switch-member>Hedgestone customer</button>. To open a savings account, send us a <a href="/messages">message</a>.';
     };
     paintDestinations();
 
@@ -104,6 +114,7 @@
       type = next;
       qsa('[data-type]', picker).forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-type') === type));
       qs('[data-to-internal]').hidden = type !== 'internal';
+      qs('[data-to-member]').hidden = type !== 'member';
       qs('[data-to-beneficiary]').hidden = !['ach', 'wire_domestic', 'wire_international', 'instant'].includes(type);
       qs('[data-to-payee]').hidden = type !== 'bill_pay';
       qs('[data-pin-field]').hidden = !(options.requiresPin && type !== 'internal');
@@ -126,6 +137,41 @@
         </div>`;
     }
 
+    // Paying another Hedgestone customer: look them up, show who it is.
+    const member = { query: '', found: null };
+    async function findMember() {
+      const input = qs('#t-member');
+      const card = qs('[data-member-card]');
+      const query = input.value.trim();
+      member.query = query;
+      member.found = null;
+      if (query.length < 4) {
+        card.hidden = false;
+        card.className = 'hs-member-card is-error';
+        card.textContent = 'Enter their email, phone number or account number.';
+        return;
+      }
+      card.hidden = false;
+      card.className = 'hs-member-card';
+      card.textContent = 'Looking…';
+      try {
+        const res = await api.post('/transfers/member-lookup', { query });
+        if (!res.member) throw new Error(res.message || 'No Hedgestone customer matches that.');
+        member.found = res.member;
+        card.className = 'hs-member-card is-found';
+        card.innerHTML = `<span class="rf-avatar sm">${esc(res.member.initials)}</span>
+          <span><strong>${esc(res.member.name)}</strong><small>Hedgestone account ${esc(res.member.accountMask)}</small></span>
+          <span class="hs-member-ok" aria-hidden="true">&#10003;</span>`;
+      } catch (err) {
+        card.className = 'hs-member-card is-error';
+        card.textContent = err.message;
+      }
+    }
+    qs('[data-member-find]').addEventListener('click', findMember);
+    qs('#t-member').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); findMember(); } });
+    qs('#t-member').addEventListener('input', () => { member.found = null; qs('[data-member-card]').hidden = true; });
+    document.addEventListener('click', (e) => { if (e.target.closest('[data-switch-member]')) { e.preventDefault(); applyType('member'); } });
+
     picker.addEventListener('click', (event) => {
       const button = event.target.closest('[data-type]');
       if (button) applyType(button.getAttribute('data-type'));
@@ -145,12 +191,20 @@
         recurrence: data.recurrence,
       };
       if (type === 'internal') payload.toAccountId = data.toAccountId;
-      else if (type === 'bill_pay') payload.payeeId = data.payeeId;
+      else if (type === 'member') {
+        if (!member.found || member.query !== String(data.memberQuery || '').trim()) {
+          await findMember();
+          if (!member.found) return;
+        }
+        payload.memberQuery = member.query;
+      } else if (type === 'bill_pay') payload.payeeId = data.payeeId;
       else payload.beneficiaryId = data.beneficiaryId;
 
       // Say out loud who is about to be paid. A transposed digit in an account
       // number is not recoverable once a wire has left.
-      const label = type === 'internal'
+      const label = type === 'member'
+        ? `${member.found.name} - Hedgestone account ${member.found.accountMask}`
+        : type === 'internal'
         ? qs('#t-to').selectedOptions[0].textContent
         : type === 'bill_pay'
           ? qs('#t-payee').selectedOptions[0].textContent

@@ -136,6 +136,10 @@ function publicTrade(t) {
     reference: t.reference,
     source: t.quote_source,
     quotedAt: t.quote_as_of,
+    status: t.status || 'completed',
+    note: t.note || '',
+    bookedByStaff: Boolean(t.booked_by),
+    transactionId: t.transaction_id,
   };
 }
 
@@ -147,7 +151,7 @@ function publicTrade(t) {
  * @param {object} user
  * @param {object} input  { accountId, symbol, amount (cents) | percent | all, quotedPrice }
  */
-async function convert(user, input, req) {
+async function convert(user, input, req, opts = {}) {
   return withLock(`invest:${user.id}`, async () => {
     const account = await depositAccount(user, input.accountId);
     const available = ledger.availableFor(account);
@@ -168,8 +172,8 @@ async function convert(user, input, req) {
     const cap = Number(cfg.limits && cfg.limits.singleTransactionMax) || 0;
     if (cap && amount > cap) throw err(400, `The most you can convert at once is ${money(cap)}.`, 'limit_exceeded');
 
-    const { asset, quote } = await markets.tradeQuote(input.symbol);
-    checkPrice(input.quotedPrice, quote);
+    const { asset, quote } = opts.price ? staffQuote(input.symbol, opts) : await markets.tradeQuote(input.symbol);
+    if (!opts.staff) checkPrice(input.quotedPrice, quote);
     const pc = priceCents(quote.price);
     const bought = unitsFor(amount, pc, asset.decimals);
     if (bought <= 0n) throw err(400, `${money(amount)} is too small to buy any ${asset.name}.`, 'below_minimum');
@@ -186,8 +190,10 @@ async function convert(user, input, req) {
       category: 'Investments',
       status: 'posted',
       reference,
-      createdBy: 'customer',
-      createdById: user.id,
+      createdBy: opts.staff ? 'admin' : 'customer',
+      createdById: opts.staff ? opts.staff.id : user.id,
+      date: opts.at || undefined,
+      adminNote: opts.note || '',
       meta: { symbol: asset.symbol, units, price: pc, source: quote.source },
     });
 
@@ -197,7 +203,8 @@ async function convert(user, input, req) {
       const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
       await saveHolding(existing, user.id, asset, held + bought, Number(existing ? existing.cost_basis : 0) + amount);
       trade = {
-        id: ids.uuid(), created_at: nowIso(), user_id: user.id, account_id: account.id,
+        id: ids.uuid(), created_at: opts.at || nowIso(), user_id: user.id, account_id: account.id,
+        booked_by: opts.staff ? opts.staff.id : null, note: opts.note || null, status: 'completed',
         symbol: asset.symbol, side: 'buy', units, price: pc, amount,
         transaction_id: posted.transaction.id, reference,
         quote_source: quote.source, quote_as_of: quote.asOf,
@@ -216,7 +223,7 @@ async function convert(user, input, req) {
 
     await audit.log({
       action: 'invest.buy', category: 'money', userId: user.id, req,
-      actor: { id: user.id, email: user.email, role: 'customer' },
+      actor: opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { id: user.id, email: user.email, role: 'customer' },
       detail: `${money(amount)} converted to ${units} ${asset.symbol} at ${money(pc)} - ${reference}`,
       meta: { tradeId: trade.id, symbol: asset.symbol },
     });
@@ -227,6 +234,8 @@ async function convert(user, input, req) {
       rows: receipt(trade, asset, account),
     }).catch(() => {});
 
+    if (opts.at) await ledger.restate(account.id);
+    if (opts.at) await ledger.restate(account.id);
     return { trade: publicTrade(trade), account: posted.account };
   });
 }
@@ -238,7 +247,7 @@ async function convert(user, input, req) {
  *
  * @param {object} input  { symbol, accountId, units | percent | all, quotedPrice }
  */
-async function sell(user, input, req) {
+async function sell(user, input, req, opts = {}) {
   return withLock(`invest:${user.id}`, async () => {
     const account = await depositAccount(user, input.accountId);
     const asset = markets.BY_SYMBOL.get(String(input.symbol || '').toUpperCase());
@@ -258,8 +267,8 @@ async function sell(user, input, req) {
     if (selling <= 0n) throw err(400, 'Enter how much to sell.');
     if (selling > held) throw err(400, `You hold ${fromScaled(held, asset.decimals)} ${asset.unit === 'share' ? 'shares' : asset.unit}.`, 'insufficient_units');
 
-    const { quote } = await markets.tradeQuote(asset.symbol);
-    checkPrice(input.quotedPrice, quote);
+    const { quote } = opts.price ? staffQuote(asset.symbol, opts) : await markets.tradeQuote(asset.symbol);
+    if (!opts.staff) checkPrice(input.quotedPrice, quote);
     const pc = priceCents(quote.price);
     const proceeds = valueOf(selling, pc, asset.decimals);
     if (proceeds <= 0) throw err(400, 'That is too small an amount to sell.', 'below_minimum');
@@ -283,8 +292,10 @@ async function sell(user, input, req) {
         category: 'Investments',
         status: 'posted',
         reference,
-        createdBy: 'customer',
-        createdById: user.id,
+        createdBy: opts.staff ? 'admin' : 'customer',
+        createdById: opts.staff ? opts.staff.id : user.id,
+        date: opts.at || undefined,
+        adminNote: opts.note || '',
         meta: { symbol: asset.symbol, units, price: pc, source: quote.source },
       });
     } catch (e) {
@@ -294,7 +305,8 @@ async function sell(user, input, req) {
     }
 
     const trade = {
-      id: ids.uuid(), created_at: nowIso(), user_id: user.id, account_id: account.id,
+      id: ids.uuid(), created_at: opts.at || nowIso(), user_id: user.id, account_id: account.id,
+      booked_by: opts.staff ? opts.staff.id : null, note: opts.note || null, status: 'completed',
       symbol: asset.symbol, side: 'sell', units, price: pc, amount: proceeds,
       transaction_id: posted.transaction.id, reference,
       quote_source: quote.source, quote_as_of: quote.asOf,
@@ -304,7 +316,7 @@ async function sell(user, input, req) {
 
     await audit.log({
       action: 'invest.sell', category: 'money', userId: user.id, req,
-      actor: { id: user.id, email: user.email, role: 'customer' },
+      actor: opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { id: user.id, email: user.email, role: 'customer' },
       detail: `${units} ${asset.symbol} sold at ${money(pc)} for ${money(proceeds)} - ${reference}`,
       meta: { tradeId: trade.id, symbol: asset.symbol },
     });
@@ -316,6 +328,88 @@ async function sell(user, input, req) {
     }).catch(() => {});
 
     return { trade: publicTrade(trade), account: posted.account };
+  });
+}
+
+/* ---------------------------------------------------------------- staff --- */
+
+/**
+ * A price entered by staff, for a trade booked after the fact: a walk-in
+ * customer's instruction, or one taken by phone while the network was down,
+ * recorded at the price and time it was actually agreed.
+ */
+function staffQuote(symbol, opts) {
+  const asset = markets.BY_SYMBOL.get(String(symbol || '').toUpperCase());
+  if (!asset) throw err(400, 'That asset is not available.');
+  const price = Number(opts.price);
+  if (!Number.isFinite(price) || price <= 0) throw err(400, 'Enter the price per unit the trade was agreed at.');
+  return { asset, quote: { symbol: asset.symbol, price: Math.round(price * 100) / 100, source: 'Entered by staff', asOf: opts.at || nowIso() } };
+}
+
+/** Move a trade, and its ledger entry, to the time it actually happened. */
+async function retimeTrade(tradeId, at, staff, note, req) {
+  const trade = await db.trades.findById(tradeId);
+  if (!trade) throw err(404, 'Trade not found.');
+  const when = new Date(at);
+  if (Number.isNaN(when.getTime())) throw err(400, 'Enter a valid date and time.');
+  if (when.getTime() > Date.now() + 60000) throw err(400, 'A trade cannot be dated in the future.');
+  const iso = when.toISOString();
+  await db.trades.update(trade.id, { created_at: iso, note: note || trade.note || null });
+  if (trade.transaction_id) await db.transactions.update(trade.transaction_id, { date: iso });
+  if (trade.account_id) await ledger.restate(trade.account_id);
+  await audit.log({
+    action: 'admin.trade_retimed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
+    actor: { id: staff.id, email: staff.email, role: 'admin' },
+    detail: `${trade.side === 'buy' ? 'Conversion' : 'Sale'} ${trade.reference} moved to ${iso}${note ? ` - ${note}` : ''}`,
+    meta: { tradeId: trade.id, from: trade.created_at, to: iso },
+  });
+  return publicTrade({ ...trade, created_at: iso });
+}
+
+/**
+ * Undo a trade completely: the units come off (or go back on) the holding and
+ * the cash goes back (or comes back out) through a ledger reversal.
+ */
+async function reverseTrade(tradeId, staff, note, req) {
+  const trade = await db.trades.findById(tradeId);
+  if (!trade) throw err(404, 'Trade not found.');
+  if (trade.status === 'reversed') throw err(409, 'That trade has already been reversed.');
+  const asset = markets.BY_SYMBOL.get(trade.symbol);
+  if (!asset) throw err(400, 'That asset is no longer listed.');
+
+  return withLock(`invest:${trade.user_id}`, async () => {
+    const existing = await holdingFor(trade.user_id, asset.symbol);
+    const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
+    const units = toScaled(trade.units, asset.decimals);
+    const cost = Number(existing ? existing.cost_basis : 0);
+
+    if (trade.side === 'buy') {
+      if (held < units) {
+        throw err(409, `The customer now holds ${fromScaled(held, asset.decimals)} ${asset.symbol}, fewer than this conversion bought. Reverse the later sale first.`);
+      }
+      await saveHolding(existing, trade.user_id, asset, held - units, cost - Number(trade.amount || 0));
+    } else {
+      const costSold = Number(trade.amount || 0) - Number(trade.realized_gain || 0);
+      await saveHolding(existing, trade.user_id, asset, held + units, cost + costSold);
+    }
+
+    let reversal = null;
+    if (trade.transaction_id) {
+      reversal = await ledger.reverse(trade.transaction_id, {
+        reason: note || `${trade.side === 'buy' ? 'Conversion' : 'Sale'} reversed by the bank`,
+        actor: 'admin',
+        actorId: staff.id,
+      });
+    }
+    const patch = { status: 'reversed', reversed_at: nowIso(), note: note || trade.note || null };
+    await db.trades.update(trade.id, patch);
+    await audit.log({
+      action: 'admin.trade_reversed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
+      actor: { id: staff.id, email: staff.email, role: 'admin' },
+      detail: `Reversed ${trade.side} of ${trade.units} ${trade.symbol} (${money(trade.amount)}) - ${trade.reference}${note ? ` - ${note}` : ''}`,
+      meta: { tradeId: trade.id, reversalTransactionId: reversal && reversal.id },
+    });
+    return publicTrade({ ...trade, ...patch });
   });
 }
 
@@ -370,4 +464,4 @@ async function portfolio(userId) {
   };
 }
 
-module.exports = { convert, sell, portfolio, publicTrade, MIN_BUY, PRICE_TOLERANCE, _units: { toScaled, fromScaled, unitsFor, valueOf } };
+module.exports = { convert, sell, portfolio, publicTrade, retimeTrade, reverseTrade, MIN_BUY, PRICE_TOLERANCE, _units: { toScaled, fromScaled, unitsFor, valueOf } };

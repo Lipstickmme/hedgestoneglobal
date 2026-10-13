@@ -37,6 +37,7 @@
     return '<a class="hs-tick ' + dir + '" data-sym="' + esc(a.symbol) + '" href="' + esc(dest('/invest?convert=' + a.symbol)) + '"'
       + (dupe ? ' aria-hidden="true" tabindex="-1"' : '')
       + ' title="' + esc(a.detail + ' - ' + q.source + ', ' + new Date(q.asOf).toLocaleString()) + '">'
+      + (window.HSAssets ? window.HSAssets.logo(a.symbol, 20) : '')
       + '<b>' + esc(a.name) + '</b>'
       + '<span class="sym">' + esc(a.symbol) + '</span>'
       + '<span class="px">' + price(q.price) + '</span>'

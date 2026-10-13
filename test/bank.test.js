@@ -571,6 +571,125 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('console: suspend and restore');
     }
 
+    /* ---- 18a. paying another Hedgestone customer ---- */
+    {
+      // Dana was registered by the console above, with an opening balance.
+      const look = await customer.post('/api/bank/transfers/member-lookup', { query: 'NewCustomer@Example.com' });
+      assert.strictEqual(look.status, 200, look.text);
+      assert.strictEqual(look.body.member.name, 'Dana W.', 'a masked name, enough to confirm the person');
+      assert.ok(!JSON.stringify(look.body).includes('Whitfield'), 'and never the full surname');
+      const self = await customer.post('/api/bank/transfers/member-lookup', { query: 'demo@hedgestonesfinance.com' });
+      assert.strictEqual(self.status, 400, 'your own address points you at between-accounts');
+      const nobody = await customer.post('/api/bank/transfers/member-lookup', { query: 'nobody@nowhere.test' });
+      assert.strictEqual(nobody.status, 200);
+      assert.strictEqual(nobody.body.member, null, 'nobody found is an answer, not an error');
+
+      const danaAccounts = (await admin.get(`/api/bank/admin/customers/${newCustomerId}`)).body.accounts;
+      const danaChecking = danaAccounts.find((a) => !a.isCredit);
+      const byNumber = await customer.post('/api/bank/transfers/member-lookup', { query: danaChecking.accountNumber });
+      assert.strictEqual(byNumber.status, 200, 'an account number finds the same person');
+
+      const balanceBefore = danaChecking.balance;
+      const send = await customer.post('/api/bank/transfers', {
+        type: 'member', fromAccountId: checking.id, memberQuery: 'newcustomer@example.com', amount: '42.50', memo: 'Lunch', pin: '4417',
+      });
+      assert.ok([200, 201].includes(send.status), send.text);
+      let result = send.body;
+      if (result.next === 'verify') {
+        const code = result.verification && result.verification.devCode;
+        assert.ok(code, 'the code is handed back on a laptop');
+        result = (await customer.post(`/api/bank/transfers/${result.transfer.id}/verify`, { code })).body;
+      }
+      assert.strictEqual(result.next, 'completed', `a small payment to a customer is instant, got ${result.next}`);
+
+      const after = (await admin.get(`/api/bank/admin/customers/${newCustomerId}`)).body.accounts.find((a) => a.id === danaChecking.id);
+      assert.strictEqual(after.balance - balanceBefore, 4250, 'it arrived in their account');
+      const danaTx = (await admin.get(`/api/bank/admin/customers/${newCustomerId}`)).body.transactions;
+      assert.ok(danaTx.some((t) => /Received from Jordan/.test(t.description)), 'labelled with who it came from');
+      ok(`members: found Dana W. by email and account number, $42.50 sent and arrived instantly`);
+    }
+
+    /* ---- 18c. staff back-posting: trades and entries booked after the fact ---- */
+    {
+      const found = await admin.get('/api/bank/admin/customers?q=demo%40hedgestonesfinance.com&limit=5');
+      const jordan = found.body.customers[0];
+      assert.ok(jordan, 'the demo customer is found');
+      const acctOf = async () => (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.accounts.find((a) => a.id === checking.id);
+      const holdingOf = async (sym) => ((await admin.get(`/api/bank/admin/customers/${jordan.id}/investments`)).body.holdings.find((h) => h.symbol === sym) || { units: '0' });
+      // A running balance that adds up: each posted entry's balance_after,
+      // in value-date order, ends at the account balance.
+      const chainHolds = async () => {
+        const rows = (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.transactions
+          .filter((t) => t.accountId === checking.id && ['posted', 'reversed'].includes(t.status));
+        const latest = rows.slice().sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1))[0];
+        return latest && latest.balanceAfter === (await acctOf()).balance;
+      };
+
+      const before = (await acctOf()).balance;
+      const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
+      const booked = await admin.post('/api/bank/admin/trades', {
+        customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'SPY',
+        amount: '1000.00', price: '500.00', date: twoDaysAgo, note: 'Walk-in, branch 2',
+      });
+      assert.strictEqual(booked.status, 201, booked.text);
+      assert.strictEqual(booked.body.trade.units, '2', 'exactly 2 shares at the agreed $500.00');
+      assert.strictEqual(booked.body.trade.price, 50000);
+      assert.strictEqual(booked.body.trade.createdAt, twoDaysAgo, 'booked at the agreed time');
+      assert.strictEqual(booked.body.trade.source, 'Entered by staff');
+      assert.strictEqual(before - (await acctOf()).balance, 100000, '$1,000.00 left checking');
+      assert.ok(await chainHolds(), 'running balances restated around the back-dated entry');
+
+      const asCustomer = await customer.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'SPY', amount: '5' });
+      assert.strictEqual(asCustomer.status, 403, 'customers cannot back-post');
+      const future = await admin.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'SPY', amount: '5', date: new Date(Date.now() + 86400000).toISOString() });
+      assert.strictEqual(future.status, 400, 'nothing dated in the future');
+
+      const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+      const moved = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { date: threeDaysAgo, note: 'Network down; instruction taken by phone' });
+      assert.strictEqual(moved.status, 200, moved.text);
+      const movedTx = (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.transactions.find((t) => t.id === booked.body.trade.transactionId);
+      assert.strictEqual(movedTx.date, threeDaysAgo, 'its ledger entry moved with it');
+      assert.ok(await chainHolds());
+
+      const fixAmount = await admin.patch(`/api/bank/admin/transactions/${booked.body.trade.transactionId}`, { amount: '900.00' });
+      assert.strictEqual(fixAmount.status, 409, 'a conversion is corrected by reversing, not by editing its amount');
+
+      const spyBefore = Number((await holdingOf('SPY')).units);
+      const reversed = await admin.post(`/api/bank/admin/trades/${booked.body.trade.id}/reverse`, { note: 'Booked to the wrong customer' });
+      assert.strictEqual(reversed.status, 200, reversed.text);
+      assert.strictEqual(reversed.body.trade.status, 'reversed');
+      assert.strictEqual(Math.round((spyBefore - Number((await holdingOf('SPY')).units)) * 1e6), 2e6, 'the 2 shares came off the holding');
+      assert.strictEqual((await acctOf()).balance, before, 'and the $1,000.00 came back');
+      const again = await admin.post(`/api/bank/admin/trades/${booked.body.trade.id}/reverse`, {});
+      assert.strictEqual(again.status, 409, 'a trade reverses once');
+
+      // The console's ordinary Reverse on a conversion's entry undoes the whole trade.
+      const second = await admin.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'SPY', amount: '500.00', price: '500.00' });
+      assert.strictEqual(second.status, 201, second.text);
+      const spyMid = Number((await holdingOf('SPY')).units);
+      const viaEntry = await admin.post(`/api/bank/admin/transactions/${second.body.trade.transactionId}/settle`, { action: 'reverse', note: 'Duplicate' });
+      assert.strictEqual(viaEntry.status, 200, viaEntry.text);
+      assert.strictEqual(Math.round((spyMid - Number((await holdingOf('SPY')).units)) * 1e6), 1e6, 'units and cash both undone');
+
+      // An ordinary entry: back-dated with a time, then its amount corrected.
+      const yesterday = new Date(Date.now() - 86400000);
+      yesterday.setUTCHours(14, 35, 0, 0);
+      const walkIn = await admin.post(`/api/bank/admin/accounts/${checking.id}/adjust`, {
+        direction: 'credit', amount: '100.00', description: 'CASH DEPOSIT - BRANCH 2', date: yesterday.toISOString(), notify: false,
+      });
+      assert.strictEqual(walkIn.status, 201, walkIn.text);
+      assert.strictEqual(walkIn.body.transaction.date, yesterday.toISOString(), 'dated to the minute');
+      const balWalkIn = (await acctOf()).balance;
+      const amended = await admin.patch(`/api/bank/admin/transactions/${walkIn.body.transaction.id}`, { amount: '125.00', description: 'CASH DEPOSIT - BRANCH 2 (corrected)' });
+      assert.strictEqual(amended.status, 200, amended.text);
+      assert.strictEqual(amended.body.transaction.amount, 12500);
+      assert.strictEqual((await acctOf()).balance - balWalkIn, 2500, 'the balance moved by the difference');
+      assert.ok(await chainHolds(), 'and the running balances still add up');
+      const audit = (await admin.get('/api/bank/admin/activity?limit=40')).body.activity.map((a) => a.action);
+      ['admin.trade_reversed', 'admin.trade_retimed', 'admin.transaction_updated', 'invest.buy'].forEach((a) => assert.ok(audit.includes(a), `${a} is in the activity log`));
+      ok('back-posting: staff booked 2 SPY at $500 two days back, moved it, reversed it; a walk-in deposit dated and corrected');
+    }
+
     /* ---- 18b. the console's setup checklist and investments views ---- */
     {
       const setupRes = await admin.get('/api/bank/admin/setup');

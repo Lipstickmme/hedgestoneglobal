@@ -432,7 +432,7 @@ ${tabbar(active, staff)}
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/bank/core.js', '/js/ticker.js', ...extraScripts]),
+    scripts(['/js/bank/core.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', ...extraScripts]),
   ].join('\n');
 }
 
@@ -577,7 +577,7 @@ function marketingPage({ title, description, active, content, extraScripts = [],
     marketingFooter(),
     chatWidget(),
     `  <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/main.js', '/js/motion.js', '/js/ticker.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
+    scripts(['/js/main.js', '/js/motion.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
   ].join('\n');
 }
 

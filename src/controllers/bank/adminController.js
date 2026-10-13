@@ -531,6 +531,13 @@ const adjustBalance = asyncHandler(async (req, res) => {
   const method = TRANSACTION_METHODS[req.body.method] ? req.body.method : 'adjustment';
   const description = trimmed(req.body.description, 140)
     || (direction === 'credit' ? 'Deposit' : 'Withdrawal');
+  let valueDate;
+  if (req.body.date) {
+    const when = new Date(req.body.date);
+    if (Number.isNaN(when.getTime())) throw fail(400, 'Enter a valid value date.');
+    if (when.getTime() > Date.now() + 60000) throw fail(400, 'An entry cannot be dated in the future.');
+    valueDate = when.toISOString();
+  }
 
   const { transaction, account: updated } = await ledger.post({
     accountId: account.id,
@@ -542,7 +549,7 @@ const adjustBalance = asyncHandler(async (req, res) => {
     method,
     status,
     memo: trimmed(req.body.memo, 200),
-    date: req.body.date ? new Date(req.body.date).toISOString() : undefined,
+    date: valueDate,
     location: trimmed(req.body.location, 80),
     counterparty: req.body.counterpartyName
       ? {
@@ -558,6 +565,9 @@ const adjustBalance = asyncHandler(async (req, res) => {
     createdById: req.bankUser.id,
     adminNote: trimmed(req.body.note, 300),
   });
+
+  // Back-dated: the entries after it need their running balances restated.
+  if (valueDate && Date.now() - new Date(valueDate).getTime() > 60000) await ledger.restate(account.id);
 
   await audit.log({
     action: 'admin.balance_adjusted', category: 'admin', userId: account.user_id, req, severity: 'notice',
@@ -610,17 +620,39 @@ const updateTransaction = asyncHandler(async (req, res) => {
   if (req.body.category !== undefined) patch.category = trimmed(req.body.category, 40);
   if (req.body.merchant !== undefined) patch.merchant = trimmed(req.body.merchant, 80);
   if (req.body.memo !== undefined) patch.memo = trimmed(req.body.memo, 200);
-  if (req.body.date !== undefined) patch.date = new Date(req.body.date).toISOString();
+  if (req.body.date !== undefined && req.body.date !== '') {
+    const when = new Date(req.body.date);
+    if (Number.isNaN(when.getTime())) throw fail(400, 'Enter a valid date and time.');
+    if (when.getTime() > Date.now() + 60000) throw fail(400, 'An entry cannot be dated in the future. Use a scheduled transfer instead.');
+    patch.date = when.toISOString();
+    if (tx.posted_at) patch.posted_at = patch.date;
+  }
   if (req.body.note !== undefined) patch.admin_note = trimmed(req.body.note, 300);
+
+  // A conversion's entry moves with its trade; its amount is fixed by the units
+  // and price, so it is corrected by reversing and booking it again.
+  const trade = await db.trades.findOne({ transaction_id: tx.id }).catch(() => null);
+  const newAmount = req.body.amount !== undefined && req.body.amount !== '' ? toCents(req.body.amount) : null;
+  if (newAmount != null && newAmount !== Number(tx.amount)) {
+    if (trade) throw fail(409, 'A conversion\'s amount comes from its units and price. Reverse it and book it again at the right figures.');
+    await ledger.amend(tx.id, { amount: newAmount });
+    patch.amount = newAmount;
+  }
   if (!Object.keys(patch).length) throw fail(400, 'Nothing to change.');
 
-  await db.transactions.update(tx.id, patch);
+  const { amount: _ignored, ...rest } = patch;
+  if (Object.keys(rest).length) await db.transactions.update(tx.id, rest);
+  if (trade && patch.date) await db.trades.update(trade.id, { created_at: patch.date });
+  if (patch.date || patch.amount) await ledger.restate(tx.account_id);
   await audit.log({
     action: 'admin.transaction_updated', category: 'admin', userId: tx.user_id, req,
-    actor: actorOf(req), detail: `Amended entry ${tx.reference} (${Object.keys(patch).join(', ')})`,
+    actor: actorOf(req), severity: patch.amount || patch.date ? 'notice' : 'info',
+    detail: `Amended entry ${tx.reference} (${Object.keys(patch).join(', ')})${patch.amount ? ` ${money(tx.amount)} -> ${money(patch.amount)}` : ''}${patch.date ? ` dated ${patch.date}` : ''}`,
+    meta: { transactionId: tx.id, before: { amount: tx.amount, date: tx.date }, after: { amount: patch.amount, date: patch.date } },
   });
   const account = await db.accounts.findById(tx.account_id);
-  res.json({ transaction: accountsController.publicTransaction({ ...tx, ...patch }, account) });
+  const fresh = await db.transactions.findById(tx.id);
+  res.json({ transaction: accountsController.publicTransaction(fresh || { ...tx, ...patch }, account) });
 });
 
 /** Release a pending entry, or reverse a posted one. */
@@ -633,7 +665,15 @@ const settleTransaction = asyncHandler(async (req, res) => {
   if (action === 'post') result = await ledger.settle(tx.id, { status: 'posted', note: trimmed(req.body.note, 200) });
   else if (action === 'fail') result = await ledger.settle(tx.id, { status: 'failed', note: trimmed(req.body.note, 200) });
   else if (action === 'reverse') {
-    result = await ledger.reverse(tx.id, { reason: trimmed(req.body.note, 200) || 'Reversed by the bank', actor: 'admin', actorId: req.bankUser.id });
+    // Reversing a conversion's cash alone would leave the customer holding
+    // units they no longer paid for. Undo the whole trade instead.
+    const trade = await db.trades.findOne({ transaction_id: tx.id }).catch(() => null);
+    if (trade) {
+      await require('../../bank/invest').reverseTrade(trade.id, req.bankUser, trimmed(req.body.note, 200), req);
+      result = await db.transactions.findById(tx.id);
+    } else {
+      result = await ledger.reverse(tx.id, { reason: trimmed(req.body.note, 200) || 'Reversed by the bank', actor: 'admin', actorId: req.bankUser.id });
+    }
   } else throw fail(400, 'Unknown action.');
 
   await audit.log({

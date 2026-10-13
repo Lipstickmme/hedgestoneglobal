@@ -33,6 +33,7 @@ const money = alerts.money;
 /** Which daily limit and which fee a transfer type is subject to. */
 const TYPE_RULES = {
   internal: { limitKey: 'internalDaily', feeKey: null, method: 'internal', label: 'Transfer between accounts', clearing: 'Immediate' },
+  member: { limitKey: 'memberDaily', feeKey: null, method: 'member', label: 'Hedgestone customer', clearing: 'Instant' },
   ach: { limitKey: 'achDaily', feeKey: 'achOutgoing', method: 'ach', label: 'ACH transfer', clearing: '1-3 business days' },
   wire_domestic: { limitKey: 'wireDaily', feeKey: 'wireDomestic', method: 'wire_domestic', label: 'Domestic wire', clearing: 'Same business day' },
   wire_international: { limitKey: 'wireDaily', feeKey: 'wireInternational', method: 'wire_international', label: 'International wire', clearing: '2-5 business days' },
@@ -47,6 +48,70 @@ function ruleFor(type) {
 function reasonLabel(code) {
   const found = REJECTION_REASONS.find((r) => r.code === code);
   return found ? found.label : 'Transfer could not be completed';
+}
+
+/* ------------------------------------------------- Hedgestone members --- */
+
+/** "Mara Velez" -> "Mara V." - enough to confirm the right person, no more. */
+function maskedName(user) {
+  const first = String(user.first_name || user.preferred_name || '').trim();
+  const last = String(user.last_name || '').trim();
+  return `${first || 'Hedgestone'}${last ? ` ${last.charAt(0).toUpperCase()}.` : ' customer'}`;
+}
+
+/**
+ * Find another customer to send to, by email, phone or account number.
+ *
+ * An account number lands on that account; an email or phone lands on the
+ * person's main deposit account (checking first, then savings). Only active
+ * customers with an active deposit account can be found, and never the
+ * sender themselves.
+ */
+async function findMember(query, sender) {
+  const raw = String(query || '').trim();
+  if (raw.length < 4) return null;
+  const digits = raw.replace(/\D/g, '');
+  let account = null;
+  let user = null;
+
+  const depositOf = async (userId) => {
+    const rows = await db.accounts.find({ user_id: userId, status: 'active' }, { order: 'created_at.asc' });
+    const { ACCOUNT_TYPES } = require('./constants');
+    const deposit = rows.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1 && !['loan', 'mortgage', 'cd'].includes(a.type));
+    return deposit.find((a) => a.type === 'checking') || deposit.find((a) => a.type === 'savings') || deposit[0] || null;
+  };
+
+  if (raw.includes('@')) {
+    user = await db.users.findOne({ email: raw.toLowerCase() });
+    if (user) account = await depositOf(user.id);
+  } else if (digits.length >= 8) {
+    // An account number first - they are ten digits, like a phone number -
+    // then a phone number on file.
+    account = await db.accounts.findOne({ account_number: digits });
+    if (account) {
+      user = await db.users.findById(account.user_id);
+    } else if (digits.length >= 10) {
+      const tail = digits.slice(-10);
+      const candidates = await db.users.find({ role: 'customer' });
+      user = candidates.find((u) => String(u.phone || '').replace(/\D/g, '').slice(-10) === tail) || null;
+      if (user) account = await depositOf(user.id);
+    }
+  }
+
+  if (!user || !account) return null;
+  if (user.status !== 'active' || account.status !== 'active') return null;
+  if ((require('./constants').ACCOUNT_TYPES[account.type] || {}).sign === -1 || ['loan', 'mortgage', 'cd'].includes(account.type)) return null;
+  if (sender && user.id === sender.id) return { self: true, user, account };
+  return { user, account };
+}
+
+/** What a sender is shown before they confirm: a masked name and account. */
+function publicMember(found) {
+  return {
+    name: maskedName(found.user),
+    initials: `${String(found.user.first_name || '?').charAt(0)}${String(found.user.last_name || '').charAt(0)}`.toUpperCase(),
+    accountMask: ids.maskAccount(found.account.account_number),
+  };
 }
 
 /* ------------------------------------------------------------ validate --- */
@@ -100,6 +165,7 @@ async function validate(user, input) {
   let to = null;
   let beneficiary = null;
   let payee = null;
+  let member = null;
 
   if (input.type === 'internal') {
     to = await db.accounts.findById(input.toAccountId);
@@ -109,6 +175,16 @@ async function validate(user, input) {
     if (to.id === from.id) {
       throw Object.assign(new Error('Choose two different accounts.'), { status: 400 });
     }
+  } else if (input.type === 'member') {
+    const found = await findMember(input.memberQuery, user);
+    if (!found) {
+      throw Object.assign(new Error('We could not find a Hedgestone customer with those details. Check the email, phone or account number.'), { status: 400, code: 'member_not_found' });
+    }
+    if (found.self) {
+      throw Object.assign(new Error('That is your own account. Use Transfer between accounts instead.'), { status: 400 });
+    }
+    to = found.account;
+    member = found.user;
   } else if (input.type === 'bill_pay') {
     payee = await db.payees.findById(input.payeeId);
     if (!payee || payee.user_id !== user.id) {
@@ -127,7 +203,7 @@ async function validate(user, input) {
     }
   }
 
-  return { cfg, rule, amount, fee, total, from, to, beneficiary, payee };
+  return { cfg, rule, amount, fee, total, from, to, beneficiary, payee, member };
 }
 
 /* -------------------------------------------------------------- submit --- */
@@ -138,7 +214,7 @@ async function validate(user, input) {
  * @returns {Promise<{transfer: object, next: 'verify'|'review'|'completed'|'scheduled', otp?: object}>}
  */
 async function submit(user, input, req) {
-  const { cfg, rule, amount, fee, total, from, to, beneficiary, payee } = await validate(user, input);
+  const { cfg, rule, amount, fee, total, from, to, beneficiary, payee, member } = await validate(user, input);
 
   const scheduledFor = input.scheduledFor ? new Date(input.scheduledFor).toISOString() : null;
   const isFuture = Boolean(scheduledFor) && scheduledFor > nowIso();
@@ -180,7 +256,9 @@ async function submit(user, input, req) {
     ip: audit.clientIp(req),
     // What the recipient looked like at the moment of sending. A beneficiary
     // edited later must not rewrite the history of a payment already made.
-    snapshot: beneficiary
+    snapshot: member
+      ? { name: maskedName(member), accountMasked: ids.maskAccount(to.account_number), type: 'member', member: true, senderName: maskedName(user) }
+      : beneficiary
       ? {
         name: beneficiary.name,
         nickname: beneficiary.nickname,
@@ -294,8 +372,16 @@ async function verify(user, transferId, code, req) {
  */
 async function finalise(user, transfer, req) {
   const cfg = await settings.get();
-  const needsReview = transfer.type !== 'internal'
-    && (cfg.holdTransfersForReview || transfer.amount >= Number(cfg.holdThresholdCents || 0));
+  // Money between two Hedgestone customers never leaves the bank, and the
+  // sender has already cleared the code and PIN, so it is held only above the
+  // review threshold - not by the blanket "review everything outgoing" switch,
+  // which exists for payments that go out to the world.
+  const threshold = Number(cfg.holdThresholdCents || 0);
+  const needsReview = transfer.type === 'internal'
+    ? false
+    : transfer.type === 'member'
+      ? Boolean(threshold) && transfer.amount >= threshold
+      : (cfg.holdTransfersForReview || transfer.amount >= threshold);
 
   if (needsReview) {
     // Hold the funds now: the money is committed even though the instruction
@@ -377,14 +463,15 @@ async function complete(user, transfer, { actor = 'system', actorId = null, req,
   }
 
   // The receiving leg, when the other side is also us.
-  if (fresh.type === 'internal' && fresh.to_account_id) {
+  if ((fresh.type === 'internal' || fresh.type === 'member') && fresh.to_account_id) {
     const credit = await ledger.post({
       accountId: fresh.to_account_id,
       direction: 'credit',
       amount: fresh.amount,
       description: describeIncoming(fresh),
+      category: fresh.type === 'member' ? 'Income' : 'Transfers',
+      counterparty: fresh.type === 'member' ? { name: (fresh.snapshot && fresh.snapshot.senderName) || 'Hedgestone customer', bank: 'Hedgestone Global Bank' } : null,
       method: fresh.method,
-      category: 'Transfers',
       status: 'posted',
       memo: fresh.memo,
       transferId: fresh.id,
@@ -393,12 +480,31 @@ async function complete(user, transfer, { actor = 'system', actorId = null, req,
       createdById: actorId || user.id,
     });
     patch.credit_transaction_id = credit.transaction.id;
+
+    // The person on the other end hears about it too.
+    if (fresh.type === 'member') {
+      const recipientAccount = credit.account;
+      const recipient = await db.users.findById(recipientAccount.user_id);
+      if (recipient) {
+        try {
+          await alerts.creditPosted(recipient, {
+            account: recipientAccount,
+            transaction: credit.transaction,
+            amount: fresh.amount,
+            balance: recipientAccount.balance,
+            available: ledger.availableFor(recipientAccount),
+          });
+        } catch (err) {
+          console.warn('[hedgestone] could not notify the recipient:', err.message);
+        }
+      }
+    }
   }
 
   if (fresh.method === 'wire_domestic' || fresh.method === 'wire_international') {
     patch.imad = fresh.imad || ids.imad();
     patch.omad = ids.omad();
-  } else if (!fresh.trace_number) {
+  } else if (!fresh.trace_number && fresh.type !== 'member') {
     patch.trace_number = ids.achTrace(BANK.routingNumber);
   }
 
@@ -547,6 +653,7 @@ function describeOutgoing(transfer) {
   const who = (transfer.snapshot && (transfer.snapshot.nickname || transfer.snapshot.name)) || 'recipient';
   switch (transfer.type) {
     case 'internal': return `Transfer to ${who}`;
+    case 'member': return `Sent to ${who}`;
     case 'wire_domestic': return `WIRE OUT ${String(who).toUpperCase()}`;
     case 'wire_international': return `INTL WIRE OUT ${String(who).toUpperCase()}`;
     case 'instant': return `INSTANT SEND ${String(who).toUpperCase()}`;
@@ -556,6 +663,7 @@ function describeOutgoing(transfer) {
 }
 
 function describeIncoming(transfer) {
+  if (transfer.type === 'member') return `Received from ${(transfer.snapshot && transfer.snapshot.senderName) || 'a Hedgestone customer'}`;
   return transfer.type === 'internal' ? 'Transfer from account' : 'Incoming transfer';
 }
 
@@ -632,6 +740,9 @@ function publicTransfer(transfer) {
 }
 
 module.exports = {
+  findMember,
+  publicMember,
+  maskedName,
   validate,
   submit,
   verify,

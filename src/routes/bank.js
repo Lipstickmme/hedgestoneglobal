@@ -140,6 +140,9 @@ router.get('/cards', accounts.cards);
 router.post('/cards/:id', accounts.updateCard);
 
 router.get('/transfers/options', money.transferOptions);
+// Finding another customer to pay: a tight bucket, so the lookup cannot be
+// used to walk the customer list.
+router.post('/transfers/member-lookup', limiter.create({ windowMs: 10 * 60_000, max: 40, name: 'bank-member-lookup' }), money.memberLookup);
 router.get('/transfers', money.listTransfers);
 router.post('/transfers', money.createTransfer);
 router.get('/transfers/:id', money.getTransfer);
@@ -183,6 +186,9 @@ staff.use(auth.requireAdmin);
 staff.get('/overview', admin.overview);
 staff.get('/setup', setupController.setup);
 staff.get('/investments', invest.staffOverview);
+staff.post('/trades', invest.staffBook);
+staff.patch('/trades/:id', invest.staffRetime);
+staff.post('/trades/:id/reverse', invest.staffReverse);
 staff.get('/settings', admin.getSettings);
 staff.put('/settings', admin.updateSettings);
 staff.post('/scheduled/run', admin.runScheduled);

@@ -24,6 +24,7 @@ const MIGRATIONS = [
   { file: '0003_bank.sql', what: 'Customers, accounts, the ledger, transfers, cards and everything else in the bank' },
   { file: '0004_bank_sms.sql', what: 'Text-message delivery status on alerts' },
   { file: '0005_bank_invest.sql', what: 'Investments: holdings, trades and stored prices' },
+  { file: '0006_bank_backposting.sql', what: 'Staff booking, re-timing and reversing conversions' },
 ];
 
 const setup = asyncHandler(async (req, res) => {

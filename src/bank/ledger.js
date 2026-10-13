@@ -332,6 +332,77 @@ async function reverse(transactionId, { reason = 'Reversed', actor = 'system', a
   return transaction;
 }
 
+/**
+ * Entries that moved the balance. A reversed entry did post - its money moved
+ * and was then moved back by the reversal, which is its own posted entry - so
+ * both count, and they cancel. Counting only 'posted' dropped the original and
+ * kept the reversal, which left statements off by the reversed amount.
+ */
+const COUNTED = ['posted', 'reversed'];
+
+/**
+ * Recompute the running "balance after" on every entry of an account, in value
+ * date order.
+ *
+ * balance_after is written once, when an entry posts, as the balance at that
+ * moment. Back-dating an entry - a walk-in deposit booked after the fact, a
+ * conversion recorded once the network came back - puts it before entries that
+ * were written earlier, and their running balances no longer add up. This
+ * walks the account from its first entry to its last and rewrites only the
+ * figures that changed. The account balance itself is the anchor and is not
+ * touched: back-dating changes when money moved, not how much there is.
+ */
+async function restate(accountId) {
+  return withLock(`account:${accountId}`, async () => {
+    const account = await db.accounts.findById(accountId);
+    if (!account) return 0;
+    const rows = (await db.transactions.find({ account_id: accountId }, { order: 'date.asc' }))
+      .filter((t) => COUNTED.includes(t.status))
+      .sort((a, b) => (a.date === b.date
+        ? String(a.created_at || '').localeCompare(String(b.created_at || ''))
+        : String(a.date || '').localeCompare(String(b.date || ''))));
+    const delta = (t) => signFor(account.type, t.direction) * Number(t.amount || 0);
+    let running = Number(account.balance || 0) - rows.reduce((sum, t) => sum + delta(t), 0);
+    let changed = 0;
+    for (const t of rows) {
+      running += delta(t);
+      if (Number(t.balance_after) !== running) {
+        // eslint-disable-next-line no-await-in-loop
+        await db.transactions.update(t.id, { balance_after: running });
+        changed += 1;
+      }
+    }
+    return changed;
+  });
+}
+
+/**
+ * Correct the amount of a posted entry, moving the balance by the difference.
+ * For a teller who keyed $1,200.00 when the slip said $1,250.00.
+ */
+async function amend(transactionId, { amount }) {
+  const tx = await db.transactions.findById(transactionId);
+  if (!tx) throw Object.assign(new Error('Transaction not found.'), { status: 404 });
+  const cents = Math.round(Number(amount));
+  if (!Number.isFinite(cents) || cents <= 0) throw Object.assign(new Error('Enter an amount greater than zero.'), { status: 400 });
+  if (cents === Number(tx.amount)) return tx;
+  if (tx.status !== 'posted') {
+    throw Object.assign(new Error('Only a posted entry can have its amount corrected. Post it first, or fail it and book a new one.'), { status: 409 });
+  }
+  await withLock(`account:${tx.account_id}`, async () => {
+    const account = await db.accounts.findById(tx.account_id);
+    const balance = Number(account.balance || 0) + signFor(account.type, tx.direction) * (cents - Number(tx.amount || 0));
+    await db.accounts.update(account.id, {
+      balance,
+      available_balance: availableFor({ ...account, balance }),
+      last_activity_at: nowIso(),
+    });
+    await db.transactions.update(tx.id, { amount: cents });
+  });
+  await restate(tx.account_id);
+  return { ...tx, amount: cents };
+}
+
 /** Charge a fee against an account, if the amount is non-zero. */
 async function charge(accountId, cents, description, extra = {}) {
   if (!cents) return null;
@@ -407,7 +478,7 @@ async function recalculate(accountId) {
     let balance = Number(account.opening_balance || 0);
     let hold = 0;
     rows.forEach((tx) => {
-      if (tx.status === 'posted') balance += signFor(account.type, tx.direction) * Number(tx.amount || 0);
+      if (COUNTED.includes(tx.status)) balance += signFor(account.type, tx.direction) * Number(tx.amount || 0);
       if ((tx.status === 'pending' || tx.status === 'hold') && tx.direction === 'debit') {
         hold += Number(tx.amount || 0);
       }
@@ -430,8 +501,8 @@ async function statement(account, periodStart, periodEnd) {
   const start = new Date(periodStart).toISOString();
   const end = new Date(periodEnd).toISOString();
   const all = await db.transactions.find({ account_id: account.id }, { order: 'date.asc' });
-  const inPeriod = all.filter((t) => t.date >= start && t.date <= end && t.status === 'posted');
-  const before = all.filter((t) => t.date < start && t.status === 'posted');
+  const inPeriod = all.filter((t) => t.date >= start && t.date <= end && COUNTED.includes(t.status));
+  const before = all.filter((t) => t.date < start && COUNTED.includes(t.status));
 
   const opening = before.reduce(
     (sum, t) => sum + signFor(account.type, t.direction) * Number(t.amount || 0),
@@ -471,6 +542,9 @@ function recentPeriods(count = 12, from = new Date()) {
 }
 
 module.exports = {
+  COUNTED,
+  restate,
+  amend,
   post,
   postMany,
   settle,

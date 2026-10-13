@@ -492,6 +492,9 @@ const content = `
                 </div>
                 <div class="rf-row">
                   ${dateField({ id: 'ad-date', name: 'date', label: 'Value date', from: -10, to: 1 })}
+                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to back-post a walk-in or an instruction taken while the network was down.</div></div>
+                </div>
+                <div class="rf-row">
                   <div class="rf-field"><label for="ad-merchant">Merchant or counterparty</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
                 </div>
                 <div class="rf-row">

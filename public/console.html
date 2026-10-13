@@ -22,7 +22,7 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=b9aea28f" />
+  <link rel="stylesheet" href="/css/bank.css?v=0d7a95f2" />
   
   <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
 </head>
@@ -618,7 +618,7 @@
                 </div>
                 <div class="rf-field"><label for="ad-description">Description on the statement</label><input class="rf-input" id="ad-description" name="description" placeholder="WIRE IN - ACME CORP PAYROLL" required /></div>
                 <div class="rf-row three">
-                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method"><option value="internal">Internal transfer</option><option value="ach">ACH transfer</option><option value="wire_domestic">Domestic wire</option><option value="wire_international">International wire</option><option value="instant">Instant send</option><option value="card">Card purchase</option><option value="atm">ATM</option><option value="check">Check</option><option value="mobile_deposit">Mobile check deposit</option><option value="bill_pay">Bill payment</option><option value="direct_deposit">Direct deposit</option><option value="fee">Fee</option><option value="interest">Interest</option><option value="adjustment">Adjustment</option><option value="refund">Refund</option><option value="investment">Investment</option></select></div>
+                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method"><option value="internal">Internal transfer</option><option value="ach">ACH transfer</option><option value="wire_domestic">Domestic wire</option><option value="wire_international">International wire</option><option value="instant">Instant send</option><option value="card">Card purchase</option><option value="atm">ATM</option><option value="check">Check</option><option value="mobile_deposit">Mobile check deposit</option><option value="bill_pay">Bill payment</option><option value="direct_deposit">Direct deposit</option><option value="fee">Fee</option><option value="interest">Interest</option><option value="adjustment">Adjustment</option><option value="refund">Refund</option><option value="investment">Investment</option><option value="member">Hedgestone transfer</option></select></div>
                   <div class="rf-field"><label for="ad-category">Category</label><select class="rf-select" id="ad-category" name="category"><option value="Groceries">Groceries</option><option value="Dining">Dining</option><option value="Transport">Transport</option><option value="Fuel">Fuel</option><option value="Travel">Travel</option><option value="Utilities">Utilities</option><option value="Rent & Mortgage">Rent & Mortgage</option><option value="Insurance">Insurance</option><option value="Healthcare">Healthcare</option><option value="Shopping">Shopping</option><option value="Entertainment">Entertainment</option><option value="Subscriptions">Subscriptions</option><option value="Education">Education</option><option value="Transfers">Transfers</option><option value="Investments">Investments</option><option value="Income">Income</option><option value="Fees & Interest">Fees & Interest</option><option value="Taxes">Taxes</option><option value="Cash & ATM">Cash & ATM</option><option value="Other">Other</option></select></div>
                   <div class="rf-field"><label for="ad-status">Status</label><select class="rf-select" id="ad-status" name="status"><option value="posted">Posted</option><option value="pending">Pending</option></select></div>
                 </div>
@@ -632,6 +632,9 @@
                           <input type="hidden" id="ad-date" name="date" data-part="value" />
                         </div>
                       </div>
+                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to back-post a walk-in or an instruction taken while the network was down.</div></div>
+                </div>
+                <div class="rf-row">
                   <div class="rf-field"><label for="ad-merchant">Merchant or counterparty</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
                 </div>
                 <div class="rf-row">
@@ -713,7 +716,9 @@
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>
   <script src="/js/bank/core.js?v=a3ae851c" defer></script>
-  <script src="/js/ticker.js?v=766952ff" defer></script>
-  <script src="/js/bank/console.js?v=00ec24c1" defer></script>
+  <script src="/js/asset-logos.js?v=93d683f2" defer></script>
+  <script src="/js/assets.js?v=a953dc1b" defer></script>
+  <script src="/js/ticker.js?v=9fa7c71c" defer></script>
+  <script src="/js/bank/console.js?v=aba195dc" defer></script>
 </body>
 </html>

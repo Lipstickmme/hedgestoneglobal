@@ -134,3 +134,42 @@ const staffCustomerHoldings = asyncHandler(async (req, res) => {
 
 module.exports.staffOverview = staffOverview;
 module.exports.staffCustomerHoldings = staffCustomerHoldings;
+
+/**
+ * POST /api/bank/admin/trades - book a conversion or sale for a customer,
+ * optionally at an agreed price and an earlier time.
+ */
+const staffBook = asyncHandler(async (req, res) => {
+  const b = req.body || {};
+  const customer = await db.users.findById(b.customerId);
+  if (!customer) throw Object.assign(new Error('Customer not found.'), { status: 404 });
+  let at = null;
+  if (b.date) {
+    const when = new Date(b.date);
+    if (Number.isNaN(when.getTime())) throw Object.assign(new Error('Enter a valid date and time.'), { status: 400 });
+    if (when.getTime() > Date.now() + 60000) throw Object.assign(new Error('A trade cannot be dated in the future.'), { status: 400 });
+    at = when.toISOString();
+  }
+  const opts = { staff: req.bankUser, price: b.price ? Number(String(b.price).replace(/[^0-9.]/g, '')) : null, at, note: String(b.note || '').slice(0, 300) };
+  const all = b.all === true || b.all === 'true';
+  const result = b.side === 'sell'
+    ? await invest.sell(customer, { accountId: b.accountId, symbol: b.symbol, units: b.units, percent: b.percent, all }, req, opts)
+    : await invest.convert(customer, { accountId: b.accountId, symbol: b.symbol, amount: b.amount != null && b.amount !== '' ? toCents(b.amount) : undefined, percent: b.percent, all }, req, opts);
+  res.status(201).json(result);
+});
+
+/** PATCH /api/bank/admin/trades/:id - move a trade to when it really happened. */
+const staffRetime = asyncHandler(async (req, res) => {
+  const trade = await invest.retimeTrade(req.params.id, (req.body || {}).date, req.bankUser, String((req.body || {}).note || '').slice(0, 300), req);
+  res.json({ trade });
+});
+
+/** POST /api/bank/admin/trades/:id/reverse - undo a trade, units and cash. */
+const staffReverse = asyncHandler(async (req, res) => {
+  const trade = await invest.reverseTrade(req.params.id, req.bankUser, String((req.body || {}).note || '').slice(0, 300), req);
+  res.json({ trade });
+});
+
+module.exports.staffBook = staffBook;
+module.exports.staffRetime = staffRetime;
+module.exports.staffReverse = staffReverse;

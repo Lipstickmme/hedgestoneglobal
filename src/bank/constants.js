@@ -135,6 +135,7 @@ const TRANSACTION_METHODS = {
   adjustment: { label: 'Adjustment', clearing: 0 },
   refund: { label: 'Refund', clearing: 1 },
   investment: { label: 'Investment', clearing: 0 },
+  member: { label: 'Hedgestone transfer', clearing: 0 },
 };
 
 /** Spending categories. The dashboard groups the last 30 days by these. */
@@ -189,6 +190,7 @@ const DEFAULT_SETTINGS = {
     achDaily: 2500000,
     wireDaily: 10000000,
     instantDaily: 200000,
+    memberDaily: 1000000,
     billPayDaily: 1000000,
     mobileDepositDaily: 500000,
     atmDaily: 100000,

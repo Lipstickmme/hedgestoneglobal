@@ -41,7 +41,7 @@ typing.
 | `/accounts` | Every account, with routing and wire details to hand to an employer |
 | `/transactions` | Search and filter by account, category, method, direction, amount and date; CSV export |
 | `/statements` | Twelve monthly statements per account, printable, with opening and closing balances |
-| `/transfers` | Between own accounts, ACH, domestic and international wire, instant send and bill pay; scheduled and recurring; one-time code and transfer PIN; receipts with confirmation, ACH trace and IMAD |
+| `/transfers` | Between own accounts, ACH, domestic and international wire, instant send and bill pay; scheduled and recurring; one-time code and transfer PIN; receipts with confirmation, ACH trace and IMAD; pay another Hedgestone customer instantly by email, phone or account number |
 | `/recipients` | Saved beneficiaries with ABA checksum validation and SWIFT for international |
 | `/bills` | Payees, due days and autopay |
 | `/deposit` | Mobile check deposit: photograph both sides, Regulation CC hold applied |

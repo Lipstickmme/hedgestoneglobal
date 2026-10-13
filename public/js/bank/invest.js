@@ -38,6 +38,7 @@
     Crypto: '<path d="M9 6h5a3 3 0 0 1 0 6H9zM9 12h6a3 3 0 0 1 0 6H9zM9 4v16M12 4v2M12 18v2"/>',
     Commodity: '<path d="M4 18h16l-3-6H7zM7 12l2.5-5h5L17 12"/>',
   };
+  const logoOf = (symbol, size) => (window.HSAssets ? window.HSAssets.logo(symbol, size) : '');
   const icon = (kind) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[kind] || ICON.Stock}</svg>`;
 
   /* ------------------------------------------------------------- render -- */
@@ -64,7 +65,7 @@
       const held = holdingBy(a.symbol);
       const disabled = !q || q.stale;
       return `<button type="button" class="hs-asset ${q ? dirOf(q.change) : ''}" data-convert="${esc(a.symbol)}"${disabled ? ' disabled' : ''}>
-        <span class="hs-asset-top"><span class="hs-asset-ic">${icon(a.kind)}</span><span><strong>${esc(a.name)}</strong><small>${esc(a.symbol)} &middot; ${esc(a.kind)}</small></span></span>
+        <span class="hs-asset-top">${logoOf(a.symbol, 38)}<span><strong>${esc(a.name)}</strong><small>${esc(a.symbol)} &middot; ${esc(a.kind)}</small></span></span>
         <span class="hs-asset-px">${q ? dollars(q.price) : 'No price'}</span>
         <span class="hs-asset-foot"><span class="chg">${q && q.changePct != null ? `${q.change > 0 ? '&#9650;' : q.change < 0 ? '&#9660;' : ''} ${pct(q.changePct)}` : '&nbsp;'}</span>${held ? `<span class="held">You hold ${fmtUnits(held.units, a.decimals)}</span>` : '<span class="go">Convert &rarr;</span>'}</span>
       </button>`;
@@ -80,7 +81,7 @@
     body.innerHTML = data.holdings.map((h) => {
       const a = assetBy(h.symbol);
       return `<tr>
-        <td><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)} &middot; ${esc(h.kind)}</span></td>
+        <td><span class="hs-cell-asset">${logoOf(h.symbol, 30)}<span><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)} &middot; ${esc(h.kind)}</span></span></span></td>
         <td class="num rf-mono">${fmtUnits(h.units, a ? a.decimals : 8)}</td>
         <td class="num opt">${money(h.averagePrice)}</td>
         <td class="num opt">${h.price == null ? '&mdash;' : money(h.price)}</td>
@@ -98,6 +99,7 @@
       return;
     }
     list.innerHTML = data.trades.slice(0, 8).map((t) => `<li>
+      ${logoOf(t.symbol, 30)}
       <span class="hs-trade-side ${t.side}">${t.side === 'buy' ? 'Bought' : 'Sold'}</span>
       <span class="hs-trade-main"><strong>${esc(t.units)} ${esc(t.symbol)}</strong><small>${datetime(t.createdAt)} &middot; @ ${money(t.price)}</small></span>
       <span class="rf-amt ${t.side === 'buy' ? 'debit' : 'credit'}">${t.side === 'buy' ? '-' : '+'}${money(t.amount)}</span>
@@ -209,7 +211,7 @@
     function paint() {
       const a = current();
       const q = a.quote;
-      qs('[data-asset-head]', el).innerHTML = `<span class="hs-asset-ic">${icon(a.kind)}</span>
+      qs('[data-asset-head]', el).innerHTML = `${logoOf(a.symbol, 40)}
         <span><strong>${esc(a.name)}</strong><small>${esc(a.detail)}</small></span>
         <span class="hs-sheet-px ${dirOf(q.change)}">${dollars(q.price)}<small>${pct(q.changePct)}</small></span>`;
       const c = cents();
@@ -310,7 +312,7 @@
 
     function paint() {
       const q = asset.quote;
-      qs('[data-asset-head]', el).innerHTML = `<span class="hs-asset-ic">${icon(asset.kind)}</span>
+      qs('[data-asset-head]', el).innerHTML = `${logoOf(asset.symbol, 40)}
         <span><strong>${esc(asset.name)}</strong><small>${esc(asset.detail)}</small></span>
         <span class="hs-sheet-px ${dirOf(q.change)}">${dollars(q.price)}<small>${pct(q.changePct)}</small></span>`;
       const u = pctChosen === 100 ? held : chosen();

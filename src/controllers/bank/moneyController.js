@@ -57,6 +57,24 @@ const transferOptions = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * POST /transfers/member-lookup - who is behind this email, phone or account
+ * number? Answers with a masked name and account so the sender can confirm
+ * the right person, and nothing else. Rate limited in the router.
+ */
+const memberLookup = asyncHandler(async (req, res) => {
+  const found = await transfersLib.findMember(trimmed(req.body && req.body.query, 120), req.bankUser);
+  if (!found) {
+    // A normal answer, not an error: "nobody by that name" is what a search
+    // says, and a 404 here would show up as a failure in the browser console.
+    return res.json({ member: null, message: 'No Hedgestone customer matches that. Check the email, phone or account number.' });
+  }
+  if (found.self) {
+    return res.status(400).json({ error: 'own_account', message: 'That is your own account. Use Transfer between accounts instead.' });
+  }
+  return res.json({ member: transfersLib.publicMember(found) });
+});
+
 const listTransfers = asyncHandler(async (req, res) => {
   const { limit, offset } = page(req.query);
   const rows = await db.transfers.find({ user_id: req.bankUser.id }, { order: 'created_at.desc' });
@@ -80,6 +98,7 @@ const createTransfer = asyncHandler(async (req, res) => {
     toAccountId: req.body.toAccountId,
     beneficiaryId: req.body.beneficiaryId,
     payeeId: req.body.payeeId,
+    memberQuery: req.body.memberQuery,
     amount: toCents(req.body.amount),
     memo: req.body.memo,
     purpose: req.body.purpose,
@@ -480,6 +499,7 @@ const listDisputes = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  memberLookup,
   transferOptions,
   listTransfers,
   getTransfer,

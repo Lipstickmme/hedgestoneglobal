@@ -148,6 +148,7 @@ come next.
    | [`supabase/migrations/0003_bank.sql`](../supabase/migrations/0003_bank.sql) | The banking application: customers, accounts, the ledger, transfers, cards, documents, alerts, the activity log, sessions and settings |
    | [`supabase/migrations/0004_bank_sms.sql`](../supabase/migrations/0004_bank_sms.sql) | Text-message delivery status on banking alerts |
    | [`supabase/migrations/0005_bank_invest.sql`](../supabase/migrations/0005_bank_invest.sql) | Investments: holdings, trades, and the last price seen for each asset |
+   | [`supabase/migrations/0006_bank_backposting.sql`](../supabase/migrations/0006_bank_backposting.sql) | Staff booking, re-timing and reversing conversions after the fact |
 
    Everything is behind row level security. `enquiries` has no anon policy at all:
    writes arrive through the API using the service role.
@@ -480,6 +481,58 @@ This is a demonstration of the flow. Holdings are recorded by the bank; no
 order is sent to an exchange or broker, and nothing is bought on a market.
 Offering this to real customers needs a brokerage or custody partner and the
 licences that go with it.
+
+## Paying another Hedgestone customer
+
+On the Transfers screen, **Hedgestone customer** sends money to another person
+who banks here. The sender enters the recipient's email, phone number or
+Hedgestone account number and presses **Find**; the bank answers with a masked
+name ("Mara V.") and the last digits of the account, and nothing more, so the
+sender can confirm the right person without the lookup revealing who banks
+here. The lookup is rate limited.
+
+The payment clears the same code and transfer PIN as any outgoing transfer,
+counts against its own daily limit (**To other Hedgestone customers** under
+Settings, $10,000 by default), and then posts instantly to both accounts: the
+sender sees "Sent to Mara V.", the recipient "Received from Jordan E." and gets
+the usual money-in alert. Because the money never leaves the bank it is held
+for review only above the review threshold, not by the "hold every transfer"
+switch, which is for payments going out to other banks.
+
+## Back-posting: walk-ins and network outages (staff only)
+
+Some instructions reach the bank before they reach the system: a customer at
+the counter, or a call taken while the network was down. The staff console
+records them at the time and price they were actually agreed. Open the
+customer (search in the console header), then:
+
+- **Adjust** on an account posts a credit or debit with a **value date and
+  time** - leave both blank for now.
+- **Edit** on any entry changes its date and time, description, category, memo
+  and - for a posted entry that is not a conversion - its **amount**, moving the
+  balance by the difference. Every edit asks for an internal note.
+- **Investments, Book a conversion** converts cash to an asset, or sells an
+  asset to cash, at an **entered price** (prefilled with the live price) and an
+  optional earlier **time**. The receipt says "Entered by staff".
+- On each conversion, **Change time** moves it and its ledger entry to when it
+  really happened; **Reverse** undoes it completely - units off (or back on) the
+  holding and the cash back through a ledger reversal. The ordinary Reverse on a
+  conversion's entry does the same, so cash and units never disagree.
+
+Whenever an entry is dated in the past, the running "balance after" figures of
+the entries after it are restated, so statements and the transaction list add
+up; the account balance itself is the anchor and does not change. Nothing can
+be dated in the future. Every one of these actions is recorded in the activity
+log against the member of staff, with before-and-after figures. Customers
+cannot reach any of it.
+
+## Asset logos
+
+The ticker, dashboard and Invest screen show a round badge for each asset,
+drawn in the asset's colours. To use real logos instead, put files named by
+symbol in `public/assets/img/logos/` (`AAPL.svg`, `BTC.png`, ...) and rebuild;
+any asset without a file keeps its badge. Company logos are trademarks: use
+them only where you have the right to.
 
 ## Local development
 
