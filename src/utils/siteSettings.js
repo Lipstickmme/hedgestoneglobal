@@ -21,6 +21,9 @@
 const defaults = require('../data/site.json');
 const { getSupabase } = require('./supabase');
 const bankSettings = require('../bank/settings');
+const { BANK } = require('../bank/constants');
+
+const BANK_NAME = BANK.name;
 
 const TABLE = 'site_settings';
 const ROW_ID = 'default';
@@ -83,8 +86,11 @@ function fromConsole(cfg) {
 
 async function read() {
   let console_ = {};
+  let name = '';
   try {
-    console_ = fromConsole(await bankSettings.get());
+    const cfg = await bankSettings.get();
+    console_ = fromConsole(cfg);
+    name = str(cfg.bankName);
   } catch (err) {
     // The settings collection is optional; the desk and the defaults stand.
   }
@@ -118,7 +124,9 @@ async function read() {
 
   const merged = {};
   FIELDS.forEach((key) => { merged[key] = firstOf(configured(key), desk[key], stored(key), defaults[key]); });
-  return { ...merged, source };
+  // The bank's name, as staff set it under Settings. The pages are built with
+  // the default and swap this in (public/js/bankname.js).
+  return { ...merged, name: name || BANK_NAME, source };
 }
 
 module.exports = { read, normalise, defaults, FIELDS, TABLE, ROW_ID };

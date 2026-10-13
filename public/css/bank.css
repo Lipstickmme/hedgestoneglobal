@@ -1756,12 +1756,32 @@ html.rf-booting body::after {
   content: ""; position: absolute; right: -60px; top: -60px; width: 240px; height: 240px; border-radius: 50%;
   background: radial-gradient(circle, rgba(127, 224, 187, .28), transparent 65%); pointer-events: none;
 }
-.hs-dash-hero-main { display: grid; gap: 4px; position: relative; z-index: 1; }
+.hs-dash-hero-main { display: grid; gap: 4px; position: relative; z-index: 1; flex: 1 1 380px; min-width: 0; }
 .hs-dash-hero .k { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #d7efe6; }
 .hs-dash-hero .v { font-size: clamp(32px, 4vw, 44px); font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.hs-dash-hero .d { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; color: #d7efe6; }
+.hs-dash-hero .d { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; font-size: 14px; color: #d7efe6; }
 .hs-dash-hero .d b { color: #fff; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hs-qa { display: flex; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; }
+/* Beside "Invested": the assets it is made of. The whole row opens Invest. */
+.hs-hero-inv { display: inline-flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.hs-hero-assets { display: inline-flex; flex-wrap: wrap; gap: 6px; text-decoration: none; border-radius: 999px; }
+.hs-hero-assets[hidden] { display: none; }
+.hs-hero-assets:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.hs-hero-asset {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px;
+  background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .26);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
+  color: #fff; font-size: 12.5px; font-weight: 600; line-height: 1; white-space: nowrap;
+  transition: background .2s, transform .2s var(--rf-ease);
+}
+.hs-hero-asset b { font-weight: 800; font-variant-numeric: tabular-nums; }
+.hs-hero-asset .hs-logo { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55); }
+.hs-hero-asset.more { padding: 6px 11px; }
+.hs-hero-assets:hover .hs-hero-asset { background: rgba(255, 255, 255, .22); }
+@media (prefers-reduced-motion: no-preference) {
+  .hs-hero-assets:hover .hs-hero-asset { transform: translateY(-1px); }
+}
+.hs-qa { display: flex; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; flex: 0 0 auto; }
 .hs-qa a {
   display: flex; flex-direction: column; align-items: center; gap: 7px; width: 78px; text-decoration: none;
   color: #fff; font-size: 12.5px; font-weight: 700; text-align: center;

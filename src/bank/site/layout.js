@@ -310,7 +310,7 @@ function sidebar(active, staff = false) {
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
-          <strong>${BANK.shortName}</strong>
+          <strong data-bank-short>${BANK.shortName}</strong>
           <small>Staff console</small>
         </span>
       </div>
@@ -337,7 +337,7 @@ function legacySidebar(groups) {
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
-          <strong>${BANK.shortName}</strong>
+          <strong data-bank-short>${BANK.shortName}</strong>
           <small>Online banking</small>
         </span>
       </div>
@@ -432,7 +432,7 @@ ${tabbar(active, staff)}
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/bank/core.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', ...extraScripts]),
+    scripts(['/js/bankname.js', '/js/bank/core.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', ...extraScripts]),
   ].join('\n');
 }
 
@@ -471,7 +471,7 @@ ${content}
     </section>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/bank/core.js', ...extraScripts]),
+    scripts(['/js/bankname.js', '/js/bank/core.js', ...extraScripts]),
   ].join('\n');
 }
 
@@ -577,7 +577,7 @@ function marketingPage({ title, description, active, content, extraScripts = [],
     marketingFooter(),
     chatWidget(),
     `  <div class="rf-toasts" id="rf-toasts"></div>`,
-    scripts(['/js/main.js', '/js/motion.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
+    scripts(['/js/bankname.js', '/js/main.js', '/js/motion.js', '/js/asset-logos.js', '/js/assets.js', '/js/ticker.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
   ].join('\n');
 }
 

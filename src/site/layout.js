@@ -191,7 +191,7 @@ function page(opts) {
     content,
     footer(),
     chatWidget(),
-    scripts(['/js/main.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
+    scripts(['/js/bankname.js', '/js/main.js', '/js/supabase-lite.js', '/js/chat.js', ...extraScripts]),
   ].join('\n');
 }
 

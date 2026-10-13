@@ -17,6 +17,7 @@ const auth = require('../../bank/auth');
 const audit = require('../../bank/audit');
 const alerts = require('../../bank/alerts');
 const contact = require('../../bank/contact');
+const settings = require('../../bank/settings');
 const ids = require('../../bank/ids');
 const { asyncHandler, fail, trimmed } = require('../../bank/http');
 const { DOCUMENT_KINDS, SECURITY_QUESTIONS, US_STATES, BANK } = require('../../bank/constants');
@@ -50,7 +51,7 @@ const me = asyncHandler(async (req, res) => {
     user: users.publicUser(req.bankUser, 'self'),
     counts: { accounts: accounts.length, cards: cards.length, sessions: sessions.length },
     options: { states: US_STATES, securityQuestions: SECURITY_QUESTIONS, documentKinds: DOCUMENT_KINDS },
-    bank: { name: BANK.name, email: BANK.email, ...contact.current() },
+    bank: { name: (settings.snapshot().bankName || '').trim() || BANK.name, email: BANK.email, ...contact.current() },
   });
 });
 

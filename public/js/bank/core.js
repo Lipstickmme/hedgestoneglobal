@@ -473,13 +473,15 @@
   async function hydrateContact() {
     const fields = qsa('[data-site]');
     const rows = qsa('[data-site-row]');
-    if (!fields.length && !rows.length) return;
+    // Signed in, the session has already said what the bank is called.
+    if (!fields.length && !rows.length && state.session && state.session.bankName) return;
     let bank;
     try {
       bank = (await api.get('/config')).bank || {};
     } catch (err) {
       return; // The standing phrases are correct on their own.
     }
+    if (window.HSName && bank.name) window.HSName.apply(bank.name);
     fields.forEach((el) => {
       const value = bank[el.getAttribute('data-site')];
       if (!value) return;
@@ -499,6 +501,8 @@
     }
     state.session = session;
     state.user = session.user || null;
+    // The name staff have given the bank, over the one the page was built with.
+    if (window.HSName && session.bankName) window.HSName.apply(session.bankName);
 
     if (isApp) {
       if (!session.authenticated) {

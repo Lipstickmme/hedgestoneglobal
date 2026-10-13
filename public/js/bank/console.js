@@ -1164,7 +1164,7 @@
 
     qs('[data-mail-configured]').textContent = data.emailConfigured
       ? 'Email is configured: alerts are delivered.'
-      : 'No mail provider configured: alerts are stored in the app but not emailed.';
+      : 'No mail provider configured: alerts show in online banking but are not emailed.';
 
     onSubmit(form, async (values) => {
       const limits = {};
@@ -1196,7 +1196,8 @@
         limits,
         fees,
       });
-      toast('Settings saved. They apply to the next request.', 'ok');
+      if (window.HSName) window.HSName.apply(values.bankName);
+      toast('Settings saved. Every page shows them from the next one opened.', 'ok');
     });
   }
 

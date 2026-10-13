@@ -22,7 +22,7 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=0d7a95f2" />
+  <link rel="stylesheet" href="/css/bank.css?v=6720a026" />
   
   <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
 </head>
@@ -33,7 +33,7 @@
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png?v=8e9b31bb" alt="" width="23" height="28" />
         <span>
-          <strong>Hedgestone</strong>
+          <strong data-bank-short>Hedgestone</strong>
           <small>Online banking</small>
         </span>
       </div>
@@ -106,7 +106,7 @@
           <div class="hs-dash-hero-main">
             <span class="k">Total balance</span>
             <strong class="v" data-hero="total">&mdash;</strong>
-            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span>Invested <b data-hero="invested">&mdash;</b></span></span>
+            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span class="hs-hero-inv"><span>Invested <b data-hero="invested">&mdash;</b></span><a class="hs-hero-assets" href="/invest" data-hero="assets" hidden></a></span></span>
           </div>
           <nav class="hs-qa" aria-label="Quick actions">
             <a href="/transfers"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 8.8h14.2"/><path d="M13.9 5.1 17.6 8.8l-3.7 3.7"/><path d="M20.6 15.2H6.4"/><path d="M10.1 11.5 6.4 15.2l3.7 3.7"/></g></svg></i><span>Send</span></a>
@@ -198,10 +198,11 @@
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>
-  <script src="/js/bank/core.js?v=a3ae851c" defer></script>
+  <script src="/js/bankname.js?v=995f7ddc" defer></script>
+  <script src="/js/bank/core.js?v=af7683a2" defer></script>
   <script src="/js/asset-logos.js?v=93d683f2" defer></script>
   <script src="/js/assets.js?v=a953dc1b" defer></script>
   <script src="/js/ticker.js?v=9fa7c71c" defer></script>
-  <script src="/js/bank/app.js?v=cf9500ed" defer></script>
+  <script src="/js/bank/app.js?v=ebe1e4b5" defer></script>
 </body>
 </html>

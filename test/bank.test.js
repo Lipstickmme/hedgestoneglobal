@@ -732,6 +732,21 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('settings: a fee change reaches the transfer form and the banner reaches the public page');
     }
 
+    /* ---- 19b. the bank's name, set at the console, reaches every page ---- */
+    {
+      const res = await admin.put('/api/bank/admin/settings', { bankName: 'Hedgestone Global Finance' });
+      assert.strictEqual(res.status, 200, res.text);
+      const site = await client(base).get('/api/site');
+      assert.strictEqual(site.body.name, 'Hedgestone Global Finance', 'the public pages are told the new name');
+      assert.strictEqual(site.headers.get('cache-control'), 'no-cache', 'and are not left holding the old one');
+      const session = await customer.get('/api/bank/auth/session');
+      assert.strictEqual(session.body.bankName, 'Hedgestone Global Finance', 'so is online banking');
+      await admin.put('/api/bank/admin/settings', { bankName: '' });
+      const back = await client(base).get('/api/site');
+      assert.strictEqual(back.body.name, 'Hedgestone Global Bank', 'a blank name falls back to the built one');
+      ok('settings: a new bank name reaches the public site and online banking, and a blank one restores the default');
+    }
+
     /* ---- 20. CSRF and sign-out ---- */
     {
       const res = await fetch(`${base}/api/bank/me`, {

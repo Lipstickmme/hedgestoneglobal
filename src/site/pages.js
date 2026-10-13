@@ -113,6 +113,7 @@ const ui = {
   star: svg('<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4l-5.6 2.9 1.1-6.2L3 9.7l6.2-.9L12 3z"/>', 30),
   leaf: svg('<path d="M20 4c-9 0-15 4.5-15 11 0 2 .8 3.6 2 5 6.5 0 13-4.5 13-16zM5 20c2.5-5 6-8 10-10"/>', 30),
 };
+ui.device = svg('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>', 30);
 ui.shield30 = svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>', 30);
 
 /* ===================================================================== home == */
@@ -124,12 +125,12 @@ const homeContent = `
     <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" fetchpriority="high" />
     <div class="wrap">
       <div class="hs-band-copy">
-        <span class="rf-eyebrow hs-in" style="--d:0ms">Your bank, in your pocket</span>
+        <span class="rf-eyebrow hs-in" style="--d:0ms">Online banking, on your phone</span>
         <h1 class="hs-in" style="--d:90ms">Bank from anywhere. Feel at home everywhere.</h1>
-        <p class="hs-in" style="--d:180ms">Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the street corner or the other side of the world.</p>
+        <p class="hs-in" style="--d:180ms">Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the browser on your phone, on the street corner or the other side of the world. Nothing to download.</p>
         <div class="hs-actions hs-in" style="--d:270ms">
           <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
-          <a class="hs-textlink light" href="/digital">See the app</a>
+          <a class="hs-textlink light" href="/digital">See online banking</a>
         </div>
       </div>
     </div>
@@ -142,7 +143,7 @@ const homeContent = `
         <div class="hs-trust-row">
           <div><span class="hs-ic">${ui.users}</span><span><b><span data-hs-count="2">2</span>M+</b><small>Global customers</small></span></div>
           <div><span class="hs-ic">${ui.shield30}</span><span><b>99.9%</b><small>Uptime</small></span></div>
-          <div><span class="hs-ic">${ui.star}</span><span><b>4.8/5</b><small>App store rating</small></span></div>
+          <div><span class="hs-ic">${ui.device}</span><span><b class="sm">Any device</b><small>On phone, tablet or laptop</small></span></div>
           <div><span class="hs-ic">${ui.leaf}</span><span><b class="sm">A greener tomorrow</b><small>Supporting sustainable finance</small></span></div>
         </div>
       </div>
@@ -280,7 +281,7 @@ const digitalContent = `
     <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
     <div class="wrap hs-home-grid">
       <div class="hs-home-copy">
-        <span class="hs-kicker hs-in" style="--d:0ms">Digital banking &middot; app and online</span>
+        <span class="hs-kicker hs-in" style="--d:0ms">Online banking &middot; on your phone and computer</span>
         <h1 class="hs-home-title hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h1>
         <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
         <div class="hs-actions hs-in" style="--d:240ms">
@@ -338,14 +339,14 @@ const digitalContent = `
 
   <section class="rf-section">
     <div class="wrap">
-      <span class="rf-eyebrow">Everything in the app</span>
+      <span class="rf-eyebrow">Everything in online banking</span>
       <h2>Your whole bank, on the device in your hand.</h2>
-      <p class="section-lede">The same accounts, the same protections and the same people behind them, whether you are on the phone, a laptop, or the other side of the world.</p>
+      <p class="section-lede">There is no app to download. Sign in at hedgestonesfinance.com from the browser on your phone, tablet or laptop and you get the same accounts, the same protections and the same people behind them, wherever you are.</p>
       <div class="rf-grid cols-3">
         <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Send and request</h3><p>Pay anyone by email or phone number, split a bill, or send a wire with the fee shown before you confirm.</p></div>
         <div class="rf-card"><span class="hs-ic">${ui.card}</span><h3 class="hs-card-h">Card controls</h3><p>Freeze and unfreeze in a tap, set daily limits and switch international use on or off.</p></div>
         <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Insights</h3><p>Thirty days of spending by category, upcoming bills, and money in and out for six months.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.request}</span><h3 class="hs-card-h">Mobile check deposit</h3><p>Photograph both sides and the funds availability is shown before you submit.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.request}</span><h3 class="hs-card-h">Check deposit from your phone</h3><p>Photograph both sides in your phone&rsquo;s browser and the funds availability is shown before you submit.</p></div>
         <div class="rf-card"><span class="hs-ic">${ui.shield}</span><h3 class="hs-card-h">Two-step security</h3><p>A one-time code on every sign-in and every outside payment, plus a transfer PIN of your own.</p></div>
         <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, payments and card activity, the moment they happen, by email and text.</p></div>
       </div>
@@ -850,7 +851,7 @@ module.exports = [
   }),
   marketing('digital.html', {
     title: `Digital banking | ${BANK.name}`,
-    description: 'The Hedgestone Global Bank app and online banking: payments, savings, insights and card controls in one place.',
+    description: 'Hedgestone Global Bank online banking, on your phone or computer with nothing to download: payments, savings, insights and card controls in one place.',
     active: 'digital', content: digitalContent,
   }),
   marketing('personal.html', {

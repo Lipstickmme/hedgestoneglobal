@@ -151,8 +151,28 @@
       qs('[data-hero="invested"]').textContent = invested == null ? '—' : money(invested);
     };
     paintHero(null);
+    // What the invested figure is made of, beside it: each asset's mark, its
+    // symbol and what it is worth now, largest first.
+    const paintHeroAssets = (holdings) => {
+      const box = qs('[data-hero="assets"]');
+      if (!box) return;
+      const held = holdings.filter((h) => h.value != null).sort((a, b) => b.value - a.value);
+      if (!held.length) { box.hidden = true; return; }
+      const L = window.HSAssets || { logo: () => '' };
+      const MAX = 5;
+      // Cents in; whole dollars once there are thousands, so the row stays short.
+      const whole = (cents) => (Math.abs(cents) >= 100000
+        ? `$${Math.round(cents / 100).toLocaleString('en-US')}`
+        : money(cents));
+      box.innerHTML = held.slice(0, MAX).map((h) => `<span class="hs-hero-asset" title="${esc(h.name)}: ${esc(h.units)} ${esc(h.symbol)}, ${money(h.value)}">
+          ${L.logo(h.symbol, 22)}<span>${esc(h.symbol)}</span><b>${whole(h.value)}</b>
+        </span>`).join('') + (held.length > MAX ? `<span class="hs-hero-asset more">+${held.length - MAX} more</span>` : '');
+      box.setAttribute('aria-label', `Invested in ${held.map((h) => `${h.name} ${money(h.value)}`).join(', ')}. Open Invest.`);
+      box.hidden = false;
+    };
     api.get('/invest').then((inv) => {
       paintHero(inv.totals.value);
+      paintHeroAssets(inv.holdings);
       const box = qs('[data-dash-invest]');
       if (!box) return;
       if (!inv.holdings.length) {

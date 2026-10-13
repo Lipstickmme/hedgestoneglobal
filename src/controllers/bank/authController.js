@@ -235,6 +235,7 @@ const session = asyncHandler(async (req, res) => {
     announcement: cfg.announcement || '',
     announcementLevel: cfg.announcementLevel || 'info',
     maintenanceMode: Boolean(cfg.maintenanceMode),
+    bankName: (cfg.bankName || '').trim() || BANK.name,
   });
 });
 

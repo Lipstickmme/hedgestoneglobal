@@ -14,6 +14,7 @@ const accountsLib = require('../../bank/accounts');
 const alerts = require('../../bank/alerts');
 const audit = require('../../bank/audit');
 const contact = require('../../bank/contact');
+const settings = require('../../bank/settings');
 const ids = require('../../bank/ids');
 const { asyncHandler, fail, page, csv, money } = require('../../bank/http');
 const { CATEGORIES, TRANSACTION_METHODS, ACCOUNT_TYPES, BANK } = require('../../bank/constants');
@@ -88,9 +89,10 @@ const list = asyncHandler(async (req, res) => {
 
 const detail = asyncHandler(async (req, res) => {
   const account = await ownedAccount(req.bankUser, req.params.id);
-  const [recent, cards] = await Promise.all([
+  const [recent, cards, cfg] = await Promise.all([
     db.transactions.find({ account_id: account.id }, { order: 'date.desc', limit: 10 }),
     db.cards.find({ account_id: account.id }),
+    settings.get(),
   ]);
   res.json({
     account: accountsLib.publicAccount(account),
@@ -100,7 +102,7 @@ const detail = asyncHandler(async (req, res) => {
       routingNumber: account.routing_number,
       accountNumber: account.account_number,
       swift: account.swift,
-      bankName: BANK.name,
+      bankName: (cfg.bankName || '').trim() || BANK.name,
       // Empty until an operator sets it. A wire needs a real beneficiary bank
       // address, so an invented one here is worse than none: the customer
       // would quote it to a sending bank.

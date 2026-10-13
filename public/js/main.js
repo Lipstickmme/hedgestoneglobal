@@ -86,6 +86,7 @@
 
   function applySite(values) {
     Object.assign(site, values);
+    if (window.HSName && values.name) window.HSName.apply(values.name);
     $$('[data-site]').forEach((el) => {
       const key = el.getAttribute('data-site');
       const value = values[key];

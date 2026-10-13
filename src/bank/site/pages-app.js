@@ -159,7 +159,7 @@ const dashboardContent = `
           <div class="hs-dash-hero-main">
             <span class="k">Total balance</span>
             <strong class="v" data-hero="total">&mdash;</strong>
-            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span>Invested <b data-hero="invested">&mdash;</b></span></span>
+            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span class="hs-hero-inv"><span>Invested <b data-hero="invested">&mdash;</b></span><a class="hs-hero-assets" href="/invest" data-hero="assets" hidden></a></span></span>
           </div>
           <nav class="hs-qa" aria-label="Quick actions">
             <a href="/transfers"><i>${icon('transfer', 20)}</i><span>Send</span></a>
