@@ -12,6 +12,8 @@
 
   let data = null;
   let refreshTimer = null;
+  // /invest?from=<account> - from an account card - converts from that account.
+  const preferredAccount = new URLSearchParams(location.search).get('from');
 
   /* ------------------------------------------------------------ helpers -- */
 
@@ -168,7 +170,8 @@
     if (!data.accounts.length) { toast('You need a checking or savings account to convert from.', 'bad'); return; }
 
     const options = data.assets.filter((a) => a.quote).map((a) => `<option value="${esc(a.symbol)}"${a.symbol === asset.symbol ? ' selected' : ''}>${esc(a.name)} (${esc(a.symbol)})</option>`).join('');
-    const accounts = data.accounts.map((a, i) => `<option value="${esc(a.id)}"${i === 0 ? ' selected' : ''}>${esc(a.nickname || a.name)} &bull;&bull;${esc(a.last4)} - ${money(a.available)} available</option>`).join('');
+    const preferred = data.accounts.some((a) => a.id === preferredAccount) ? preferredAccount : data.accounts[0].id;
+    const accounts = data.accounts.map((a) => `<option value="${esc(a.id)}"${a.id === preferred ? ' selected' : ''}>${esc(a.nickname || a.name)} &bull;&bull;${esc(a.last4)} - ${money(a.available)} available</option>`).join('');
 
     const { el, close } = sheet(`
       <div class="rf-modal-head"><h3>Convert balance</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
@@ -381,6 +384,7 @@
       // /invest?convert=BTC - from the ticker - opens straight onto that asset.
       const wanted = new URLSearchParams(location.search).get('convert');
       if (wanted && assetBy(wanted.toUpperCase())) openConvert(wanted.toUpperCase());
+      else if (preferredAccount) openConvert('SPY');
       setInterval(() => { if (!document.hidden && !qs('.hs-sheet')) load().catch(() => {}); }, 30000);
     } catch (err) {
       toast(err.message || 'Investments could not load.', 'bad');

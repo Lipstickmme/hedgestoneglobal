@@ -62,6 +62,9 @@
     const fromSelect = qs('#t-from');
     fromSelect.innerHTML = options.accounts.map((a) =>
       `<option value="${esc(a.id)}" data-avail-cents="${a.availableBalance}">${esc(a.nickname || a.name)} ${esc(a.accountMask)} &mdash; ${money(a.availableBalance)} available</option>`).join('');
+    // /transfers?from=<account> - from an account card - starts from that account.
+    const wantedFrom = new URLSearchParams(location.search).get('from');
+    if (wantedFrom && options.accounts.some((a) => a.id === wantedFrom)) fromSelect.value = wantedFrom;
 
     const paintDestinations = () => {
       const from = fromSelect.value;

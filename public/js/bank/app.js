@@ -116,10 +116,11 @@
   }
 
   const accountTile = (account) => `
-    <a class="rf-acct ${account.isCredit ? 'credit' : ''}" href="/accounts?id=${esc(account.id)}">
+    <div class="rf-acct ${account.isCredit ? 'credit' : ''}">
+      <a class="hs-acct-link" href="/accounts?id=${esc(account.id)}" aria-label="${esc(account.nickname || account.name)} details"></a>
       <div class="top">
         <strong>${esc(account.nickname || account.name)}</strong>
-        ${account.status === 'active' ? '' : badge(account.status)}
+        ${account.status === 'active' ? `<span class="hs-acct-type">${esc(account.typeLabel || '')}</span>` : badge(account.status)}
       </div>
       <div class="no">${esc(account.accountMask)}</div>
       <div class="bal">${money(account.balance)}</div>
@@ -129,20 +130,39 @@
     : `<span>${money(account.availableBalance)} available</span>`}
         ${account.holdAmount ? `<span>${money(account.holdAmount)} on hold</span>` : ''}
       </div>
-    </a>`;
+      ${account.isCredit || account.status !== 'active' ? '' : `<div class="hs-acct-actions">
+        <a href="/transfers?from=${esc(account.id)}">Transfer</a>
+        <a href="/invest?from=${esc(account.id)}" class="is-primary">Convert</a>
+      </div>`}
+    </div>`;
 
   /* ---------------------------------------------------------- dashboard -- */
 
   async function dashboard() {
     const data = await api.get('/overview');
 
-    // The invest card fills in on its own, so a slow price feed never holds up the balances.
+    // Investments fill in on their own, so a slow price feed never holds up the balances.
+    const cash = data.totals.deposits;
+    const paintHero = (invested) => {
+      const total = qs('[data-hero="total"]');
+      if (!total) return;
+      total.textContent = money(cash + (invested || 0));
+      qs('[data-hero="cash"]').textContent = money(cash);
+      qs('[data-hero="invested"]').textContent = invested == null ? '—' : money(invested);
+    };
+    paintHero(null);
     api.get('/invest').then((inv) => {
+      paintHero(inv.totals.value);
       const box = qs('[data-dash-invest]');
       if (!box) return;
-      box.innerHTML = inv.holdings.length
-        ? `<strong>${money(inv.totals.value)}</strong><small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}</span> all time</small>`
-        : '<strong>$0.00</strong><small>Convert part of your balance in one tap:</small>';
+      if (!inv.holdings.length) {
+        box.innerHTML = '<strong>$0.00</strong><small>Turn part of your balance into the S&amp;P 500, Bitcoin, gold or leading stocks, in one tap.</small>';
+        return;
+      }
+      const top = inv.holdings.slice(0, 3);
+      box.innerHTML = `<strong>${money(inv.totals.value)}</strong>
+        <small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}</span> all time</small>
+        <ul class="hs-dash-holdings">${top.map((h) => `<li><span><b>${esc(h.name)}</b><em>${esc(h.units)} ${esc(h.symbol)}</em></span><span class="v">${h.value == null ? '&mdash;' : money(h.value)}${h.dayChangePct == null ? '' : `<em class="${h.dayChangePct >= 0 ? 'up' : 'down'}">${h.dayChangePct >= 0 ? '+' : ''}${Number(h.dayChangePct).toFixed(2)}% today</em>`}</span></li>`).join('')}</ul>`;
     }).catch(() => {});
 
     const heading = qs('.rf-top h1');

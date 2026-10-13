@@ -15,22 +15,14 @@ const { BANK, PRODUCTS, US_STATES, CATEGORIES, TRANSACTION_METHODS, REJECTION_RE
 const option = (value, label) => `<option value="${value}">${label || value}</option>`;
 
 const content = `
-        <div class="rf-tabs" data-tabs>
-          <button data-tab="overview" class="is-active">Overview</button>
-          <button data-tab="customers">Customers</button>
-          <button data-tab="register">Register a customer</button>
-          <button data-tab="queue">Transfer queue <em class="rf-pip rf-hide" data-queue-pip></em></button>
-          <button data-tab="deposits">Check deposits</button>
-          <button data-tab="cards">Cards</button>
-          <button data-tab="messages">Messages</button>
-          <button data-tab="alerts">Email alerts</button>
-          <button data-tab="disputes">Claims</button>
-          <button data-tab="activity">Activity log</button>
-          <button data-tab="settings">Settings</button>
-        </div>
-
         <!-- ---------------------------------------------------- overview -- -->
         <section data-panel="overview">
+          <div class="hs-setup-banner rf-hide" data-setup-banner></div>
+          <h2 class="hs-section-title">Needs your attention</h2>
+          <div class="hs-attn rf-mb" data-attention>
+            <div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div>
+          </div>
+          <h2 class="hs-section-title">The bank today</h2>
           <div class="rf-grid cols-4 rf-mb" data-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
@@ -361,6 +353,45 @@ const content = `
           </section>
         </section>
 
+        <!-- ------------------------------------------------- investments -- -->
+        <section data-panel="investments" hidden>
+          <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
+          <div class="rf-grid side">
+            <section class="rf-card">
+              <div class="rf-card-head"><h3>Holdings</h3><div class="rf-card-actions rf-small rf-muted">valued at live prices</div></div>
+              <div class="rf-table-wrap">
+                <table class="rf-table">
+                  <thead><tr><th>Customer</th><th>Asset</th><th class="num">Units</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
+                  <tbody data-inv-holdings><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+            <div class="rf-stack">
+              <section class="rf-card">
+                <div class="rf-card-head"><h3>By asset</h3></div>
+                <ul class="rf-list" data-inv-assets><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+              </section>
+              <section class="rf-card">
+                <div class="rf-card-head"><h3>Latest conversions</h3></div>
+                <ul class="rf-list" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------------------------------------- setup -- -->
+        <section data-panel="setup" hidden>
+          <section class="rf-card rf-mb hs-setup-head">
+            <div class="rf-card-body">
+              <div class="hs-setup-progress"><strong data-setup-score>&mdash;</strong><span data-setup-sub>Checking the backend&hellip;</span></div>
+              <div class="hs-setup-bar"><span data-setup-bar style="width:0%"></span></div>
+              <p class="rf-small rf-muted" style="margin:12px 0 0">Every item is checked live against this deployment. Fix the ones marked <strong>To do</strong> in Supabase, Resend or Vercel, redeploy, then press <em>Check again</em>. The database step is one paste: <code>supabase/setup.sql</code> creates every table, and is safe to run again after updates.</p>
+              <div class="rf-mt"><button class="rf-btn sm" type="button" data-setup-refresh>Check again</button> <a class="rf-btn ghost sm" href="/api/health?probe=1" target="_blank" rel="noopener">Raw health report</a></div>
+            </div>
+          </section>
+          <div data-setup-list><div class="rf-skel" style="height:200px"></div></div>
+        </section>
+
         <!-- ---------------------------------------------------- settings -- -->
         <section data-panel="settings" hidden>
           <form id="rf-settings-form">
@@ -541,9 +572,13 @@ module.exports = [
       heading: 'Staff console',
       sub: 'Customers, money movement and everything that has been done today.',
       active: 'console',
+      staff: true,
       content,
       extraScripts: ['/js/bank/console.js'],
-      actions: '<span class="rf-badge info dot" data-staff-badge>Staff</span>',
+      actions: `<form class="hs-staff-search" role="search" data-staff-search>
+          <input class="rf-input" type="search" name="q" placeholder="Find a customer: name, email, phone or number" aria-label="Find a customer" autocomplete="off" />
+          <div class="hs-search-results" data-search-results hidden></div>
+        </form>`,
     },
   },
 ];

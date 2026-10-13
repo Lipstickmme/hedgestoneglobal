@@ -28,10 +28,39 @@
 
   /* ---------------------------------------------------------------- tabs -- */
 
+  const TITLES = {
+    overview: ['Today', 'What needs a decision, and how the bank stands.'],
+    queue: ['Transfer queue', 'Outgoing transfers held for review.'],
+    deposits: ['Check deposits', 'Mobile deposits waiting on a decision.'],
+    messages: ['Messages', 'Secure messages from customers.'],
+    disputes: ['Claims', 'Disputed transactions.'],
+    customers: ['Customers', 'Search, open and act on any customer.'],
+    register: ['Register a customer', 'Open a customer and their first accounts.'],
+    cards: ['Cards', 'Every card the bank has issued.'],
+    investments: ['Investments', 'What customers hold, valued at live prices.'],
+    alerts: ['Email alerts', 'Everything the bank has sent, and to whom.'],
+    activity: ['Activity log', 'Every action, by customers and staff.'],
+    settings: ['Settings', 'Limits, fees, contact details and switches.'],
+    setup: ['Setup checklist', 'What the backend needs, checked live.'],
+  };
+
   function showTab(name) {
-    qsa('[data-tab]').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-tab') === name));
+    qsa('[data-tab]').forEach((b) => {
+      const on = b.getAttribute('data-tab') === name;
+      b.classList.toggle('is-active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     qsa('[data-panel]').forEach((p) => { p.hidden = p.getAttribute('data-panel') !== name; });
     history.replaceState(null, '', `#${name}`);
+    const [title, sub] = TITLES[name] || ['Staff console', ''];
+    const h1 = qs('.rf-top h1');
+    if (h1) h1.textContent = title;
+    const subEl = qs('.rf-top-sub');
+    if (subEl) subEl.textContent = sub;
+    // On a phone the menu is a drawer: close it once a section is chosen.
+    const scrim = qs('.rf-scrim');
+    if (scrim) scrim.click();
+    window.scrollTo(0, 0);
     if (!loaded.has(name) && TABS[name]) {
       loaded.add(name);
       Promise.resolve(TABS[name]()).catch((err) => {
@@ -48,19 +77,49 @@
     const s = data.stats;
 
     qs('[data-stats]').innerHTML = [
-      ['Customers', String(s.customers), `${s.newCustomers30d} joined in 30 days`],
-      ['On deposit', money(s.deposits), `${s.accounts} accounts`],
-      ['Waiting for review', String(s.pendingTransfers), money(s.pendingTransferValue)],
-      ['Credit outstanding', money(s.creditOutstanding), 'across card accounts'],
-      ['Identity checks open', String(s.pendingKyc), `${s.suspended} suspended`],
-      ['Check deposits', String(s.pendingDeposits), 'waiting on a decision'],
-      ['Claims open', String(s.openDisputes), `${s.unansweredMessages} messages in`],
-      ['Alerts, 30 days', String(s.alertsSent30d), s.alertsFailed ? `${s.alertsFailed} failed to send` : 'all delivered or queued'],
-    ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join('');
+      ['Customers', String(s.customers), `${esc(String(s.newCustomers30d))} joined in 30 days`],
+      ['On deposit', money(s.deposits), `${esc(String(s.accounts))} accounts`],
+      ['Credit outstanding', money(s.creditOutstanding), `across card accounts &middot; ${s.suspended} suspended`],
+    ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${d}</div></div>`).join('');
 
-    const pip = qs('[data-queue-pip]');
-    pip.textContent = String(s.pendingTransfers || '');
-    pip.classList.toggle('rf-hide', !s.pendingTransfers);
+    // What needs a person, first and largest. Each tile opens its section.
+    const attention = [
+      ['queue', 'Transfers to review', s.pendingTransfers, s.pendingTransferValue ? `${money(s.pendingTransferValue)} held` : 'nothing held'],
+      ['deposits', 'Check deposits', s.pendingDeposits, 'waiting on a decision'],
+      ['customers?kyc=pending', 'Identity checks', s.pendingKyc, 'customers to verify'],
+      ['messages', 'Unanswered messages', s.unansweredMessages, 'from customers'],
+      ['disputes', 'Open claims', s.openDisputes, 'disputed transactions'],
+    ];
+    qs('[data-attention]').innerHTML = attention.map(([tab, label, n, d]) => `
+      <a class="hs-attn-tile${n ? ' is-hot' : ''}" href="#${tab.split('?')[0]}" data-goto-tab="${tab}">
+        <span class="n">${esc(String(n || 0))}</span>
+        <span class="l"><strong>${esc(label)}</strong><small>${n ? esc(d) : 'All clear'}</small></span>
+        <span class="go" aria-hidden="true">&rarr;</span>
+      </a>`).join('');
+
+    const pips = { queue: s.pendingTransfers, deposits: s.pendingDeposits, messages: s.unansweredMessages, disputes: s.openDisputes };
+    Object.entries(pips).forEach(([key, n]) => {
+      qsa(`[data-staff-pip="${key}"]`).forEach((pip) => {
+        pip.textContent = String(n || '');
+        pip.classList.toggle('rf-hide', !n);
+      });
+    });
+
+    // Invested, and whether setup is finished, load beside the rest.
+    api.get('/admin/investments').then((inv) => {
+      const host = qs('[data-stats]');
+      if (!host || qs('[data-stat-invested]', host)) return;
+      host.insertAdjacentHTML('beforeend', `<a class="rf-card rf-stat hs-stat-link" href="#investments" data-goto-tab="investments" data-stat-invested><div class="k">Invested by customers</div><div class="v">${money(inv.totals.value)}</div><div class="d">${inv.totals.investors} investor${inv.totals.investors === 1 ? '' : 's'} &middot; ${inv.totals.trades24h} trade${inv.totals.trades24h === 1 ? '' : 's'} today</div></a>`);
+    }).catch(() => {});
+    api.get('/admin/setup').then((setupData) => {
+      const left = setupData.counts.todo || 0;
+      qsa('[data-staff-pip="setup"]').forEach((pip) => { pip.textContent = String(left || ''); pip.classList.toggle('rf-hide', !left); });
+      const banner = qs('[data-setup-banner]');
+      if (banner && left) {
+        banner.innerHTML = `<span><strong>${left} setup item${left === 1 ? '' : 's'} left</strong> before this bank is ready for real customers.</span><a class="rf-btn sm" href="#setup" data-goto-tab="setup">Open the checklist</a>`;
+        banner.classList.remove('rf-hide');
+      }
+    }).catch(() => {});
 
     qs('[data-queue-preview]').innerHTML = data.queue.length ? data.queue.map((t) => `
       <tr>
@@ -179,6 +238,8 @@
               ${badge(card.status)}
             </li>`).join('') || '<li class="rf-muted rf-small">No cards.</li>'}
           </ul>
+          <h4 class="rf-label rf-mt">Investments</h4>
+          <ul class="rf-list" data-sheet-investments><li class="rf-muted rf-small">Loading&hellip;</li></ul>
         </div>
       </div>
 
@@ -243,6 +304,18 @@
     ? `<button class="rf-btn danger sm" data-customer-action="suspend" data-id="${esc(c.id)}">Suspend</button>`
     : `<button class="rf-btn sm" data-customer-action="activate" data-id="${esc(c.id)}">Reactivate</button>`}
       </div>`;
+
+    api.get(`/admin/customers/${id}/investments`).then((inv) => {
+      const list = qs('[data-sheet-investments]', customerModal);
+      if (!list) return;
+      list.innerHTML = inv.holdings.length ? inv.holdings.map((h) => `<li>
+        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)} &middot; cost ${money(h.costBasis)}</span></span>
+        <span class="rf-nowrap"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></span>
+      </li>`).join('') + `<li class="rf-small"><span class="t"><strong>Total</strong></span><strong>${money(inv.totals.value)}</strong></li>` : '<li class="rf-muted rf-small">No investments.</li>';
+    }).catch(() => {
+      const list = qs('[data-sheet-investments]', customerModal);
+      if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load investments.</li>';
+    });
 
     wireCustomerSheet(c, data);
   }
@@ -949,9 +1022,111 @@
     });
   }
 
+  /* --------------------------------------------------------- investments -- */
+
+  async function investments() {
+    const data = await api.get('/admin/investments');
+    const t = data.totals;
+    const gain = t.value - t.cost;
+    qs('[data-inv-stats]').innerHTML = [
+      ['Invested by customers', money(t.value), 'at live prices'],
+      ['Paid in', money(t.cost), 'cost of the units held'],
+      ['Unrealised gain / loss', `${gain >= 0 ? '+' : '-'}${money(Math.abs(gain))}`, t.cost ? `${Math.abs(gain / t.cost) < 0.00005 ? '0.00' : ((gain / t.cost) * 100).toFixed(2)}%` : '&nbsp;'],
+      ['Investors', String(t.investors), `${t.trades24h} trade${t.trades24h === 1 ? '' : 's'} in 24 hours`],
+    ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${d}</div></div>`).join('');
+
+    qs('[data-inv-holdings]').innerHTML = data.holdings.length ? data.holdings.map((h) => `
+      <tr class="clickable" data-customer="${esc(h.customer.id)}">
+        <td><strong>${esc(h.customer.fullName)}</strong><span class="sub">${esc(h.customer.email)}</span></td>
+        <td><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)}</span></td>
+        <td class="num rf-mono">${esc(h.units)}</td>
+        <td class="num opt">${money(h.cost)}</td>
+        <td class="num"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></td>
+        <td class="num rf-amt ${h.gain >= 0 ? 'credit' : 'debit'}">${h.gain == null ? '&mdash;' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}`}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="rf-center rf-muted">No customer holds an asset yet.</td></tr>';
+
+    qs('[data-inv-assets]').innerHTML = data.byAsset.length ? data.byAsset.map((a) => `<li>
+      <span class="t"><strong>${esc(a.name)}</strong><span>${esc(a.symbol)} &middot; ${a.holders} holder${a.holders === 1 ? '' : 's'}</span></span>
+      <strong>${money(a.value)}</strong>
+    </li>`).join('') : '<li class="rf-muted rf-small">Nothing held yet.</li>';
+
+    qs('[data-inv-trades]').innerHTML = data.trades.length ? data.trades.slice(0, 12).map((tr) => `<li class="clickable" data-customer="${esc(tr.customer.id)}">
+      <span class="t"><strong>${tr.side === 'buy' ? 'Bought' : 'Sold'} ${esc(tr.units)} ${esc(tr.symbol)}</strong><span>${esc(tr.customer.fullName)} &middot; ${ago(tr.createdAt)} &middot; @ ${money(tr.price)}</span></span>
+      <span class="rf-amt ${tr.side === 'buy' ? 'debit' : 'credit'}">${money(tr.amount)}</span>
+    </li>`).join('') : '<li class="rf-muted rf-small">No conversions yet.</li>';
+  }
+
+  /* --------------------------------------------------------------- setup -- */
+
+  async function setup() {
+    const list = qs('[data-setup-list]');
+    const data = await api.get('/admin/setup');
+    const counted = data.items.filter((i) => i.status !== 'optional');
+    const done = counted.filter((i) => i.status === 'done').length;
+    const pct = counted.length ? Math.round((done / counted.length) * 100) : 0;
+    qs('[data-setup-score]').textContent = `${done} of ${counted.length} done`;
+    qs('[data-setup-sub]').textContent = done === counted.length ? 'The backend is fully set up.' : `${counted.length - done} to do before real customers.`;
+    qs('[data-setup-bar]').style.width = `${pct}%`;
+    const label = { done: 'Done', todo: 'To do', blocked: 'Waiting', optional: 'Optional' };
+    const groups = Array.from(new Set(data.items.map((i) => i.group)));
+    list.innerHTML = groups.map((g) => `
+      <section class="rf-card rf-mb">
+        <div class="rf-card-head"><h3>${esc(g)}</h3></div>
+        <ul class="hs-setup-items">
+          ${data.items.filter((i) => i.group === g).map((i) => `
+          <li class="is-${esc(i.status)}">
+            <span class="hs-setup-dot" aria-hidden="true">${i.status === 'done' ? '&#10003;' : i.status === 'optional' ? '&#8226;' : '!'}</span>
+            <span class="hs-setup-text">
+              <strong>${esc(i.title)}</strong>
+              <span>${esc(i.detail)}</span>
+              ${i.status !== 'done' && i.fix ? `<span class="hs-setup-fix"><b>How:</b> ${esc(i.fix)}</span>` : ''}
+            </span>
+            <span class="hs-setup-tag">${label[i.status] || esc(i.status)}</span>
+          </li>`).join('')}
+        </ul>
+      </section>`).join('');
+    qsa('[data-staff-pip="setup"]').forEach((pip) => { const left = data.counts.todo || 0; pip.textContent = String(left || ''); pip.classList.toggle('rf-hide', !left); });
+  }
+
+  /* -------------------------------------------------------------- search -- */
+
+  function wireSearch() {
+    const form = qs('[data-staff-search]');
+    if (!form) return;
+    const input = qs('input', form);
+    const box = qs('[data-search-results]', form);
+    let timer = null;
+    let seq = 0;
+    const close = () => { box.hidden = true; };
+    const run = async () => {
+      const q = input.value.trim();
+      if (q.length < 2) { close(); return; }
+      const mine = ++seq;
+      try {
+        const data = await api.get(`/admin/customers?q=${encodeURIComponent(q)}&limit=8`);
+        if (mine !== seq) return;
+        box.innerHTML = data.customers.length ? data.customers.map((c) => `
+          <button type="button" data-customer="${esc(c.id)}">
+            <span class="rf-avatar sm">${esc(c.initials)}</span>
+            <span><strong>${esc(c.fullName)}</strong><small>${esc(c.email)} &middot; ${esc(c.customerNumber || '')}</small></span>
+          </button>`).join('') : '<p class="rf-muted rf-small">No customer matches that.</p>';
+        box.hidden = false;
+      } catch (err) { close(); }
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 220); });
+    input.addEventListener('focus', () => { if (box.innerHTML && input.value.trim().length >= 2) box.hidden = false; });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const first = qs('[data-customer]', box);
+      if (first) first.click();
+    });
+    document.addEventListener('click', (e) => { if (!form.contains(e.target)) close(); });
+    box.addEventListener('click', (e) => { if (e.target.closest('[data-customer]')) { close(); input.value = ''; } });
+  }
+
   /* -------------------------------------------------------------- wiring -- */
 
-  const TABS = { overview, customers, register, queue, deposits, cards, messages, alerts, disputes, activity, settings };
+  const TABS = { overview, customers, register, queue, deposits, cards, messages, alerts, disputes, activity, settings, investments, setup };
 
   // Any [data-customer] in a table or list opens the customer sheet. Elements
   // inside a modal are excluded: a modal's own controls must keep their normal
@@ -963,10 +1138,30 @@
     openCustomer(button.getAttribute('data-customer')).catch((err) => toast(err.message, 'bad'));
   });
 
+  // Any link or tile that names a section opens it in place.
+  document.addEventListener('click', async (event) => {
+    const link = event.target.closest('[data-tab], [data-goto-tab]');
+    if (!link) return;
+    event.preventDefault();
+    // A tile can carry a filter: "customers?kyc=pending" opens the list already narrowed.
+    const [name, query] = String(link.getAttribute('data-tab') || link.getAttribute('data-goto-tab')).split('?');
+    const form = name === 'customers' && query ? qs('[data-customer-filters]') : null;
+    // Set the filter first, so a first visit loads the narrowed list rather
+    // than racing an unfiltered one; on a later visit, re-run the search.
+    const wasLoaded = loaded.has(name);
+    if (form) new URLSearchParams(query).forEach((value, key) => { if (form.elements[key]) form.elements[key].value = value; });
+    showTab(name);
+    if (form && wasLoaded) form.dispatchEvent(new Event('submit', { cancelable: true }));
+  });
+  window.addEventListener('hashchange', () => {
+    const name = location.hash.slice(1);
+    if (TABS[name]) showTab(name);
+  });
+
   RF.ready(async () => {
-    qsa('[data-tab]').forEach((button) => {
-      button.addEventListener('click', () => showTab(button.getAttribute('data-tab')));
-    });
+    wireSearch();
+    const refresh = qs('[data-setup-refresh]');
+    if (refresh) refresh.addEventListener('click', () => setup().catch((err) => toast(err.message, 'bad')));
     const initial = (location.hash || '#overview').slice(1);
     showTab(TABS[initial] ? initial : 'overview');
   });

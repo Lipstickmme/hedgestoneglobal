@@ -495,6 +495,16 @@ async function withApp(env, fn) {
       console.log(`  ok  all ${paths.length} bank routes have a Vercel entry point at their depth`);
     }
 
+    // supabase/setup.sql is every migration in one paste, and must not drift.
+    {
+      const { build, OUT } = require(`${ROOT}/scripts/build-setup-sql`);
+      assert.strictEqual(
+        fs.readFileSync(OUT, 'utf8'), build(),
+        'supabase/setup.sql is out of date with supabase/migrations - run npm run build:sql'
+      );
+      console.log('  ok  supabase/setup.sql matches every migration, in order');
+    }
+
     // And when the bank's tables are missing it says so rather than failing
     // silently, which is the whole point of the endpoint.
     const noTables = await mock.start({});

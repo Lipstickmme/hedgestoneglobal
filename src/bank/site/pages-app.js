@@ -155,6 +155,21 @@ const changePasswordContent = `
 /* ============================================================== dashboard == */
 
 const dashboardContent = `
+        <section class="hs-dash-hero rf-mb">
+          <div class="hs-dash-hero-main">
+            <span class="k">Total balance</span>
+            <strong class="v" data-hero="total">&mdash;</strong>
+            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span>Invested <b data-hero="invested">&mdash;</b></span></span>
+          </div>
+          <nav class="hs-qa" aria-label="Quick actions">
+            <a href="/transfers"><i>${icon('transfer', 20)}</i><span>Send</span></a>
+            <a href="/deposit"><i>${icon('deposit', 20)}</i><span>Deposit</span></a>
+            <a href="/bills"><i>${icon('bill', 20)}</i><span>Pay a bill</span></a>
+            <a href="/invest" class="is-primary"><i>${icon('chart', 20)}</i><span>Convert</span></a>
+            <a href="/cards"><i>${icon('card', 20)}</i><span>Cards</span></a>
+          </nav>
+        </section>
+
         <div class="rf-grid cols-4 rf-mb" data-totals>
           <div class="rf-card rf-stat"><div class="k">Total on deposit</div><div class="v" data-total="deposits">&mdash;</div><div class="d" data-total-sub="deposits">across your accounts</div></div>
           <div class="rf-card rf-stat"><div class="k">Available now</div><div class="v" data-total="available">&mdash;</div><div class="d">after holds and pending items</div></div>
@@ -200,16 +215,6 @@ const dashboardContent = `
           </div>
 
           <div class="rf-stack">
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Move money</h3></div>
-              <div class="rf-card-body rf-stack" style="gap:9px">
-                <a class="rf-btn block" href="/transfers">${icon('transfer', 16)} Make a transfer</a>
-                <a class="rf-btn ghost block" href="/deposit">${icon('deposit', 16)} Deposit a check</a>
-                <a class="rf-btn ghost block" href="/bills">${icon('bill', 16)} Pay a bill</a>
-                <a class="rf-btn ghost block" href="/recipients">${icon('people', 16)} Manage recipients</a>
-              </div>
-            </section>
-
             <section class="rf-card hs-dash-invest">
               <div class="rf-card-head"><h3>Invest</h3><div class="rf-card-actions"><a class="rf-btn ghost sm" href="/invest">Open</a></div></div>
               <div class="hs-dash-invest-v" data-dash-invest><strong>&mdash;</strong><small>Turn part of your balance into listed assets.</small></div>

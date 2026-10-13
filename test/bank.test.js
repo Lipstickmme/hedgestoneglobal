@@ -571,6 +571,32 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('console: suspend and restore');
     }
 
+    /* ---- 18b. the console's setup checklist and investments views ---- */
+    {
+      const setupRes = await admin.get('/api/bank/admin/setup');
+      assert.strictEqual(setupRes.status, 200, setupRes.text);
+      const ids = setupRes.body.items.map((i) => i.id);
+      ['supabase', '0003_bank.sql', '0005_bank_invest.sql', 'encryption', 'resend', 'prices'].forEach((id) => assert.ok(ids.includes(id), `checks ${id}`));
+      const db = setupRes.body.items.find((i) => i.id === 'supabase');
+      assert.strictEqual(db.status, 'todo', 'running on files, the database is a to-do');
+      assert.ok(db.fix && /SUPABASE_URL/.test(db.fix), 'and says how to fix it');
+      assert.ok(setupRes.body.items.every((i) => ['done', 'todo', 'blocked', 'optional'].includes(i.status)));
+      assert.ok(!JSON.stringify(setupRes.body).includes('test-key-not-for-production'), 'no secret values, only names');
+      const asCustomer = await customer.get('/api/bank/admin/setup');
+      assert.strictEqual(asCustomer.status, 403, 'customers cannot see it');
+
+      const inv = await admin.get('/api/bank/admin/investments');
+      assert.strictEqual(inv.status, 200, inv.text);
+      assert.ok(inv.body.holdings.length >= 1, 'the SPY left over from the invest test is listed');
+      assert.ok(inv.body.holdings.every((h) => h.customer && h.customer.fullName), 'with who holds it');
+      assert.ok(inv.body.totals.value > 0 && inv.body.trades.length >= 4);
+      const holder = inv.body.holdings[0].customer.id;
+      const one = await admin.get(`/api/bank/admin/customers/${holder}/investments`);
+      assert.strictEqual(one.status, 200, one.text);
+      assert.ok(one.body.holdings.length >= 1);
+      ok(`console: setup checklist of ${ids.length} items, ${inv.body.holdings.length} holding(s) worth $${dollars(inv.body.totals.value)} across customers`);
+    }
+
     /* ---- 19. settings an operator changes take effect ---- */
     {
       const res = await admin.put('/api/bank/admin/settings', {

@@ -104,6 +104,14 @@ const ICONS = {
     body: '<path d="M2.4 3.8h19.2v16.4H2.4z"/><path d="M2.4 8.4h19.2M8.8 8.4v11.8"/>',
     fine: '<path d="M11.4 11.4h7.4M11.4 14.2h7.4M11.4 17h4.4"/><path d="M5 5.7h1.4"/>',
   },
+  gear: {
+    body: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M5.4 18.6l1.8-1.8M16.8 7.2l1.8-1.8"/>',
+    fine: '',
+  },
+  rocket: {
+    body: '<path d="M12 2.8c3.6 2.2 5.4 5.6 5.4 9.6l-2.2 3.4H8.8l-2.2-3.4c0-4 1.8-7.4 5.4-9.6z"/><path d="M8.8 15.8 6.4 19.6M15.2 15.8l2.4 3.8M12 15.8v5.4"/>',
+    fine: '<circle cx="12" cy="9.6" r="1.6"/>',
+  },
   logout: {
     body: '<path d="M10.4 4.4H4.8v15.2h5.6"/><path d="m15.4 7.9 4.1 4.1-4.1 4.1"/><path d="M19.5 12H9.4"/>',
     fine: '',
@@ -246,13 +254,84 @@ const NAV = [
   },
 ];
 
-function sidebar(active) {
-  const groups = NAV.map((group) => `
+/**
+ * The staff console's own menu. Staff do not bank from the console, so the
+ * customer's Transfers, Bill pay and Invest links were noise there; and eleven
+ * sections in a tab strip ran off the edge of a laptop screen. Each entry is a
+ * section of the one console page, opened in place.
+ */
+const STAFF_NAV = [
+  {
+    group: 'Today',
+    items: [
+      { tab: 'overview', label: 'Overview', icon: 'home' },
+      { tab: 'queue', label: 'Transfer queue', icon: 'transfer', pip: 'queue' },
+      { tab: 'deposits', label: 'Check deposits', icon: 'deposit', pip: 'deposits' },
+      { tab: 'messages', label: 'Messages', icon: 'mail', pip: 'messages' },
+      { tab: 'disputes', label: 'Claims', icon: 'shield', pip: 'disputes' },
+    ],
+  },
+  {
+    group: 'Customers',
+    items: [
+      { tab: 'customers', label: 'All customers', icon: 'people' },
+      { tab: 'register', label: 'Register a customer', icon: 'plus' },
+      { tab: 'cards', label: 'Cards', icon: 'card' },
+      { tab: 'investments', label: 'Investments', icon: 'chart' },
+    ],
+  },
+  {
+    group: 'Records',
+    items: [
+      { tab: 'alerts', label: 'Email alerts', icon: 'bell' },
+      { tab: 'activity', label: 'Activity log', icon: 'activity' },
+    ],
+  },
+  {
+    group: 'Bank',
+    items: [
+      { tab: 'settings', label: 'Settings', icon: 'gear' },
+      { tab: 'setup', label: 'Setup checklist', icon: 'rocket', pip: 'setup' },
+    ],
+  },
+];
+
+function sidebar(active, staff = false) {
+  const groups = (staff ? STAFF_NAV : NAV).map((group) => `
         <div class="rf-nav-group">
           <h6>${group.group}</h6>
-          ${group.items.map((item) => `<a href="${item.href}"${item.key === active ? ' class="is-active"' : ''}>${icon(item.icon)}<span>${item.label}</span>${item.pip ? `<em class="rf-pip rf-hide" data-pip="${item.pip}"></em>` : ''}</a>`).join('\n          ')}
+          ${group.items.map((item) => (staff
+    ? `<a href="#${item.tab}" data-tab="${item.tab}"${item.tab === 'overview' ? ' class="is-active"' : ''}>${icon(item.icon)}<span>${item.label}</span>${item.pip ? `<em class="rf-pip rf-hide" data-staff-pip="${item.pip}"></em>` : ''}</a>`
+    : `<a href="${item.href}"${item.key === active ? ' class="is-active"' : ''}>${icon(item.icon)}<span>${item.label}</span>${item.pip ? `<em class="rf-pip rf-hide" data-pip="${item.pip}"></em>` : ''}</a>`)).join('\n          ')}
         </div>`).join('');
+  if (staff) {
+    return `
+    <aside class="rf-side is-staff" id="rf-side">
+      <div class="rf-side-brand">
+        <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
+        <span>
+          <strong>${BANK.shortName}</strong>
+          <small>Staff console</small>
+        </span>
+      </div>
+      <nav class="rf-nav" aria-label="Console sections">${groups}
+      </nav>
+      <div class="rf-side-foot">
+        <div class="rf-side-user">
+          <span class="rf-avatar" data-user-avatar>HG</span>
+          <span>
+            <strong data-user-name>&nbsp;</strong>
+            <span>Staff</span>
+          </span>
+        </div>
+        <button class="rf-btn ghost sm block" data-signout>${icon('logout', 15)} Sign out</button>
+      </div>
+    </aside>`;
+  }
+  return legacySidebar(groups);
+}
 
+function legacySidebar(groups) {
   return `
     <aside class="rf-side" id="rf-side">
       <div class="rf-side-brand">
@@ -270,7 +349,7 @@ function sidebar(active) {
       </nav>
       <div class="rf-side-foot">
         <div class="rf-side-user">
-          <span class="rf-avatar" data-user-avatar>RF</span>
+          <span class="rf-avatar" data-user-avatar>HG</span>
           <span>
             <strong data-user-name>&nbsp;</strong>
             <span data-user-number>&nbsp;</span>
@@ -296,10 +375,24 @@ const TABS = [
   { href: '/dashboard', label: 'Home', icon: 'home', key: 'dashboard' },
   { href: '/accounts', label: 'Accounts', icon: 'accounts', key: 'accounts' },
   { href: '/transfers', label: 'Transfer', icon: 'transfer', key: 'transfers' },
-  { href: '/cards', label: 'Cards', icon: 'card', key: 'cards' },
+  { href: '/invest', label: 'Invest', icon: 'chart', key: 'invest' },
 ];
 
-function tabbar(active) {
+const STAFF_TABS = [
+  { tab: 'overview', label: 'Today', icon: 'home' },
+  { tab: 'queue', label: 'Queue', icon: 'transfer' },
+  { tab: 'customers', label: 'Customers', icon: 'people' },
+  { tab: 'messages', label: 'Messages', icon: 'mail' },
+];
+
+function tabbar(active, staff = false) {
+  if (staff) {
+    const links = STAFF_TABS.map((t) => `
+        <a href="#${t.tab}" data-tab="${t.tab}"${t.tab === 'overview' ? ' class="is-active"' : ''}>${icon(t.icon, 21)}<span>${t.label}</span></a>`).join('');
+    return `      <nav class="rf-tabbar" id="rf-tabbar" aria-label="Sections">${links}
+        <button type="button" id="rf-tab-menu" aria-controls="rf-side" aria-expanded="false">${icon('menu', 21)}<span>Menu</span></button>
+      </nav>`;
+  }
   const onATab = TABS.some((tab) => tab.key === active);
   const links = TABS.map((tab) => `
         <a href="${tab.href}"${tab.key === active ? ' class="is-active" aria-current="page"' : ''}>${icon(tab.icon, 21)}<span>${tab.label}</span></a>`).join('');
@@ -312,11 +405,11 @@ function tabbar(active) {
  * The application shell: sidebar, sticky header, content.
  * `actions` is raw HTML for the right-hand side of the header.
  */
-function appPage({ title, description, heading, sub, active, content, extraScripts = [], actions = '', wide = false }) {
+function appPage({ title, description, heading, sub, active, content, extraScripts = [], actions = '', wide = false, staff = false }) {
   return [
     head({ title, description, noindex: true, bodyClass: 'rf-app' }),
-    `  <div class="rf-shell">`,
-    sidebar(active),
+    `  <div class="rf-shell${staff ? ' is-staff' : ''}">`,
+    sidebar(active, staff),
     `    <div class="rf-main">
       <header class="rf-top">
         <button class="rf-burger" id="rf-burger" aria-label="Open menu"><span></span></button>
@@ -326,16 +419,16 @@ function appPage({ title, description, heading, sub, active, content, extraScrip
         </div>
         <div class="rf-top-actions">
           ${actions}
-          <a class="rf-icon-btn" href="/alerts" aria-label="Alerts">${icon('bell')}<em class="rf-pip rf-hide" data-pip="alerts"></em></a>
-          <a class="rf-icon-btn" href="/profile" aria-label="Profile"><span class="rf-avatar sm" data-user-avatar>RF</span></a>
+          ${staff ? '' : `<a class="rf-icon-btn" href="/alerts" aria-label="Alerts">${icon('bell')}<em class="rf-pip rf-hide" data-pip="alerts"></em></a>
+          <a class="rf-icon-btn" href="/profile" aria-label="Profile"><span class="rf-avatar sm" data-user-avatar>HG</span></a>`}
         </div>
       </header>
-${ticker()}
+${staff ? '' : ticker()}
       <main class="rf-content${wide ? '' : ''}" id="rf-content">
         <div class="rf-notice rf-hide" data-announcement></div>
 ${content}
       </main>
-${tabbar(active)}
+${tabbar(active, staff)}
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>`,

@@ -27,6 +27,7 @@ const money = require('../controllers/bank/moneyController');
 const messaging = require('../controllers/bank/messagingController');
 const admin = require('../controllers/bank/adminController');
 const invest = require('../controllers/bank/investController');
+const setupController = require('../controllers/bank/setupController');
 
 const router = express.Router();
 
@@ -180,6 +181,8 @@ const staff = express.Router();
 staff.use(auth.requireAdmin);
 
 staff.get('/overview', admin.overview);
+staff.get('/setup', setupController.setup);
+staff.get('/investments', invest.staffOverview);
 staff.get('/settings', admin.getSettings);
 staff.put('/settings', admin.updateSettings);
 staff.post('/scheduled/run', admin.runScheduled);
@@ -187,6 +190,7 @@ staff.post('/scheduled/run', admin.runScheduled);
 staff.get('/customers', admin.listCustomers);
 staff.post('/customers', admin.createCustomer);
 staff.get('/customers/:id', admin.customerDetail);
+staff.get('/customers/:id/investments', invest.staffCustomerHoldings);
 staff.patch('/customers/:id', admin.updateCustomer);
 staff.post('/customers/:id/status', admin.setCustomerStatus);
 staff.post('/customers/:id/kyc', admin.setKyc);

@@ -132,8 +132,14 @@ come next.
 1. Create a project at <https://supabase.com> (free tier), or connect Supabase from
    the Vercel **Storage** tab.
 
-2. Create the tables. In the Supabase dashboard open **SQL Editor, New query**, and
-   run these in order. Each file is guarded, so re-running one is safe.
+2. Create the tables. In the Supabase dashboard open **SQL Editor, New query**,
+   paste the whole of [`supabase/setup.sql`](../supabase/setup.sql) and run it.
+   That one file is every migration below, in order. It is guarded throughout,
+   so running it again - after an update, or on a half-set-up database - is
+   safe, and is the upgrade path too. (It is generated: after changing a
+   migration, run `npm run build:sql`.)
+
+   The individual files, if you would rather run them one at a time:
 
    | File | Creates |
    | ---- | ------- |
@@ -423,6 +429,18 @@ In Supabase, **Table Editor** shows rows arriving in `enquiries`, `chat_messages
 and `inbound_emails`.
 
 ---
+
+## The setup checklist in the staff console
+
+Sign in to `/console` as the administrator and open **Setup checklist** (in the
+left-hand menu, under Bank). It checks this deployment live and lists every
+piece of the backend as **Done**, **To do**, **Waiting** or **Optional**:
+Supabase connected, each migration's tables, the browser key for chat, the
+encryption key, your own admin sign-in, sign-in codes kept private, email
+sending, where notifications go, inbound mail, your web address, and live
+prices. Each item that is not done says exactly what to set and where. Fix,
+redeploy, press **Check again**. Until everything required is done, the
+console's Overview shows a banner with the number left.
 
 ## Live prices and converting balances (Invest)
 

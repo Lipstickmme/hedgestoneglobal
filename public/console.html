@@ -22,59 +22,54 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=c1983e2e" />
+  <link rel="stylesheet" href="/css/bank.css?v=b9aea28f" />
   
   <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
 </head>
 <body class="rf-app">
-  <div class="rf-shell">
+  <div class="rf-shell is-staff">
 
-    <aside class="rf-side" id="rf-side">
+    <aside class="rf-side is-staff" id="rf-side">
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png?v=8e9b31bb" alt="" width="23" height="28" />
         <span>
           <strong>Hedgestone</strong>
-          <small>Online banking</small>
+          <small>Staff console</small>
         </span>
       </div>
-      <nav class="rf-nav">
+      <nav class="rf-nav" aria-label="Console sections">
         <div class="rf-nav-group">
-          <h6>Banking</h6>
-          <a href="/dashboard"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Dashboard</span></a>
-          <a href="/accounts"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M4.4 4.6h12.9a2.7 2.7 0 0 1 2.7 2.7v12.1H7.1a2.7 2.7 0 0 1-2.7-2.7z"/><path d="M4.4 16.7A2.7 2.7 0 0 1 7.1 14h12.9"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.2 8h8M8.2 11h5.4"/></g></svg><span>Accounts</span></a>
-          <a href="/transactions"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M3.4 14.6 8 10l3.6 3.6L16.6 7l4 4"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.4 17.8h17.2"/></g></svg><span>Transactions</span></a>
-          <a href="/statements"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M5.8 3h8.4l4 4v14H5.8z"/><path d="M14.2 3v4h4"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.6 11.4h6.6M8.6 14.6h6.6M8.6 17.8h3.8"/></g></svg><span>Statements</span></a>
+          <h6>Today</h6>
+          <a href="#overview" data-tab="overview" class="is-active"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Overview</span></a>
+          <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 8.8h14.2"/><path d="M13.9 5.1 17.6 8.8l-3.7 3.7"/><path d="M20.6 15.2H6.4"/><path d="M10.1 11.5 6.4 15.2l3.7 3.7"/></g></svg><span>Transfer queue</span><em class="rf-pip rf-hide" data-staff-pip="queue"></em></a>
+          <a href="#deposits" data-tab="deposits"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.4 18.6h7.2"/></g></svg><span>Check deposits</span><em class="rf-pip rf-hide" data-staff-pip="deposits"></em></a>
+          <a href="#messages" data-tab="messages"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 5h19.2v14H2.4z"/><path d="m2.4 5.9 9.6 6.7 9.6-6.7"/></g><g stroke-width="0.95" opacity=".72"><path d="m2.4 18.2 6.6-5.4M21.6 18.2 15 12.8"/></g></svg><span>Messages</span><em class="rf-pip rf-hide" data-staff-pip="messages"></em></a>
+          <a href="#disputes" data-tab="disputes"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 2.7 4.6 5.4v6.2c0 4.5 3 7.8 7.4 9.7 4.4-1.9 7.4-5.2 7.4-9.7V5.4z"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 5.6v12.2"/><path d="M6.9 6.4v5.2c0 3 1.9 5.4 5.1 7"/></g></svg><span>Claims</span><em class="rf-pip rf-hide" data-staff-pip="disputes"></em></a>
         </div>
         <div class="rf-nav-group">
-          <h6>Move money</h6>
-          <a href="/transfers"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 8.8h14.2"/><path d="M13.9 5.1 17.6 8.8l-3.7 3.7"/><path d="M20.6 15.2H6.4"/><path d="M10.1 11.5 6.4 15.2l3.7 3.7"/></g></svg><span>Transfers</span></a>
-          <a href="/recipients"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="9" cy="7.6" r="3.4"/><path d="M3 19.9a6 6 0 0 1 12 0"/><path d="M16.1 4.9a3.4 3.4 0 0 1 0 6.4"/><path d="M17 13.8a6 6 0 0 1 4 5.6"/></g></svg><span>Recipients</span></a>
-          <a href="/bills"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M5.8 3h12.4v18l-2.5-1.7-2.5 1.7-2.6-1.7-2.4 1.7-2.4-1.6z"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.6 7.6h6.8M8.6 11h6.8M8.6 14.4h3.9"/></g></svg><span>Bill pay</span></a>
-          <a href="/deposit"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.4 18.6h7.2"/></g></svg><span>Deposit a check</span></a>
+          <h6>Customers</h6>
+          <a href="#customers" data-tab="customers"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="9" cy="7.6" r="3.4"/><path d="M3 19.9a6 6 0 0 1 12 0"/><path d="M16.1 4.9a3.4 3.4 0 0 1 0 6.4"/><path d="M17 13.8a6 6 0 0 1 4 5.6"/></g></svg><span>All customers</span></a>
+          <a href="#register" data-tab="register"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 4.4v15.2M4.4 12h15.2"/></g></svg><span>Register a customer</span></a>
+          <a href="#cards" data-tab="cards"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 4.8h19.2v14.4H2.4z"/><path d="M2.4 9.4h19.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M5.4 12.6h4.4v3.2H5.4z"/><path d="M13.6 15.8h5.2"/><path d="M5.4 14.2h4.4"/></g></svg><span>Cards</span></a>
+          <a href="#investments" data-tab="investments"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M5.6 20.6V11.8M10.5 20.6V5.4M15.4 20.6v-6.2M20.3 20.6V9"/></g><g stroke-width="0.95" opacity=".72"><path d="M2.4 16.2h19.2M2.4 11.8h19.2"/></g></svg><span>Investments</span></a>
         </div>
         <div class="rf-nav-group">
-          <h6>Wealth</h6>
-          <a href="/invest"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M5.6 20.6V11.8M10.5 20.6V5.4M15.4 20.6v-6.2M20.3 20.6V9"/></g><g stroke-width="0.95" opacity=".72"><path d="M2.4 16.2h19.2M2.4 11.8h19.2"/></g></svg><span>Invest</span></a>
+          <h6>Records</h6>
+          <a href="#alerts" data-tab="alerts"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M4.8 18.4c1.6-1.6 2.3-3.3 2.3-5.7v-1.8a4.9 4.9 0 0 1 9.8 0v1.8c0 2.4.7 4.1 2.3 5.7z"/><path d="M9.7 21.2h4.6"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 4.1V2.5"/><path d="M9.4 11.4a2.6 2.6 0 0 1 2.6-2.6"/></g></svg><span>Email alerts</span></a>
+          <a href="#activity" data-tab="activity"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M3.4 14.6 8 10l3.6 3.6L16.6 7l4 4"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.4 17.8h17.2"/></g></svg><span>Activity log</span></a>
         </div>
         <div class="rf-nav-group">
-          <h6>Account</h6>
-          <a href="/cards"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 4.8h19.2v14.4H2.4z"/><path d="M2.4 9.4h19.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M5.4 12.6h4.4v3.2H5.4z"/><path d="M13.6 15.8h5.2"/><path d="M5.4 14.2h4.4"/></g></svg><span>Cards</span></a>
-          <a href="/alerts"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M4.8 18.4c1.6-1.6 2.3-3.3 2.3-5.7v-1.8a4.9 4.9 0 0 1 9.8 0v1.8c0 2.4.7 4.1 2.3 5.7z"/><path d="M9.7 21.2h4.6"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 4.1V2.5"/><path d="M9.4 11.4a2.6 2.6 0 0 1 2.6-2.6"/></g></svg><span>Alerts</span><em class="rf-pip rf-hide" data-pip="alerts"></em></a>
-          <a href="/messages"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 5h19.2v14H2.4z"/><path d="m2.4 5.9 9.6 6.7 9.6-6.7"/></g><g stroke-width="0.95" opacity=".72"><path d="m2.4 18.2 6.6-5.4M21.6 18.2 15 12.8"/></g></svg><span>Messages</span><em class="rf-pip rf-hide" data-pip="messages"></em></a>
-          <a href="/security"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 2.7 4.6 5.4v6.2c0 4.5 3 7.8 7.4 9.7 4.4-1.9 7.4-5.2 7.4-9.7V5.4z"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 5.6v12.2"/><path d="M6.9 6.4v5.2c0 3 1.9 5.4 5.1 7"/></g></svg><span>Security</span></a>
-          <a href="/profile"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="7.7" r="3.7"/><path d="M4.6 20.7a7.4 7.4 0 0 1 14.8 0"/></g></svg><span>Profile</span></a>
-        </div>
-        <div class="rf-nav-group rf-hide" data-admin-only>
-          <h6>Staff</h6>
-          <a href="/console"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 3.8h19.2v16.4H2.4z"/><path d="M2.4 8.4h19.2M8.8 8.4v11.8"/></g><g stroke-width="0.95" opacity=".72"><path d="M11.4 11.4h7.4M11.4 14.2h7.4M11.4 17h4.4"/><path d="M5 5.7h1.4"/></g></svg><span>Admin console</span></a>
+          <h6>Bank</h6>
+          <a href="#settings" data-tab="settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.8 1.8M16.8 16.8l1.8 1.8M5.4 18.6l1.8-1.8M16.8 7.2l1.8-1.8"/></g></svg><span>Settings</span></a>
+          <a href="#setup" data-tab="setup"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 2.8c3.6 2.2 5.4 5.6 5.4 9.6l-2.2 3.4H8.8l-2.2-3.4c0-4 1.8-7.4 5.4-9.6z"/><path d="M8.8 15.8 6.4 19.6M15.2 15.8l2.4 3.8M12 15.8v5.4"/></g><g stroke-width="0.95" opacity=".72"><circle cx="12" cy="9.6" r="1.6"/></g></svg><span>Setup checklist</span><em class="rf-pip rf-hide" data-staff-pip="setup"></em></a>
         </div>
       </nav>
       <div class="rf-side-foot">
         <div class="rf-side-user">
-          <span class="rf-avatar" data-user-avatar>RF</span>
+          <span class="rf-avatar" data-user-avatar>HG</span>
           <span>
             <strong data-user-name>&nbsp;</strong>
-            <span data-user-number>&nbsp;</span>
+            <span>Staff</span>
           </span>
         </div>
         <button class="rf-btn ghost sm block" data-signout><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M10.4 4.4H4.8v15.2h5.6"/><path d="m15.4 7.9 4.1 4.1-4.1 4.1"/><path d="M19.5 12H9.4"/></g></svg> Sign out</button>
@@ -88,36 +83,25 @@
           <p class="rf-top-sub">Customers, money movement and everything that has been done today.</p>
         </div>
         <div class="rf-top-actions">
-          <span class="rf-badge info dot" data-staff-badge>Staff</span>
-          <a class="rf-icon-btn" href="/alerts" aria-label="Alerts"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M4.8 18.4c1.6-1.6 2.3-3.3 2.3-5.7v-1.8a4.9 4.9 0 0 1 9.8 0v1.8c0 2.4.7 4.1 2.3 5.7z"/><path d="M9.7 21.2h4.6"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 4.1V2.5"/><path d="M9.4 11.4a2.6 2.6 0 0 1 2.6-2.6"/></g></svg><em class="rf-pip rf-hide" data-pip="alerts"></em></a>
-          <a class="rf-icon-btn" href="/profile" aria-label="Profile"><span class="rf-avatar sm" data-user-avatar>RF</span></a>
+          <form class="hs-staff-search" role="search" data-staff-search>
+          <input class="rf-input" type="search" name="q" placeholder="Find a customer: name, email, phone or number" aria-label="Find a customer" autocomplete="off" />
+          <div class="hs-search-results" data-search-results hidden></div>
+        </form>
+          
         </div>
       </header>
 
-  <div class="hs-ticker" data-hs-ticker hidden role="region" aria-label="Live market prices">
-    <span class="hs-ticker-live"><i></i>Live</span>
-    <div class="hs-ticker-window"><div class="hs-ticker-track" data-hs-ticker-track></div></div>
-    <a class="hs-ticker-cta" href="/invest">Convert &rarr;</a>
-  </div>
       <main class="rf-content" id="rf-content">
         <div class="rf-notice rf-hide" data-announcement></div>
 
-        <div class="rf-tabs" data-tabs>
-          <button data-tab="overview" class="is-active">Overview</button>
-          <button data-tab="customers">Customers</button>
-          <button data-tab="register">Register a customer</button>
-          <button data-tab="queue">Transfer queue <em class="rf-pip rf-hide" data-queue-pip></em></button>
-          <button data-tab="deposits">Check deposits</button>
-          <button data-tab="cards">Cards</button>
-          <button data-tab="messages">Messages</button>
-          <button data-tab="alerts">Email alerts</button>
-          <button data-tab="disputes">Claims</button>
-          <button data-tab="activity">Activity log</button>
-          <button data-tab="settings">Settings</button>
-        </div>
-
         <!-- ---------------------------------------------------- overview -- -->
         <section data-panel="overview">
+          <div class="hs-setup-banner rf-hide" data-setup-banner></div>
+          <h2 class="hs-section-title">Needs your attention</h2>
+          <div class="hs-attn rf-mb" data-attention>
+            <div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div>
+          </div>
+          <h2 class="hs-section-title">The bank today</h2>
           <div class="rf-grid cols-4 rf-mb" data-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
@@ -501,6 +485,45 @@
           </section>
         </section>
 
+        <!-- ------------------------------------------------- investments -- -->
+        <section data-panel="investments" hidden>
+          <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
+          <div class="rf-grid side">
+            <section class="rf-card">
+              <div class="rf-card-head"><h3>Holdings</h3><div class="rf-card-actions rf-small rf-muted">valued at live prices</div></div>
+              <div class="rf-table-wrap">
+                <table class="rf-table">
+                  <thead><tr><th>Customer</th><th>Asset</th><th class="num">Units</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
+                  <tbody data-inv-holdings><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                </table>
+              </div>
+            </section>
+            <div class="rf-stack">
+              <section class="rf-card">
+                <div class="rf-card-head"><h3>By asset</h3></div>
+                <ul class="rf-list" data-inv-assets><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+              </section>
+              <section class="rf-card">
+                <div class="rf-card-head"><h3>Latest conversions</h3></div>
+                <ul class="rf-list" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <!-- ------------------------------------------------------- setup -- -->
+        <section data-panel="setup" hidden>
+          <section class="rf-card rf-mb hs-setup-head">
+            <div class="rf-card-body">
+              <div class="hs-setup-progress"><strong data-setup-score>&mdash;</strong><span data-setup-sub>Checking the backend&hellip;</span></div>
+              <div class="hs-setup-bar"><span data-setup-bar style="width:0%"></span></div>
+              <p class="rf-small rf-muted" style="margin:12px 0 0">Every item is checked live against this deployment. Fix the ones marked <strong>To do</strong> in Supabase, Resend or Vercel, redeploy, then press <em>Check again</em>. The database step is one paste: <code>supabase/setup.sql</code> creates every table, and is safe to run again after updates.</p>
+              <div class="rf-mt"><button class="rf-btn sm" type="button" data-setup-refresh>Check again</button> <a class="rf-btn ghost sm" href="/api/health?probe=1" target="_blank" rel="noopener">Raw health report</a></div>
+            </div>
+          </section>
+          <div data-setup-list><div class="rf-skel" style="height:200px"></div></div>
+        </section>
+
         <!-- ---------------------------------------------------- settings -- -->
         <section data-panel="settings" hidden>
           <form id="rf-settings-form">
@@ -680,17 +703,17 @@
         </div>
       </main>
       <nav class="rf-tabbar" id="rf-tabbar" aria-label="Sections">
-        <a href="/dashboard"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Home</span></a>
-        <a href="/accounts"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M4.4 4.6h12.9a2.7 2.7 0 0 1 2.7 2.7v12.1H7.1a2.7 2.7 0 0 1-2.7-2.7z"/><path d="M4.4 16.7A2.7 2.7 0 0 1 7.1 14h12.9"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.2 8h8M8.2 11h5.4"/></g></svg><span>Accounts</span></a>
-        <a href="/transfers"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 8.8h14.2"/><path d="M13.9 5.1 17.6 8.8l-3.7 3.7"/><path d="M20.6 15.2H6.4"/><path d="M10.1 11.5 6.4 15.2l3.7 3.7"/></g></svg><span>Transfer</span></a>
-        <a href="/cards"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 4.8h19.2v14.4H2.4z"/><path d="M2.4 9.4h19.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M5.4 12.6h4.4v3.2H5.4z"/><path d="M13.6 15.8h5.2"/><path d="M5.4 14.2h4.4"/></g></svg><span>Cards</span></a>
-        <button type="button" id="rf-tab-menu" class="is-active" aria-controls="rf-side" aria-expanded="false"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 6.6h17.2M3.4 12h17.2M3.4 17.4h17.2"/></g></svg><span>Menu</span></button>
+        <a href="#overview" data-tab="overview" class="is-active"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Today</span></a>
+        <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 8.8h14.2"/><path d="M13.9 5.1 17.6 8.8l-3.7 3.7"/><path d="M20.6 15.2H6.4"/><path d="M10.1 11.5 6.4 15.2l3.7 3.7"/></g></svg><span>Queue</span></a>
+        <a href="#customers" data-tab="customers"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="9" cy="7.6" r="3.4"/><path d="M3 19.9a6 6 0 0 1 12 0"/><path d="M16.1 4.9a3.4 3.4 0 0 1 0 6.4"/><path d="M17 13.8a6 6 0 0 1 4 5.6"/></g></svg><span>Customers</span></a>
+        <a href="#messages" data-tab="messages"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 5h19.2v14H2.4z"/><path d="m2.4 5.9 9.6 6.7 9.6-6.7"/></g><g stroke-width="0.95" opacity=".72"><path d="m2.4 18.2 6.6-5.4M21.6 18.2 15 12.8"/></g></svg><span>Messages</span></a>
+        <button type="button" id="rf-tab-menu" aria-controls="rf-side" aria-expanded="false"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 6.6h17.2M3.4 12h17.2M3.4 17.4h17.2"/></g></svg><span>Menu</span></button>
       </nav>
     </div>
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>
   <script src="/js/bank/core.js?v=a3ae851c" defer></script>
   <script src="/js/ticker.js?v=766952ff" defer></script>
-  <script src="/js/bank/console.js?v=41b7cf8a" defer></script>
+  <script src="/js/bank/console.js?v=00ec24c1" defer></script>
 </body>
 </html>

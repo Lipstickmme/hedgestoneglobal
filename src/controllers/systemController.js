@@ -548,3 +548,7 @@ exports.health = async (req, res) => {
     warnings,
   });
 };
+
+// The console's setup checklist asks the same questions of the schema.
+exports.PROBES = PROBES;
+exports.probeSchema = probeSchema;
