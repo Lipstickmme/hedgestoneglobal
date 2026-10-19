@@ -13,6 +13,8 @@
   const POLL_MS = 5000;
 
   const $ = (id) => document.getElementById(id);
+  // The platform's name as staff set it at the console (public/js/bankname.js).
+  const platformName = () => (window.HSName ? window.HSName.get() : 'Hedgestone Finance');
   const screens = {
     boot: $('admin-boot'),
     unconfigured: $('admin-unconfigured'),
@@ -255,7 +257,7 @@
       }
       facts.appendChild(dd);
     };
-    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent('Re: your message to Hedgestone Global Bank')}`);
+    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent(`Re: your message to ${platformName()}`)}`);
     fact('Company', row.company);
     fact('Discipline', row.service);
     fact('Received', when(row.created_at));
@@ -331,7 +333,7 @@
       facts.appendChild(dd);
     };
     fact('Role', row.role_title);
-    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent(`Your application: ${row.role_title || 'Hedgestone Global Bank'}`)}`);
+    fact('Email', row.email, `mailto:${row.email}?subject=${encodeURIComponent(`Your application: ${row.role_title || platformName()}`)}`);
     fact('Phone', row.phone, row.phone ? `tel:${row.phone}` : null);
     fact('Experience', row.experience);
     fact('Portfolio', row.portfolio, row.portfolio);
@@ -583,6 +585,7 @@
     // What the site is actually serving right now, stored value or built-in.
     try {
       state.effective = await (await fetch('/api/site', { headers: { Accept: 'application/json' } })).json();
+      if (window.HSName && state.effective.name) window.HSName.apply(state.effective.name);
     } catch (err) {
       state.effective = {};
     }
@@ -844,6 +847,11 @@
   }
 
   async function boot() {
+    // The name staff gave the platform, over the one the page was built with.
+    fetch('/api/site', { headers: { Accept: 'application/json' } })
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((site) => { if (window.HSName && site.name) window.HSName.apply(site.name); })
+      .catch(() => {});
     let cfg = {};
     try {
       const res = await fetch('/api/public-config', { headers: { Accept: 'application/json' } });

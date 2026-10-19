@@ -1,18 +1,21 @@
 'use strict';
 
 /**
- * Live market prices for the assets a customer can convert their balance into.
+ * Live market prices, and the price history behind the dashboard's chart.
  *
- * The catalogue is deliberately short - a broad index, a tech index, a handful
- * of the largest US companies, Bitcoin and gold - because every asset here is
- * one the bank prices, values and books against, and a price it cannot get is
- * an asset nobody can buy or sell.
+ * Bitcoin is the only asset on offer. The assets the platform used to offer
+ * are kept as RETIRED: nobody can buy them, but a customer who bought one
+ * before keeps it, valued at the live price and sellable back to cash, and
+ * they are only priced when somebody asks for them (list({ withRetired })).
  *
  * Prices come from free public sources, tried in order until one answers:
  *
- *   stocks and ETFs   Finnhub (when FINNHUB_API_KEY is set), Yahoo Finance, Stooq
  *   Bitcoin           CoinGecko, Coinbase, Yahoo Finance
+ *   stocks and ETFs   Finnhub (when FINNHUB_API_KEY is set), Yahoo Finance, Stooq
  *   gold              Stooq spot XAU/USD, Yahoo gold futures, CoinGecko PAX Gold
+ *
+ * Daily history (history()) comes from CoinGecko, Yahoo Finance or Coinbase,
+ * whichever answers first, and is held in memory for HISTORY_CACHE_MS.
  *
  * Every answer is cached in memory for CACHE_MS, so a page of visitors costs
  * one round of provider calls rather than one each, and written back to
@@ -35,13 +38,18 @@ const PROVIDER_TIMEOUT_MS = 3000;
 // The ticker answers within this, from the cache if the providers are slow;
 // the refresh carries on and the next request gets its result.
 const LIST_BUDGET_MS = 3500;
-const UA = 'Mozilla/5.0 (compatible; HedgestoneGlobalBank/1.0)';
+const UA = 'Mozilla/5.0 (compatible; HedgestoneFinance/1.0)';
 
 /**
- * What can be held. `decimals` is how finely a holding is divided: shares to
- * a millionth, Bitcoin to a satoshi.
+ * What can be bought. `decimals` is how finely a holding is divided: Bitcoin
+ * to a satoshi, shares to a millionth.
  */
 const ASSETS = [
+  { symbol: 'BTC', name: 'Bitcoin', detail: 'Bitcoin, priced in US dollars', kind: 'Crypto', unit: 'BTC', decimals: 8, coingecko: 'bitcoin', coinbase: 'BTC-USD', yahoo: 'BTC-USD' },
+];
+
+/** What can no longer be bought, only held and sold. See the note at the top. */
+const RETIRED = [
   { symbol: 'SPY', name: 'S&P 500', detail: 'SPDR S&P 500 ETF Trust', kind: 'ETF', unit: 'share', decimals: 6, finnhub: 'SPY', yahoo: 'SPY', stooq: 'spy.us' },
   { symbol: 'QQQ', name: 'Nasdaq-100', detail: 'Invesco QQQ Trust', kind: 'ETF', unit: 'share', decimals: 6, finnhub: 'QQQ', yahoo: 'QQQ', stooq: 'qqq.us' },
   { symbol: 'AAPL', name: 'Apple', detail: 'Apple Inc.', kind: 'Stock', unit: 'share', decimals: 6, finnhub: 'AAPL', yahoo: 'AAPL', stooq: 'aapl.us' },
@@ -50,10 +58,11 @@ const ASSETS = [
   { symbol: 'NVDA', name: 'NVIDIA', detail: 'NVIDIA Corporation', kind: 'Stock', unit: 'share', decimals: 6, finnhub: 'NVDA', yahoo: 'NVDA', stooq: 'nvda.us' },
   { symbol: 'GOOGL', name: 'Alphabet', detail: 'Alphabet Inc. Class A', kind: 'Stock', unit: 'share', decimals: 6, finnhub: 'GOOGL', yahoo: 'GOOGL', stooq: 'googl.us' },
   { symbol: 'TSLA', name: 'Tesla', detail: 'Tesla, Inc.', kind: 'Stock', unit: 'share', decimals: 6, finnhub: 'TSLA', yahoo: 'TSLA', stooq: 'tsla.us' },
-  { symbol: 'BTC', name: 'Bitcoin', detail: 'Bitcoin, priced in US dollars', kind: 'Crypto', unit: 'BTC', decimals: 8, coingecko: 'bitcoin', coinbase: 'BTC-USD', yahoo: 'BTC-USD' },
   { symbol: 'XAU', name: 'Gold', detail: 'Gold, per troy ounce', kind: 'Commodity', unit: 'oz', decimals: 6, stooq: 'xauusd', yahoo: 'GC=F', coingecko: 'pax-gold' },
-];
-const BY_SYMBOL = new Map(ASSETS.map((a) => [a.symbol, a]));
+].map((a) => ({ ...a, retired: true }));
+
+const ALL = [...ASSETS, ...RETIRED];
+const BY_SYMBOL = new Map(ALL.map((a) => [a.symbol, a]));
 
 /** Prices for MARKET_DATA_FIXTURE: recent ballpark levels, not live. */
 const FIXTURE = {
@@ -257,12 +266,12 @@ async function loadStored() {
 
 const age = (q) => (q && q.fetchedAt ? Date.now() - new Date(q.fetchedAt).getTime() : Infinity);
 
-/** Ask the providers for every asset whose cached price is older than maxAge. */
-async function refresh(maxAge) {
+/** Ask the providers for every asset in `pool` whose cached price is older than maxAge. */
+async function refresh(maxAge, pool = ASSETS) {
   const force = forceRefresh;
   forceRefresh = false;
   if (!memory.size && !force) await loadStored();
-  const due = ASSETS.filter((a) => force || age(memory.get(a.symbol)) > maxAge);
+  const due = pool.filter((a) => force || age(memory.get(a.symbol)) > maxAge);
   if (!due.length) return;
 
   let found = {};
@@ -305,16 +314,16 @@ async function refresh(maxAge) {
  * requests.
  */
 const RETRY_MS = 10_000;
-let lastAttempt = 0;
+const lastAttempt = new Map(); // pool -> when it was last asked for
 let forceRefresh = false;
 
-async function ensureFresh(maxAge = CACHE_MS) {
+async function ensureFresh(maxAge = CACHE_MS, pool = ASSETS) {
   if (inflight) await inflight;
-  const due = !memory.size || forceRefresh || ASSETS.some((a) => age(memory.get(a.symbol)) > maxAge);
+  const due = !memory.size || forceRefresh || pool.some((a) => age(memory.get(a.symbol)) > maxAge);
   if (!due) return;
-  if (!forceRefresh && memory.size && Date.now() - lastAttempt < RETRY_MS) return;
-  lastAttempt = Date.now();
-  inflight = refresh(maxAge).finally(() => { inflight = null; });
+  if (!forceRefresh && memory.size && Date.now() - (lastAttempt.get(pool) || 0) < RETRY_MS) return;
+  lastAttempt.set(pool, Date.now());
+  inflight = refresh(maxAge, pool).finally(() => { inflight = null; });
   await inflight;
 }
 
@@ -329,13 +338,19 @@ function publicAsset(asset) {
     kind: asset.kind,
     unit: asset.unit,
     decimals: asset.decimals,
+    retired: Boolean(asset.retired),
     quote: q ? { ...q, stale: age(q) > TRADE_MAX_AGE_MS, ageSeconds: Math.round(age(q) / 1000) } : null,
   };
 }
 
-/** Every asset with its latest price. Never throws for want of a price. */
-async function list() {
-  const refreshing = ensureFresh(CACHE_MS).catch((err) => {
+/**
+ * Every asset on offer with its latest price; with `withRetired`, the retired
+ * ones too, for valuing what somebody already holds. Never throws for want of
+ * a price.
+ */
+async function list({ withRetired = false } = {}) {
+  const pool = withRetired ? ALL : ASSETS;
+  const refreshing = ensureFresh(CACHE_MS, pool).catch((err) => {
     console.warn(`[hedgestone] market refresh failed: ${err.message}`);
   });
   let timer;
@@ -343,7 +358,7 @@ async function list() {
   clearTimeout(timer);
   // A cold instance that ran out of budget still has the stored prices.
   if (!memory.size) await loadStored();
-  return ASSETS.map(publicAsset);
+  return pool.map(publicAsset);
 }
 
 /**
@@ -353,7 +368,7 @@ async function list() {
 async function tradeQuote(symbol) {
   const asset = BY_SYMBOL.get(String(symbol || '').toUpperCase());
   if (!asset) throw Object.assign(new Error('That asset is not available.'), { status: 400, code: 'unknown_asset' });
-  await ensureFresh(Math.min(CACHE_MS, TRADE_MAX_AGE_MS));
+  await ensureFresh(Math.min(CACHE_MS, TRADE_MAX_AGE_MS), asset.retired ? ALL : ASSETS);
   const q = memory.get(asset.symbol);
   if (!q || age(q) > TRADE_MAX_AGE_MS) {
     throw Object.assign(
@@ -364,11 +379,135 @@ async function tradeQuote(symbol) {
   return { asset, quote: q };
 }
 
+/* ------------------------------------------------------------- history --- */
+
+/*
+ * Daily closing prices, for the chart of an investment since the day it was
+ * bought. One call answers for everybody: the series is the same whoever asks,
+ * so it is held in memory for HISTORY_CACHE_MS and shared at the edge.
+ */
+const HISTORY_CACHE_MS = Number(process.env.MARKET_HISTORY_CACHE_MINUTES || 30) * 60 * 1000;
+const HISTORY_MAX_DAYS = 1825;
+const historyMemory = new Map(); // "BTC:365" -> { at, points, source }
+
+const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/** [[ms, price], ...] in any order -> one point a day, oldest first. */
+function dailyPoints(pairs) {
+  const byDay = new Map();
+  pairs.forEach(([ms, price]) => {
+    const p = Number(price);
+    if (!Number.isFinite(ms) || !positive(p)) return;
+    byDay.set(dayOf(ms), Math.round(p * 100) / 100); // the latest in a day wins
+  });
+  return Array.from(byDay.entries()).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([t, p]) => ({ t, p }));
+}
+
+/** CoinGecko: no key, up to a year of daily prices on the public API. */
+async function historyFromCoinGecko(asset, days) {
+  if (!asset.coingecko || days > 365) return null;
+  const j = await getJson(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(asset.coingecko)}/market_chart?vs_currency=usd&days=${days}&interval=daily`);
+  return j && Array.isArray(j.prices) ? dailyPoints(j.prices.map(([ms, p]) => [Number(ms), p])) : null;
+}
+
+/** Yahoo Finance: no key, any range, one request. */
+async function historyFromYahoo(asset, days) {
+  if (!asset.yahoo) return null;
+  const range = [[30, '1mo'], [90, '3mo'], [180, '6mo'], [365, '1y'], [730, '2y'], [1825, '5y']].find(([d]) => days <= d) || [0, '5y'];
+  const j = await getJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.yahoo)}?range=${range[1]}&interval=1d`);
+  const r = j && j.chart && j.chart.result && j.chart.result[0];
+  const closes = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
+  if (!r || !Array.isArray(r.timestamp) || !Array.isArray(closes)) return null;
+  return dailyPoints(r.timestamp.map((ts, i) => [ts * 1000, closes[i]]));
+}
+
+/** Coinbase Exchange: no key, 300 daily candles a request, newest first. */
+async function historyFromCoinbase(asset, days) {
+  if (!asset.coinbase) return null;
+  const pairs = [];
+  let end = Date.now();
+  const start = end - days * 86400000;
+  for (let page = 0; page < 7 && end > start; page += 1) {
+    const from = Math.max(start, end - 299 * 86400000);
+    // eslint-disable-next-line no-await-in-loop
+    const rows = await getJson(`https://api.exchange.coinbase.com/products/${encodeURIComponent(asset.coinbase)}/candles?granularity=86400&start=${new Date(from).toISOString()}&end=${new Date(end).toISOString()}`);
+    if (!Array.isArray(rows) || !rows.length) break;
+    rows.forEach((c) => pairs.push([Number(c[0]) * 1000, c[4]]));
+    end = from - 86400000;
+  }
+  return pairs.length ? dailyPoints(pairs) : null;
+}
+
+/*
+ * The fixture's history: a fixed, smooth walk that ends on the fixture price,
+ * so a chart drawn offline or in the tests has a shape. Labelled as demo
+ * prices like every other fixture quote.
+ */
+function historyFromFixture(asset, days) {
+  const end = { ...FIXTURE, ...(fixtureOverride || {}) }[asset.symbol];
+  if (!positive(end)) return null;
+  const wave = (i) => -0.0011 * i + 0.07 * Math.sin(i / 11) + 0.04 * Math.sin(i / 29 + 1.3) + 0.015 * Math.sin(i / 3.1);
+  const today = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+  const pairs = [];
+  for (let i = days; i >= 0; i -= 1) pairs.push([today - i * 86400000, end * Math.exp(wave(i) - wave(0))]);
+  return dailyPoints(pairs);
+}
+
+/**
+ * Daily prices for the last `days` days, oldest first, as [{ t: 'YYYY-MM-DD',
+ * p: dollars }]. Answers { symbol, points, source }; points is empty when no
+ * provider could be reached, and the chart says so rather than drawing a line
+ * it does not have.
+ */
+async function history(symbol, days = 365) {
+  const asset = BY_SYMBOL.get(String(symbol || '').toUpperCase());
+  if (!asset) throw Object.assign(new Error('That asset is not available.'), { status: 400, code: 'unknown_asset' });
+  // Bucketed, so a purchase made yesterday and one made last week share a cache entry.
+  const wanted = Math.min(HISTORY_MAX_DAYS, Math.max(30, Number(days) || 365));
+  const bucket = [30, 90, 180, 365, 730, HISTORY_MAX_DAYS].find((d) => wanted <= d);
+  const key = `${asset.symbol}:${bucket}`;
+  const cached = historyMemory.get(key);
+  if (cached && Date.now() - cached.at < HISTORY_CACHE_MS) return { symbol: asset.symbol, points: cached.points, source: cached.source };
+
+  let points = null;
+  let source = '';
+  if (fixtureMode()) {
+    points = historyFromFixture(asset, bucket);
+    source = 'Demo prices (fixture)';
+  } else {
+    const chain = [
+      ['CoinGecko', historyFromCoinGecko],
+      ['Yahoo Finance', historyFromYahoo],
+      ['Coinbase', historyFromCoinbase],
+    ];
+    for (const [name, provider] of chain) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const got = await provider(asset, bucket);
+        if (got && got.length > 1) { points = got; source = name; break; }
+      } catch (err) {
+        console.warn(`[hedgestone] ${name} history failed: ${err.message}`);
+      }
+    }
+  }
+  if (points && points.length > 1) {
+    historyMemory.set(key, { at: Date.now(), points, source });
+    return { symbol: asset.symbol, points, source };
+  }
+  // Nothing new: an old series is better than none, and is labelled with its source.
+  if (cached) return { symbol: asset.symbol, points: cached.points, source: cached.source };
+  return { symbol: asset.symbol, points: [], source: '' };
+}
+
 /** Tests: set fixture prices and drop the cache so the next read sees them. */
 function _setFixture(prices) {
   fixtureOverride = prices ? { ...prices } : null;
   memory.clear();
+  historyMemory.clear();
   forceRefresh = true;
 }
 
-module.exports = { ASSETS, BY_SYMBOL, list, tradeQuote, TRADE_MAX_AGE_MS, _setFixture };
+module.exports = {
+  ASSETS, RETIRED, BY_SYMBOL, list, tradeQuote, history, TRADE_MAX_AGE_MS, _setFixture,
+  _history: { dailyPoints, historyFromCoinGecko, historyFromYahoo, historyFromCoinbase },
+};

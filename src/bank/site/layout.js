@@ -1,15 +1,15 @@
 'use strict';
 
 /**
- * Page shells for the bank, rendered at build time into static HTML.
+ * Page shells, rendered at build time into static HTML.
  *
  * Three of them: the marketing pages anyone can see, the sign-in pages, and
  * the application shell behind them. They are built rather than assembled in
- * the browser so the first paint is the real page - a banking dashboard that
- * flashes an empty frame before the numbers arrive reads as broken.
+ * the browser so the first paint is the real page - a dashboard that flashes
+ * an empty frame before the numbers arrive reads as broken.
  */
 
-const { BANK, PRODUCTS } = require('../constants');
+const { BANK } = require('../constants');
 
 const YEAR = new Date().getFullYear();
 
@@ -134,6 +134,21 @@ const ICONS = {
     body: '<path d="M2.4 20.6h19.2"/><path d="M5.6 20.6V11.8M10.5 20.6V5.4M15.4 20.6v-6.2M20.3 20.6V9"/>',
     fine: '<path d="M2.4 16.2h19.2M2.4 11.8h19.2"/>',
   },
+  // The Bitcoin sign, struck on a coin: the B, its two strokes top and foot.
+  bitcoin: {
+    body: '<circle cx="12" cy="12" r="9.3"/><path d="M9.3 7.3h4a2.1 2.1 0 0 1 0 4.3h-4zM9.3 11.6h4.6a2.25 2.25 0 0 1 0 4.5H9.3zM9.3 7.3v8.8"/>',
+    fine: '<path d="M10.8 5.7v1.6M13 5.7v1.6M10.8 16.1v1.6M13 16.1v1.6"/>',
+  },
+  // Out of the tray: the reverse of deposit.
+  withdraw: {
+    body: '<path d="M12 14.4V3.4"/><path d="M7.5 7.9 12 3.4l4.5 4.5"/><path d="M3.3 16.6v4h17.4v-4"/>',
+    fine: '<path d="M8.4 18.6h7.2"/>',
+  },
+  // An hourglass, for the time left to maturity.
+  hourglass: {
+    body: '<path d="M6 2.8h12M6 21.2h12"/><path d="M7.2 2.8c0 4.6 4.8 6.2 4.8 9.2s-4.8 4.6-4.8 9.2M16.8 2.8c0 4.6-4.8 6.2-4.8 9.2s4.8 4.6 4.8 9.2"/>',
+    fine: '<path d="M9.4 18.6h5.2"/>',
+  },
   plus: { body: '<path d="M12 4.4v15.2M4.4 12h15.2"/>', fine: '' },
   // Three ruled lines. The one icon in the set that is a convention rather
   // than a drawing, because on a phone tab bar nothing else reads as "more".
@@ -219,33 +234,23 @@ const scripts = (list) =>
 
 const NAV = [
   {
-    group: 'Banking',
+    group: 'Investment',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: 'home', key: 'dashboard' },
-      { href: '/accounts', label: 'Accounts', icon: 'accounts', key: 'accounts' },
+      { href: '/invest', label: 'Bitcoin', icon: 'bitcoin', key: 'invest' },
       { href: '/transactions', label: 'Transactions', icon: 'activity', key: 'transactions' },
-      { href: '/statements', label: 'Statements', icon: 'statement', key: 'statements' },
     ],
   },
   {
-    group: 'Move money',
+    group: 'Cash',
     items: [
-      { href: '/transfers', label: 'Transfers', icon: 'transfer', key: 'transfers' },
-      { href: '/recipients', label: 'Recipients', icon: 'people', key: 'recipients' },
-      { href: '/bills', label: 'Bill pay', icon: 'bill', key: 'bills' },
-      { href: '/deposit', label: 'Deposit a check', icon: 'deposit', key: 'deposit' },
-    ],
-  },
-  {
-    group: 'Wealth',
-    items: [
-      { href: '/invest', label: 'Invest', icon: 'chart', key: 'invest' },
+      { href: '/transfers', label: 'Withdraw', icon: 'withdraw', key: 'transfers' },
+      { href: '/recipients', label: 'Withdrawal accounts', icon: 'people', key: 'recipients' },
     ],
   },
   {
     group: 'Account',
     items: [
-      { href: '/cards', label: 'Cards', icon: 'card', key: 'cards' },
       { href: '/alerts', label: 'Alerts', icon: 'bell', key: 'alerts', pip: 'alerts' },
       { href: '/messages', label: 'Messages', icon: 'mail', key: 'messages', pip: 'messages' },
       { href: '/security', label: 'Security', icon: 'shield', key: 'security' },
@@ -255,20 +260,17 @@ const NAV = [
 ];
 
 /**
- * The staff console's own menu. Staff do not bank from the console, so the
- * customer's Transfers, Bill pay and Invest links were noise there; and eleven
- * sections in a tab strip ran off the edge of a laptop screen. Each entry is a
- * section of the one console page, opened in place.
+ * The staff console's own menu. Staff do not invest from the console, so the
+ * customer's links were noise there. Each entry is a section of the one
+ * console page, opened in place.
  */
 const STAFF_NAV = [
   {
     group: 'Today',
     items: [
       { tab: 'overview', label: 'Overview', icon: 'home' },
-      { tab: 'queue', label: 'Transfer queue', icon: 'transfer', pip: 'queue' },
-      { tab: 'deposits', label: 'Check deposits', icon: 'deposit', pip: 'deposits' },
+      { tab: 'queue', label: 'Withdrawals', icon: 'withdraw', pip: 'queue' },
       { tab: 'messages', label: 'Messages', icon: 'mail', pip: 'messages' },
-      { tab: 'disputes', label: 'Claims', icon: 'shield', pip: 'disputes' },
     ],
   },
   {
@@ -276,8 +278,7 @@ const STAFF_NAV = [
     items: [
       { tab: 'customers', label: 'All customers', icon: 'people' },
       { tab: 'register', label: 'Register a customer', icon: 'plus' },
-      { tab: 'cards', label: 'Cards', icon: 'card' },
-      { tab: 'investments', label: 'Investments', icon: 'chart' },
+      { tab: 'investments', label: 'Bitcoin investments', icon: 'bitcoin' },
     ],
   },
   {
@@ -288,13 +289,28 @@ const STAFF_NAV = [
     ],
   },
   {
-    group: 'Bank',
+    group: 'Platform',
     items: [
       { tab: 'settings', label: 'Settings', icon: 'gear' },
       { tab: 'setup', label: 'Setup checklist', icon: 'rocket', pip: 'setup' },
     ],
   },
 ];
+
+/**
+ * The logo: the mark, and the platform's name set in type beside it.
+ *
+ * The name used to be part of the artwork, which meant renaming the platform
+ * under Settings changed every sentence on the page except the biggest one.
+ * As type it is the same text the rest of the page swaps (public/js/
+ * bankname.js paints [data-brand-name]), so the logo follows the name too.
+ * The first word is set large and the rest small beneath it, as the artwork
+ * did.
+ */
+function brand(size = '') {
+  const [first, ...rest] = BANK.name.split(/\s+/);
+  return `<span class="hs-brand${size ? ` ${size}` : ''}"><img class="hs-brand-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" /><span class="hs-brand-name" data-brand-name><b>${first}</b>${rest.length ? `<small>${rest.join(' ')}</small>` : ''}</span></span>`;
+}
 
 function sidebar(active, staff = false) {
   const groups = (staff ? STAFF_NAV : NAV).map((group) => `
@@ -310,7 +326,7 @@ function sidebar(active, staff = false) {
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
-          <strong data-bank-short>${BANK.shortName}</strong>
+          <strong>${BANK.name}</strong>
           <small>Staff console</small>
         </span>
       </div>
@@ -337,8 +353,8 @@ function legacySidebar(groups) {
       <div class="rf-side-brand">
         <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
-          <strong data-bank-short>${BANK.shortName}</strong>
-          <small>Online banking</small>
+          <strong>${BANK.name}</strong>
+          <small>Bitcoin investing</small>
         </span>
       </div>
       <nav class="rf-nav">${groups}
@@ -363,8 +379,8 @@ function legacySidebar(groups) {
 /**
  * The bottom bar, on a phone.
  *
- * The sidebar is a desktop object: a long list you read down. A phone banking
- * app has four places you actually go and a way back to everything else, so
+ * The sidebar is a desktop object: a long list you read down. On a phone there
+ * are four places you actually go and a way back to everything else, so
  * that is what this is - the four, plus a Menu that opens the same drawer the
  * burger does. It is hidden above the width where the sidebar is on screen.
  *
@@ -373,14 +389,14 @@ function legacySidebar(groups) {
  */
 const TABS = [
   { href: '/dashboard', label: 'Home', icon: 'home', key: 'dashboard' },
-  { href: '/accounts', label: 'Accounts', icon: 'accounts', key: 'accounts' },
-  { href: '/transfers', label: 'Transfer', icon: 'transfer', key: 'transfers' },
-  { href: '/invest', label: 'Invest', icon: 'chart', key: 'invest' },
+  { href: '/invest', label: 'Bitcoin', icon: 'bitcoin', key: 'invest' },
+  { href: '/transactions', label: 'History', icon: 'activity', key: 'transactions' },
+  { href: '/transfers', label: 'Withdraw', icon: 'withdraw', key: 'transfers' },
 ];
 
 const STAFF_TABS = [
   { tab: 'overview', label: 'Today', icon: 'home' },
-  { tab: 'queue', label: 'Queue', icon: 'transfer' },
+  { tab: 'queue', label: 'Withdrawals', icon: 'withdraw' },
   { tab: 'customers', label: 'Customers', icon: 'people' },
   { tab: 'messages', label: 'Messages', icon: 'mail' },
 ];
@@ -436,27 +452,27 @@ ${tabbar(active, staff)}
   ].join('\n');
 }
 
-/** The sign-in shell: a panel on the right, the bank's case on the left. */
+/** The sign-in shell: a panel on the right, the case for investing on the left. */
 function authPage({ title, description, content, extraScripts = [] }) {
   return [
     head({ title, description, noindex: true, bodyClass: 'rf-auth' }),
     `  <div class="rf-auth-wrap">
     <section class="rf-auth-aside">
       <a class="brandline" href="/" aria-label="${BANK.name} home">
-        <img class="rf-lockup" src="/assets/bank/logo-dark.png" alt="${BANK.name}" width="240" height="54" />
+        ${brand('lg')}
       </a>
-      <h2>Your money, held the way a bank should hold it.</h2>
-      <p>${BANK.tagline} Deposits insured by the FDIC to the maximum permitted by law, and a real person on the phone when you need one.</p>
+      <h2>Your Bitcoin, from the day you bought it to the day it matures.</h2>
+      <p>${BANK.tagline} One investment, Bitcoin only, with its value since purchase and the time left to maturity on the first screen you see.</p>
       <ul class="rf-auth-points">
-        <li>${icon('check', 17)}<span>Two-step verification on every sign-in and every payment</span></li>
-        <li>${icon('check', 17)}<span>Instant alerts the moment money moves</span></li>
-        <li>${icon('check', 17)}<span>Zero liability on unauthorised card transactions</span></li>
-        <li>${icon('check', 17)}<span>FDIC Certificate ${BANK.fdicCert} &middot; NMLS ${BANK.nmls}</span></li>
+        <li>${icon('check', 17)}<span>Bitcoin bought and sold at the live price</span></li>
+        <li>${icon('check', 17)}<span>A chart of your investment from the day you bought it</span></li>
+        <li>${icon('check', 17)}<span>Two-step verification on every sign-in and every withdrawal</span></li>
+        <li>${icon('check', 17)}<span>Alerts the moment anything moves</span></li>
       </ul>
       <div class="rf-auth-foot">
         ${BANK.name} will never call, text or email to ask for your password or a one-time code.<br />
-        Report anything suspicious on <span data-site="fraudPhone">our fraud line</span>.<br />
-        &copy; ${YEAR} ${BANK.legalName}. Member FDIC. Equal Housing Lender.
+        Bitcoin&rsquo;s price rises and falls; you could get back less than you invest.<br />
+        &copy; ${YEAR} ${BANK.legalName}.
       </div>
     </section>
     <section class="rf-auth-panel">
@@ -464,7 +480,7 @@ function authPage({ title, description, content, extraScripts = [] }) {
         <img src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
           <strong>${BANK.name}</strong>
-          <small>Online banking</small>
+          <small>Bitcoin investing</small>
         </span>
       </a>
 ${content}
@@ -483,7 +499,7 @@ const ticker = () => `
   <div class="hs-ticker" data-hs-ticker hidden role="region" aria-label="Live market prices">
     <span class="hs-ticker-live"><i></i>Live</span>
     <div class="hs-ticker-window"><div class="hs-ticker-track" data-hs-ticker-track></div></div>
-    <a class="hs-ticker-cta" href="/invest">Convert &rarr;</a>
+    <a class="hs-ticker-cta" href="/invest">Buy Bitcoin &rarr;</a>
   </div>`;
 
 /* -------------------------------------------------------- marketing bits --- */
@@ -495,24 +511,26 @@ function marketingNav(active = '') {
   <header class="rf-marketing-nav">
     <div class="wrap inner">
       <a class="brandline" href="/" aria-label="${BANK.name} home">
-        <img class="hs-nav-logo" src="/assets/bank/logo-dark.png" alt="${BANK.name}" width="179" height="40" />
+        ${brand('nav')}
       </a>
       <nav>
-        ${link('/personal', 'Personal', 'personal')}
-        ${link('/business', 'Business', 'business')}
-        ${link('/digital', 'Digital banking', 'digital')}
-        ${link('/rates', 'Rates &amp; fees', 'rates')}
+        ${link('/bitcoin', 'Invest in Bitcoin', 'bitcoin')}
+        ${link('/digital', 'Your dashboard', 'digital')}
+        ${link('/rates', 'Fees', 'rates')}
         ${link('/security-center', 'Security', 'security-center')}
         ${link('/support', 'Support', 'support')}
       </nav>
       <span class="spacer"></span>
       <div class="actions">
         <a class="rf-btn ghost sm hs-login" href="/signin">Log in</a>
-        <a class="rf-btn sm" href="/open-account">Get started</a>
+        <a class="rf-btn sm" href="/open-account">Start investing</a>
       </div>
     </div>
   </header>`;
 }
+
+/** The risk warning, said once in the same words wherever it appears. */
+const RISK = 'Bitcoin is a volatile asset. Its price can fall as well as rise, sometimes sharply, and you could get back less than you invest. Past growth is not a guide to future growth. Invest only what you can afford to leave invested.';
 
 function marketingFooter() {
   return `
@@ -520,39 +538,35 @@ function marketingFooter() {
     <div class="wrap">
       <div class="cols">
         <div>
-          <img class="rf-lockup" src="/assets/bank/logo-dark.png" alt="${BANK.name}" width="200" height="45" style="margin-bottom:16px" />
-          <p style="margin:0 0 12px;max-width:34ch">${BANK.tagline} Personal and business banking since ${BANK.established}.</p>
+          <span class="rf-footer-brand">${brand()}</span>
+          <p style="margin:0 0 12px;max-width:34ch">${BANK.tagline} Bitcoin is the only thing we invest in.</p>
           <p style="margin:0;font-size:12.5px" data-site-row="address" hidden><span data-site="address"></span></p>
         </div>
         <div>
-          <h5>Bank</h5>
-          <a href="/personal">Personal banking</a>
-          <a href="/business">Business banking</a>
-          <a href="/digital">Digital banking</a>
-          <a href="/rates">Rates and fees</a>
-          <a href="/open-account">Open an account</a>
+          <h5>Invest</h5>
+          <a href="/bitcoin">Invest in Bitcoin</a>
+          <a href="/digital">Your dashboard</a>
+          <a href="/rates">Fees</a>
+          <a href="/open-account">Start investing</a>
         </div>
         <div>
           <h5>Support</h5>
           <a href="/support">Help centre</a>
           <a href="/security-center">Security centre</a>
           <a href="#" data-site-row="phone" data-site="phone" hidden></a>
-          <a href="mailto:${BANK.email}">${BANK.email}</a>
+          <a href="mailto:${BANK.email}" data-site="email">${BANK.email}</a>
         </div>
         <div>
           <h5>Legal</h5>
           <a href="/legal#privacy">Privacy notice</a>
-          <a href="/legal#terms">Online banking agreement</a>
-          <a href="/legal#disclosures">Truth in Savings</a>
+          <a href="/legal#terms">Terms of use</a>
+          <a href="/legal#risk">Risk warning</a>
           <a href="/legal#accessibility">Accessibility</a>
         </div>
       </div>
       <div class="legal">
-        <strong>${BANK.legalName}</strong> &middot; Member FDIC &middot; Equal Housing Lender &middot; FDIC Certificate ${BANK.fdicCert} &middot; NMLS ID ${BANK.nmls}<br />
-        Deposits are insured by the Federal Deposit Insurance Corporation up to $250,000 per depositor, per insured bank, for each account ownership category.
-        Annual Percentage Yields shown are accurate as of ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })} and may change after account opening. Fees may reduce earnings.
-        Credit products are subject to credit approval.<br />
-        This is a demonstration application. ${BANK.name} is a fictional institution: the routing number, account numbers and card numbers used here are synthetic and address no real financial institution.<br />
+        <strong>Risk warning.</strong> ${RISK}<br />
+        This is a demonstration application. ${BANK.name} is a fictional company: the accounts, balances and customer records used here are synthetic, and no real money moves through it.<br />
         &copy; ${YEAR} ${BANK.legalName}. All rights reserved.
       </div>
     </div>
@@ -626,28 +640,4 @@ function dateField({ id, name, label, from = -110, to = 0, order = 'desc', hint 
                       </div>`;
 }
 
-/* ----------------------------------------------------------- small parts --- */
-
-/** A product card, shared by the home page and the product pages. */
-function productCard(product) {
-  const headline = product.apy != null && product.apy > 0
-    ? `<div class="rf-rate rate">${product.apy.toFixed(2)}%<small> APY</small></div>`
-    : product.apr
-      ? `<div class="rf-rate rate">${product.apr.toFixed(2)}%<small> APR var.</small></div>`
-      : '<div class="rf-rate rate">$0<small> monthly fee</small></div>';
-  return `
-      <article class="rf-product">
-        ${headline}
-        <h3>${product.name}</h3>
-        <p>${product.blurb}</p>
-        <ul>
-          ${product.features.map((f) => `<li>${icon('check', 15)}<span>${f}</span></li>`).join('\n          ')}
-        </ul>
-        <a class="rf-btn ghost" href="/open-account?product=${product.id}">Open ${product.name} <span aria-hidden="true">&rsaquo;</span></a>
-      </article>`;
-}
-
-const productGrid = (ids) =>
-  `<div class="rf-grid cols-3">${(ids ? PRODUCTS.filter((p) => ids.includes(p.id)) : PRODUCTS).map(productCard).join('')}</div>`;
-
-module.exports = { head, scripts, appPage, authPage, tabbar, dateField, marketingPage, marketingNav, marketingFooter, sidebar, icon, productCard, productGrid, NAV, BANK };
+module.exports = { head, scripts, appPage, authPage, tabbar, dateField, marketingPage, marketingNav, marketingFooter, sidebar, icon, brand, RISK, NAV, BANK };

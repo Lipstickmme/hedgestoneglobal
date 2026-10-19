@@ -1,13 +1,15 @@
 'use strict';
 
 /**
- * Live prices for the ticker, and converting a balance into listed assets.
+ * Live prices for the ticker, the price history behind the dashboard chart,
+ * and buying and selling Bitcoin with a cash balance.
  */
 
 const invest = require('../../bank/invest');
 const markets = require('../../bank/markets');
 const accountsLib = require('../../bank/accounts');
 const ledger = require('../../bank/ledger');
+const settings = require('../../bank/settings');
 const { ACCOUNT_TYPES } = require('../../bank/constants');
 const { asyncHandler, toCents } = require('../../bank/http');
 
@@ -25,11 +27,24 @@ const quotes = asyncHandler(async (req, res) => {
   res.json({ assets, updatedAt: new Date().toISOString() });
 });
 
-/** The invest screen: prices, holdings, recent trades and where money can come from. */
+/**
+ * Public: daily Bitcoin prices for the last `days` days, for the chart of an
+ * investment since the day it was bought. The same for everybody, so the CDN
+ * holds it for as long as the server does.
+ */
+const history = asyncHandler(async (req, res) => {
+  const data = await markets.history(req.query.symbol || 'BTC', Number(req.query.days) || 365);
+  res.removeHeader('Set-Cookie');
+  res.set('Cache-Control', data.points.length ? 'public, max-age=600, s-maxage=1800, stale-while-revalidate=3600' : 'no-store');
+  res.json(data);
+});
+
+/** The Bitcoin screen and the dashboard: prices, the position by purchase, recent trades and cash. */
 const portfolio = asyncHandler(async (req, res) => {
-  const [data, accounts] = await Promise.all([
+  const [data, accounts, cfg] = await Promise.all([
     invest.portfolio(req.bankUser.id),
     accountsLib.spendableAccounts(req.bankUser.id),
+    settings.get(),
   ]);
   const funding = accounts.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1);
   res.set('Cache-Control', 'no-store');
@@ -38,6 +53,8 @@ const portfolio = asyncHandler(async (req, res) => {
     accounts: funding.map((a) => ({ ...accountsLib.publicAccount(a), available: ledger.availableFor(a) })),
     minimum: invest.MIN_BUY,
     priceTolerance: invest.PRICE_TOLERANCE,
+    terms: (Array.isArray(cfg.investmentTerms) ? cfg.investmentTerms : []).map(Number).filter((n) => n > 0),
+    defaultTerm: Number(cfg.investmentTermMonths) || 12,
   });
 });
 
@@ -50,6 +67,7 @@ const convert = asyncHandler(async (req, res) => {
     percent: b.percent,
     all: b.all === true || b.all === 'true',
     quotedPrice: b.quotedPrice,
+    termMonths: b.termMonths,
   }, req);
   res.status(201).json(result);
 });
@@ -67,7 +85,7 @@ const sell = asyncHandler(async (req, res) => {
   res.status(201).json(result);
 });
 
-module.exports = { quotes, portfolio, convert, sell };
+module.exports = { quotes, history, portfolio, convert, sell };
 
 /* ---------------------------------------------------------------- staff --- */
 
@@ -75,13 +93,13 @@ const { db } = require('../../bank/db');
 const usersLib = require('../../bank/users');
 
 /**
- * GET /api/bank/admin/investments - every holding in the bank, valued at the
- * latest prices, with the most recent trades and who made them.
+ * GET /api/bank/admin/investments - every holding on the platform, valued at
+ * the latest prices, with the most recent trades and who made them.
  */
 const staffOverview = asyncHandler(async (req, res) => {
   const [rows, assets, trades] = await Promise.all([
     db.holdings.find({}),
-    markets.list(),
+    markets.list({ withRetired: true }),
     db.trades.find({}, { order: 'created_at.desc', limit: 50 }),
   ]);
   const bySymbol = new Map(assets.map((a) => [a.symbol, a]));
@@ -121,7 +139,7 @@ const staffOverview = asyncHandler(async (req, res) => {
     byAsset: Object.values(bySym).sort((a, b) => b.value - a.value),
     holdings,
     trades: trades.map((t) => ({ ...invest.publicTrade(t), customer: who(t.user_id) })),
-    assets,
+    assets: assets.filter((a) => !a.retired),
   });
 });
 
@@ -129,15 +147,15 @@ const staffOverview = asyncHandler(async (req, res) => {
 const staffCustomerHoldings = asyncHandler(async (req, res) => {
   const data = await invest.portfolio(req.params.id);
   res.set('Cache-Control', 'no-store');
-  res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades });
+  res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin });
 });
 
 module.exports.staffOverview = staffOverview;
 module.exports.staffCustomerHoldings = staffCustomerHoldings;
 
 /**
- * POST /api/bank/admin/trades - book a conversion or sale for a customer,
- * optionally at an agreed price and an earlier time.
+ * POST /api/bank/admin/trades - book a Bitcoin purchase or sale for a
+ * customer, optionally at an agreed price, an earlier time and a set term.
  */
 const staffBook = asyncHandler(async (req, res) => {
   const b = req.body || {};
@@ -154,13 +172,14 @@ const staffBook = asyncHandler(async (req, res) => {
   const all = b.all === true || b.all === 'true';
   const result = b.side === 'sell'
     ? await invest.sell(customer, { accountId: b.accountId, symbol: b.symbol, units: b.units, percent: b.percent, all }, req, opts)
-    : await invest.convert(customer, { accountId: b.accountId, symbol: b.symbol, amount: b.amount != null && b.amount !== '' ? toCents(b.amount) : undefined, percent: b.percent, all }, req, opts);
+    : await invest.convert(customer, { accountId: b.accountId, symbol: b.symbol || 'BTC', amount: b.amount != null && b.amount !== '' ? toCents(b.amount) : undefined, percent: b.percent, all, termMonths: b.termMonths }, req, opts);
   res.status(201).json(result);
 });
 
-/** PATCH /api/bank/admin/trades/:id - move a trade to when it really happened. */
+/** PATCH /api/bank/admin/trades/:id - move a trade to when it really happened, or change a purchase's term. */
 const staffRetime = asyncHandler(async (req, res) => {
-  const trade = await invest.retimeTrade(req.params.id, (req.body || {}).date, req.bankUser, String((req.body || {}).note || '').slice(0, 300), req);
+  const b = req.body || {};
+  const trade = await invest.retimeTrade(req.params.id, b.date, req.bankUser, String(b.note || '').slice(0, 300), req, { termMonths: b.termMonths });
   res.json({ trade });
 });
 

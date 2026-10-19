@@ -1,7 +1,7 @@
 {
   "name": "hedgestone-bank",
   "version": "1.2.2",
-  "description": "Hedgestone Global Bank: online banking, staff console and public site",
+  "description": "Hedgestone Finance: Bitcoin-only investing, staff console and public site",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -23,13 +23,13 @@
     "node": ">=18"
   },
   "keywords": [
-    "banking",
+    "bitcoin",
+    "investing",
     "fintech",
     "express",
-    "online-banking",
     "ledger"
   ],
-  "author": "Hedgestone Global Bank",
+  "author": "Hedgestone Finance",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {

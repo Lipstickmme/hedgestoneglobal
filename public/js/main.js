@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================================
-   Hedgestone Global Bank shared frontend for the public site.
+   The shared frontend for the public site.
    Exposes helpers on window.HEDGESTONE (window.MERKEL remains as an alias for
    the page scripts that came with the template), drives shared UI
    (nav, hero slideshow, reveals, counters, contact form) and hydrates the
@@ -312,6 +312,30 @@
     observeReveals();
   }
 
+  /* The live Bitcoin price ------------------------------------------------
+     Wherever a page shows it ([data-btc-price], and the hero's
+     [data-btc-live] pill), from the same public feed as the ticker, refreshed
+     every 30 seconds while the tab is visible. Left hidden if no price can be
+     had, rather than showing a dash. */
+  async function hydrateBitcoin() {
+    if (!$$('[data-btc-price]').length) return;
+    const paint = async () => {
+      let btc = null;
+      try { btc = ((await fetchJSON('/api/bank/markets')).assets || []).find((a) => a.symbol === 'BTC'); } catch (e) { return; }
+      const q = btc && btc.quote;
+      if (!q) return;
+      const price = '$' + Number(q.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dir = q.changePct > 0 ? 'up' : q.changePct < 0 ? 'down' : '';
+      const change = q.changePct == null ? '' : `${q.changePct > 0 ? '▲ +' : q.changePct < 0 ? '▼ ' : ''}${q.changePct.toFixed(2)}% today`;
+      $$('[data-btc-price]').forEach((el) => { el.textContent = price; });
+      $$('[data-btc-change]').forEach((el) => { el.textContent = change; el.className = dir; });
+      $$('[data-btc-source]').forEach((el) => { el.textContent = `· ${q.source}`; });
+      $$('[data-btc-live]').forEach((el) => { el.hidden = false; });
+    };
+    await paint();
+    setInterval(() => { if (!document.hidden) paint(); }, 30000);
+  }
+
   /* Contact form --------------------------------------------------------- */
 
   /** Wire every enquiry form on the page. Both post to the same endpoint, so
@@ -383,6 +407,7 @@
     runCounters();
     setupForms();
     hydrateHome();
+    hydrateBitcoin();
     observeReveals();
     frame();
   });

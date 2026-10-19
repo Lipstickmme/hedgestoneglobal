@@ -12,7 +12,7 @@ into the set the site needs:
     logomark-dark.png   the H alone
     logomark-light.png  the H, lifted for dark panels
     favicon.png / icon-512.png / apple-touch-icon.png / favicon.ico
-    og-image.png        the card a shared link unfurls into
+    og-image.png        the card a shared link unfurls into (mark only, no name)
 
 Transparency comes from each pixel's distance from the white ground, with a
 steep ramp so the solid colours stay fully opaque (the mint stripe in the mark
@@ -141,7 +141,9 @@ def main():
     icon(mark, 256).save(os.path.join(PUBLIC, 'favicon.ico'), sizes=[(16, 16), (32, 32), (48, 48)])
     print('  wrote favicon.ico')
 
-    # Link card: the lockup on pale paper, a soft green field behind it.
+    # Link card: the mark beside the one thing on offer. The platform's name
+    # is set at the console and can change, so the card does not carry it:
+    # a shared link already shows the page title beside the image.
     W, H = 1200, 630
     card = Image.new('RGBA', (W, H), PAPER + (255,))
     glow = Image.new('RGBA', (W, H), (0, 0, 0, 0))
@@ -149,16 +151,20 @@ def main():
     d.ellipse((760, -220, 1420, 440), fill=(46, 170, 130, 70))
     d.ellipse((-260, 330, 380, 900), fill=(11, 93, 72, 45))
     card.alpha_composite(glow.filter(ImageFilter.GaussianBlur(90)))
-    lock = Image.fromarray(full, 'RGBA')
-    lock = lock.resize((760, round(lock.height * 760 / lock.width)), Image.LANCZOS)
-    card.alpha_composite(lock, ((W - lock.width) // 2, 190))
+    sign = Image.fromarray(mark, 'RGBA')
+    sign = sign.resize((round(sign.width * 210 / sign.height), 210), Image.LANCZOS)
+    card.alpha_composite(sign, (240, 210))
     d = ImageDraw.Draw(card)
-    f = ImageFont.truetype(FONT, 34)
-    tag = 'More control. More possibilities.'
-    d.text(((W - d.textlength(tag, font=f)) / 2, 400), tag, font=f, fill=INK + (255,))
-    f2 = ImageFont.truetype(FONT, 16)
-    foot = 'MEMBER FDIC  ·  EQUAL HOUSING LENDER'
-    d.text(((W - d.textlength(foot, font=f2)) / 2, 560), foot, font=f2, fill=(90, 120, 110, 255))
+    x = 240 + sign.width + 60
+    big = ImageFont.truetype(FONT, 78)
+    heavy = dict(font=big, fill=INK + (255,), stroke_width=2, stroke_fill=INK + (255,))
+    d.text((x, 200), 'Invest in', **heavy)
+    line = 'Bitcoin only.'
+    width = d.textlength(line, font=big)
+    d.rectangle((x - 6, 338, x + width + 10, 370), fill=(244, 200, 140, 255))
+    d.text((x, 284), line, **heavy)
+    small = ImageFont.truetype(FONT, 30)
+    d.text((x, 395), 'Buy from $1. Follow it to maturity.', font=small, fill=(60, 75, 110, 255))
     card.convert('RGB').save(os.path.join(BRAND, 'og-image.png'), optimize=True)
     print('  wrote assets/bank/og-image.png')
     print('[brand] done')

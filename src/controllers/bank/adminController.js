@@ -45,20 +45,17 @@ async function customerOr404(id) {
 /* ------------------------------------------------------------- overview --- */
 
 const overview = asyncHandler(async (req, res) => {
-  const [allUsers, accounts, transfers, deposits, activity, alertRows, disputes, messages] = await Promise.all([
+  const [allUsers, accounts, transfers, activity, alertRows, messages] = await Promise.all([
     db.users.find({}, { order: 'created_at.desc' }),
     db.accounts.find({}),
     db.transfers.find({}, { order: 'created_at.desc', limit: 200 }),
-    db.deposits.find({ status: 'review' }),
     db.activity.find({}, { order: 'created_at.desc', limit: 15 }),
     db.alerts.find({}, { order: 'created_at.desc', limit: 100 }),
-    db.disputes.find({ status: 'open' }),
     db.messages.find({ from_side: 'customer' }, { order: 'created_at.desc', limit: 50 }),
   ]);
 
   const customers = allUsers.filter((u) => u.role === 'customer');
   const deposit = accounts.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1);
-  const credit = accounts.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign === -1);
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
 
   const pendingTransfers = transfers.filter((t) => ['pending_review', 'pending_verification', 'processing'].includes(t.status));
@@ -71,11 +68,8 @@ const overview = asyncHandler(async (req, res) => {
       suspended: customers.filter((u) => u.status === 'suspended').length,
       accounts: accounts.length,
       deposits: deposit.reduce((s, a) => s + Number(a.balance || 0), 0),
-      creditOutstanding: credit.reduce((s, a) => s + Number(a.balance || 0), 0),
       pendingTransfers: pendingTransfers.length,
       pendingTransferValue: pendingTransfers.reduce((s, t) => s + Number(t.total || 0), 0),
-      pendingDeposits: deposits.length,
-      openDisputes: disputes.length,
       unansweredMessages: messages.length,
       alertsSent30d: alertRows.filter((a) => a.created_at >= since).length,
       alertsFailed: alertRows.filter((a) => a.status === 'failed').length,
@@ -140,16 +134,13 @@ const listCustomers = asyncHandler(async (req, res) => {
 /** Everything about one customer, for the profile screen. */
 const customerDetail = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
-  const [accounts, cards, transfers, documents, activity, sessions, beneficiaries, deposits, disputes, alertRows] = await Promise.all([
+  const [accounts, transfers, documents, activity, sessions, beneficiaries, alertRows] = await Promise.all([
     db.accounts.find({ user_id: user.id }, { order: 'created_at.asc' }),
-    db.cards.find({ user_id: user.id }),
     db.transfers.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
     db.documents.find({ user_id: user.id }, { order: 'created_at.desc' }),
     db.activity.find({ user_id: user.id }, { order: 'created_at.desc', limit: 60 }),
     db.sessions.find({ user_id: user.id, revoked_at: null }, { order: 'last_seen_at.desc' }),
     db.beneficiaries.find({ user_id: user.id }),
-    db.deposits.find({ user_id: user.id }, { order: 'created_at.desc', limit: 20 }),
-    db.disputes.find({ user_id: user.id }),
     db.alerts.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
   ]);
   const transactions = await db.transactions.find({ user_id: user.id }, { order: 'date.desc', limit: 60 });
@@ -158,15 +149,12 @@ const customerDetail = asyncHandler(async (req, res) => {
   res.json({
     customer: usersLib.publicUser(user, 'admin'),
     accounts: accounts.map(accountsLib.publicAccount),
-    cards: cards.map(accountsLib.publicCard),
     transfers: transfers.map(transfersLib.publicTransfer),
     transactions: transactions.map((t) => accountsController.publicTransaction(t, byId.get(t.account_id))),
     documents: documents.map(profile.publicDocument),
     activity: activity.map(publicActivity),
     sessions: sessions.map((s) => ({ id: s.id, device: s.device, ip: s.ip, lastSeenAt: s.last_seen_at, createdAt: s.created_at })),
     beneficiaries: beneficiaries.map(money_.publicBeneficiary),
-    deposits: deposits.map(money_.publicDeposit),
-    disputes: disputes.map(money_.publicDispute),
     alerts: alertRows.map((a) => ({ id: a.id, subject: a.subject, type: a.type, status: a.status, createdAt: a.created_at, readAt: a.read_at })),
   });
 });
@@ -174,9 +162,8 @@ const customerDetail = asyncHandler(async (req, res) => {
 /**
  * Register a customer.
  *
- * One call does the whole opening: the person, their identity file, the
- * accounts they leave with, the opening balance on each and the card in the
- * post. That is how it happens at a desk, and splitting it across four
+ * One call does the whole opening: the person, their identity file, their
+ * cash balance and the money they start with. Splitting it across several
  * requests would only invite half-made customers.
  */
 const createCustomer = asyncHandler(async (req, res) => {
@@ -219,20 +206,17 @@ const createCustomer = asyncHandler(async (req, res) => {
     }
   }
 
-  // Accounts. Either a list, or the single product the quick form sends.
+  // The cash balance. Older console forms sent a list of accounts; every
+  // entry opens a cash balance now, so their opening amounts still land.
   const requested = Array.isArray(body.accounts) && body.accounts.length
     ? body.accounts
-    : body.productId
-      ? [{ productId: body.productId, openingBalance: body.openingBalance, nickname: body.nickname }]
-      : [{ productId: 'everyday_checking' }];
+    : [{ openingBalance: body.openingBalance, nickname: body.nickname }];
 
   const opened = [];
   for (const [index, spec] of requested.entries()) {
     const account = await accountsLib.openAccount(user, {
-      productId: spec.productId,
-      type: spec.type,
+      productId: 'investment_cash',
       nickname: trimmed(spec.nickname, 40),
-      creditLimit: spec.creditLimit ? toCents(spec.creditLimit) : undefined,
       openingBalance: spec.openingBalance ? toCents(spec.openingBalance) : 0,
       openingDescription: trimmed(spec.openingDescription, 120) || 'Opening deposit',
       openingMethod: spec.openingMethod || 'adjustment',
@@ -241,12 +225,6 @@ const createCustomer = asyncHandler(async (req, res) => {
       createdById: req.bankUser.id,
     });
     opened.push(account);
-    if (spec.issueCard !== false && ['checking', 'savings', 'credit', 'money_market'].includes(account.type)) {
-      await accountsLib.issueCard(user, account, {
-        brand: account.type === 'credit' ? 'mastercard' : 'visa',
-        kind: account.type === 'credit' ? 'credit' : 'debit',
-      });
-    }
   }
 
   await audit.log({
@@ -262,7 +240,7 @@ const createCustomer = asyncHandler(async (req, res) => {
     force: true,
     subject: `Welcome to ${cfg.bankName || BANK.name}`,
     heading: `Welcome to ${cfg.bankName || BANK.name}`,
-    intro: `Your online banking is ready, ${user.first_name}. Here is what we opened for you.`,
+    intro: `Your account is ready, ${user.first_name}. Sign in to buy Bitcoin and follow your investment.`,
     rows: [
       { label: 'Customer number', value: user.customer_number },
       { label: 'Username', value: user.email },
@@ -271,7 +249,6 @@ const createCustomer = asyncHandler(async (req, res) => {
         label: `${a.name} ${ids.maskAccount(a.account_number)}`,
         value: money(a.balance),
       })),
-      { label: 'Routing number', value: cfg.routingNumber || BANK.routingNumber },
     ],
     body: temporaryPassword
       ? 'Sign in with the temporary password above. You will be asked to choose your own the first time.'
@@ -315,7 +292,7 @@ const updateCustomer = asyncHandler(async (req, res) => {
     meta: { fields: changed },
   });
   await alerts.notifyUser(after, 'profile_changed', {
-    subject: 'Your Hedgestone account details were updated',
+    subject: `Your ${BANK.name} account details were updated`,
     heading: 'Your details changed',
     intro: 'A member of our team updated the following on your account.',
     rows: changed.map((f) => ({ label: f.replace(/_/g, ' '), value: String(after[f] ?? '-') })),
@@ -341,7 +318,7 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'profile_changed', {
     force: true,
-    subject: `Your Hedgestone account is now ${status}`,
+    subject: `Your ${BANK.name} account is now ${status}`,
     heading: `Account ${status}`,
     intro: reason || `Your online banking access is now ${status}.`,
     footNote: `Questions? Please ${contact.callSupport()}.`,
@@ -402,7 +379,7 @@ const resetCustomerPassword = asyncHandler(async (req, res) => {
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'password_changed', {
     force: true,
-    subject: 'A temporary Hedgestone password has been issued',
+    subject: `A temporary ${BANK.name} password has been issued`,
     heading: 'Your password was reset by our team',
     intro: 'Use the temporary password below to sign in, then choose your own.',
     rows: [{ label: 'Temporary password', value: temporary }],
@@ -444,23 +421,13 @@ const uploadCustomerDocument = asyncHandler(async (req, res) => {
 const openAccountForCustomer = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
   const account = await accountsLib.openAccount(user, {
-    productId: req.body.productId,
-    type: req.body.type,
+    productId: 'investment_cash',
     nickname: trimmed(req.body.nickname, 40),
-    creditLimit: req.body.creditLimit ? toCents(req.body.creditLimit) : undefined,
-    overdraftLimit: req.body.overdraftLimit ? toCents(req.body.overdraftLimit) : undefined,
-    interestRate: req.body.interestRate,
     openingBalance: req.body.openingBalance ? toCents(req.body.openingBalance) : 0,
     openingDescription: trimmed(req.body.openingDescription, 120) || 'Opening deposit',
     createdBy: 'admin',
     createdById: req.bankUser.id,
   });
-  if (req.body.issueCard) {
-    await accountsLib.issueCard(user, account, {
-      brand: account.type === 'credit' ? 'mastercard' : 'visa',
-      kind: account.type === 'credit' ? 'credit' : 'debit',
-    });
-  }
   await audit.log({
     action: 'admin.account_opened', category: 'admin', userId: user.id, req, severity: 'notice',
     actor: actorOf(req),
@@ -473,7 +440,6 @@ const openAccountForCustomer = asyncHandler(async (req, res) => {
     intro: `${account.name} is ready to use.`,
     rows: [
       { label: 'Account', value: ids.maskAccount(account.account_number) },
-      { label: 'Routing number', value: account.routing_number },
       { label: 'Opening balance', value: money(account.balance) },
     ],
   });
@@ -634,7 +600,7 @@ const updateTransaction = asyncHandler(async (req, res) => {
   const trade = await db.trades.findOne({ transaction_id: tx.id }).catch(() => null);
   const newAmount = req.body.amount !== undefined && req.body.amount !== '' ? toCents(req.body.amount) : null;
   if (newAmount != null && newAmount !== Number(tx.amount)) {
-    if (trade) throw fail(409, 'A conversion\'s amount comes from its units and price. Reverse it and book it again at the right figures.');
+    if (trade) throw fail(409, 'A Bitcoin purchase\'s amount comes from its units and price. Reverse it and book it again at the right figures.');
     await ledger.amend(tx.id, { amount: newAmount });
     patch.amount = newAmount;
   }
@@ -687,7 +653,7 @@ const settleTransaction = asyncHandler(async (req, res) => {
   });
 });
 
-/* ------------------------------------------------------- transfer queue --- */
+/* ---------------------------------------------------- withdrawal queue --- */
 
 const listTransfers = asyncHandler(async (req, res) => {
   const { limit, offset } = page(req.query);
@@ -711,9 +677,9 @@ const listTransfers = asyncHandler(async (req, res) => {
 
 const approveTransfer = asyncHandler(async (req, res) => {
   const transfer = await db.transfers.findById(req.params.id);
-  if (!transfer) throw fail(404, 'Transfer not found.');
+  if (!transfer) throw fail(404, 'Withdrawal not found.');
   if (!['pending_review', 'pending_verification', 'processing', 'scheduled'].includes(transfer.status)) {
-    throw fail(409, `That transfer is already ${transfer.status}.`);
+    throw fail(409, `That withdrawal is already ${transfer.status}.`);
   }
   const owner = await db.users.findById(transfer.user_id);
   const result = await transfersLib.complete(owner, transfer, {
@@ -728,7 +694,7 @@ const approveTransfer = asyncHandler(async (req, res) => {
 
 const rejectTransfer = asyncHandler(async (req, res) => {
   const transfer = await db.transfers.findById(req.params.id);
-  if (!transfer) throw fail(404, 'Transfer not found.');
+  if (!transfer) throw fail(404, 'Withdrawal not found.');
   const updated = await transfersLib.reject(transfer, {
     reasonCode: trimmed(req.body.reasonCode, 40) || 'other',
     note: trimmed(req.body.note, 300),
@@ -739,115 +705,11 @@ const rejectTransfer = asyncHandler(async (req, res) => {
   res.json({ transfer: transfersLib.publicTransfer(updated) });
 });
 
-/* -------------------------------------------------------------- deposits --- */
-
-const listDeposits = asyncHandler(async (req, res) => {
-  const rows = await db.deposits.find({}, { order: 'created_at.desc', limit: 100 });
-  const out = [];
-  for (const row of rows) {
-    if (req.query.status && row.status !== req.query.status) continue;
-    const owner = await db.users.findById(row.user_id);
-    out.push({ ...money_.publicDeposit(row), customer: owner ? usersLib.publicUser(owner, 'summary') : null });
-  }
-  res.json({ deposits: out });
-});
-
-const reviewDeposit = asyncHandler(async (req, res) => {
-  const deposit = await db.deposits.findById(req.params.id);
-  if (!deposit) throw fail(404, 'Deposit not found.');
-  const approve = req.body.action !== 'reject';
-  const note = trimmed(req.body.note, 300);
-  const owner = await db.users.findById(deposit.user_id);
-
-  await ledger.settle(deposit.transaction_id, { status: approve ? 'posted' : 'failed', note });
-  await db.deposits.update(deposit.id, {
-    status: approve ? 'accepted' : 'rejected',
-    reason_note: note,
-    reviewed_by: req.bankUser.id,
-    reviewed_at: nowIso(),
-  });
-
-  await audit.log({
-    action: approve ? 'admin.deposit_accepted' : 'admin.deposit_rejected',
-    category: 'admin', userId: deposit.user_id, req, severity: approve ? 'notice' : 'warning',
-    actor: actorOf(req), detail: `${approve ? 'Accepted' : 'Returned'} check deposit ${deposit.reference} (${money(deposit.amount)})`,
-  });
-  if (owner) {
-    await alerts.notifyUser(owner, 'deposit_posted', {
-      force: !approve,
-      subject: approve ? `Check deposit posted - ${money(deposit.amount)}` : `Check deposit returned - ${money(deposit.amount)}`,
-      heading: approve ? 'Your deposit has cleared' : 'We could not accept this check',
-      intro: approve
-        ? `${money(deposit.amount)} is now available in full.`
-        : note || 'The image was not clear enough to process. Please deposit the check at a branch.',
-      rows: [
-        { label: 'Amount', value: money(deposit.amount) },
-        { label: 'Reference', value: deposit.reference },
-      ],
-      severity: approve ? 'info' : 'warning',
-    });
-  }
-  res.json({ deposit: money_.publicDeposit(await db.deposits.findById(deposit.id)) });
-});
-
-/* ----------------------------------------------------------------- cards --- */
-
-const listCards = asyncHandler(async (req, res) => {
-  const rows = await db.cards.find({}, { order: 'created_at.desc', limit: 200 });
-  // One query for every owner on the page, not one per card.
-  const owners = await db.users.findByIds(rows.map((c) => c.user_id));
-  res.json({
-    cards: rows.map((card) => ({
-      ...accountsLib.publicCard(card),
-      customer: owners.has(card.user_id) ? usersLib.publicUser(owners.get(card.user_id), 'summary') : null,
-    })),
-  });
-});
-
-const issueCard = asyncHandler(async (req, res) => {
-  const account = await db.accounts.findById(req.body.accountId);
-  if (!account) throw fail(404, 'Account not found.');
-  const owner = await db.users.findById(account.user_id);
-  const card = await accountsLib.issueCard(owner, account, {
-    brand: trimmed(req.body.brand, 20) || 'visa',
-    kind: trimmed(req.body.kind, 20) || (account.type === 'credit' ? 'credit' : 'debit'),
-    dailyPurchaseLimit: req.body.dailyPurchaseLimit ? toCents(req.body.dailyPurchaseLimit) : undefined,
-    dailyAtmLimit: req.body.dailyAtmLimit ? toCents(req.body.dailyAtmLimit) : undefined,
-  });
-  await audit.log({
-    action: 'admin.card_issued', category: 'admin', userId: account.user_id, req,
-    actor: actorOf(req), detail: `Issued a ${card.brand} ${card.kind} card ending ${card.last4}`,
-  });
-  await alerts.notifyUser(owner, 'card_activity', {
-    subject: 'A new card is on its way',
-    heading: 'Your new card has been ordered',
-    intro: `Your ${card.brand} ${card.kind} card ending ${card.last4} will arrive in 5 to 7 business days.`,
-  });
-  res.status(201).json({ card: accountsLib.publicCard(card) });
-});
-
-const updateCard = asyncHandler(async (req, res) => {
-  const card = await db.cards.findById(req.params.id);
-  if (!card) throw fail(404, 'Card not found.');
-  const patch = {};
-  if (req.body.status !== undefined) patch.status = trimmed(req.body.status, 20);
-  if (req.body.dailyPurchaseLimit !== undefined) patch.daily_purchase_limit = toCents(req.body.dailyPurchaseLimit) || 0;
-  if (req.body.dailyAtmLimit !== undefined) patch.daily_atm_limit = toCents(req.body.dailyAtmLimit) || 0;
-  if (req.body.internationalAllowed !== undefined) patch.international_allowed = Boolean(req.body.internationalAllowed);
-  if (!Object.keys(patch).length) throw fail(400, 'Nothing to change.');
-  await db.cards.update(card.id, patch);
-  await audit.log({
-    action: 'admin.card_updated', category: 'admin', userId: card.user_id, req,
-    actor: actorOf(req), detail: `Updated card ending ${card.last4}`,
-  });
-  res.json({ card: accountsLib.publicCard(await db.cards.findById(card.id)) });
-});
-
-/* ------------------------------------------------------------- recipients --- */
+/* ------------------------------------------------- withdrawal accounts --- */
 
 const reviewBeneficiary = asyncHandler(async (req, res) => {
   const row = await db.beneficiaries.findById(req.params.id);
-  if (!row) throw fail(404, 'Recipient not found.');
+  if (!row) throw fail(404, 'Withdrawal account not found.');
   const status = trimmed(req.body.status, 20);
   if (!['pending', 'verified', 'blocked'].includes(status)) throw fail(400, 'Unknown status.');
   await db.beneficiaries.update(row.id, { status, verified_at: status === 'verified' ? nowIso() : null });
@@ -1042,71 +904,6 @@ const replyToMessage = asyncHandler(async (req, res) => {
   res.status(201).json({ message: { id: row.id, from: 'bank', body, createdAt: row.created_at } });
 });
 
-/* --------------------------------------------------------------- disputes --- */
-
-const listDisputes = asyncHandler(async (req, res) => {
-  const rows = await db.disputes.find({}, { order: 'created_at.desc' });
-  const owners = await db.users.findByIds(rows.map((r) => r.user_id));
-  res.json({
-    disputes: rows.map((row) => ({
-      ...money_.publicDispute(row),
-      customer: owners.has(row.user_id) ? usersLib.publicUser(owners.get(row.user_id), 'summary') : null,
-    })),
-  });
-});
-
-const resolveDispute = asyncHandler(async (req, res) => {
-  const dispute = await db.disputes.findById(req.params.id);
-  if (!dispute) throw fail(404, 'Claim not found.');
-  const outcome = trimmed(req.body.outcome, 20); // upheld | declined | provisional
-  const note = trimmed(req.body.note, 500);
-  const owner = await db.users.findById(dispute.user_id);
-
-  const patch = { resolution: note, handled_by: req.bankUser.id };
-  if (outcome === 'provisional') {
-    patch.status = 'provisional_credit';
-    patch.provisional_credit = true;
-  } else {
-    patch.status = outcome === 'upheld' ? 'resolved_credit' : 'resolved_declined';
-    patch.resolved_at = nowIso();
-  }
-
-  if (outcome === 'upheld' || outcome === 'provisional') {
-    await ledger.post({
-      accountId: dispute.account_id,
-      direction: 'credit',
-      amount: dispute.amount,
-      description: outcome === 'provisional' ? `PROVISIONAL CREDIT ${dispute.reference}` : `CLAIM CREDIT ${dispute.reference}`,
-      method: 'adjustment',
-      category: 'Refunds',
-      status: 'posted',
-      createdBy: 'admin',
-      createdById: req.bankUser.id,
-      memo: note,
-    });
-  }
-
-  await db.disputes.update(dispute.id, patch);
-  await audit.log({
-    action: 'admin.dispute_resolved', category: 'admin', userId: dispute.user_id, req, severity: 'notice',
-    actor: actorOf(req), detail: `Claim ${dispute.reference} ${patch.status.replace(/_/g, ' ')}`,
-  });
-  if (owner) {
-    await alerts.notifyUser(owner, 'card_activity', {
-      force: true,
-      subject: `Claim ${dispute.reference} - ${outcome === 'declined' ? 'decision' : 'credit applied'}`,
-      heading: outcome === 'declined' ? 'We have finished looking at your claim' : 'A credit has been applied',
-      intro: note || 'Our disputes team has reached a decision on your claim.',
-      rows: [
-        { label: 'Claim', value: dispute.reference },
-        { label: 'Amount', value: money(dispute.amount) },
-        { label: 'Outcome', value: patch.status.replace(/_/g, ' ') },
-      ],
-    });
-  }
-  res.json({ dispute: money_.publicDispute(await db.disputes.findById(dispute.id)) });
-});
-
 /* --------------------------------------------------------------- settings --- */
 
 const getSettings = asyncHandler(async (req, res) => {
@@ -1131,6 +928,24 @@ const updateSettings = asyncHandler(async (req, res) => {
   if (incoming.routingNumber && !ids.validateRouting(incoming.routingNumber)) {
     throw fail(400, 'That routing number does not pass the ABA checksum.');
   }
+  // Terms are whole months. The list is what a customer chooses from; the
+  // default is preselected, so it has to be one of them.
+  const months = (v) => Number(v);
+  const valid = (n) => Number.isInteger(n) && n >= 1 && n <= 120;
+  if (incoming.investmentTerms !== undefined) {
+    const list = (Array.isArray(incoming.investmentTerms) ? incoming.investmentTerms : String(incoming.investmentTerms).split(/[\s,]+/))
+      .filter((v) => String(v).trim() !== '').map(months);
+    if (!list.length || !list.every(valid)) throw fail(400, 'Terms are whole numbers of months between 1 and 120, separated by commas.');
+    incoming.investmentTerms = Array.from(new Set(list)).sort((a, b) => a - b);
+  }
+  if (incoming.investmentTermMonths !== undefined) {
+    const n = months(incoming.investmentTermMonths);
+    if (!valid(n)) throw fail(400, 'The default term is a whole number of months between 1 and 120.');
+    incoming.investmentTermMonths = n;
+  }
+  const terms = incoming.investmentTerms || (await settingsLib.get()).investmentTerms || [];
+  const fallback = incoming.investmentTermMonths != null ? incoming.investmentTermMonths : (await settingsLib.get()).investmentTermMonths;
+  if (terms.length && !terms.includes(fallback)) throw fail(400, `The default term (${fallback} months) must be one of the terms offered.`);
   const saved = await settingsLib.save(incoming);
   await audit.log({
     action: 'admin.settings_updated', category: 'admin', req, severity: 'notice',
@@ -1169,11 +984,6 @@ module.exports = {
   listTransfers,
   approveTransfer,
   rejectTransfer,
-  listDeposits,
-  reviewDeposit,
-  listCards,
-  issueCard,
-  updateCard,
   reviewBeneficiary,
   listActivity,
   exportActivity,
@@ -1181,8 +991,6 @@ module.exports = {
   sendAlert,
   listMessages,
   replyToMessage,
-  listDisputes,
-  resolveDispute,
   getSettings,
   updateSettings,
   runScheduled,

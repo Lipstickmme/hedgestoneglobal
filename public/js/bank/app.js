@@ -1,12 +1,12 @@
 'use strict';
 
 /**
- * The pages a customer spends their time on: the dashboard, accounts,
- * transactions, statements, cards, alerts and secure messages.
+ * The pages a customer spends their time on: the dashboard, transactions,
+ * alerts and secure messages.
  *
  * One script for all of them, with a small router at the bottom, because they
- * share the same rendering helpers and loading the same 20kB once is cheaper
- * than seven files that each redefine a transaction row.
+ * share the same rendering helpers and loading the same script once is
+ * cheaper than four files that each redefine a transaction row.
  */
 
 (function () {
@@ -14,21 +14,6 @@
   const { api, qs, qsa, esc, money, signedMoney, date, datetime, ago, toast, badge } = RF;
 
   /* ------------------------------------------------------------- shared -- */
-
-  /** One row of the transaction tables, used on three different screens. */
-  function txRow(tx, { showAccount = true, showBalance = true } = {}) {
-    return `<tr class="clickable" data-tx="${esc(tx.id)}">
-      <td class="rf-nowrap">${date(tx.date, { month: 'short', day: 'numeric' })}<span class="sub">${new Date(tx.date).getFullYear()}</span></td>
-      <td>
-        <strong>${esc(tx.description)}</strong>
-        <span class="sub">${esc(tx.category)}${tx.memo ? ` &middot; ${esc(tx.memo)}` : ''}</span>
-      </td>
-      ${showAccount ? `<td class="rf-nowrap rf-small opt">${esc(tx.accountName || '')}<span class="sub">&bull;&bull;${esc(tx.accountLast4 || '')}</span></td>` : ''}
-      <td>${tx.status === 'posted' ? '' : badge(tx.status)}</td>
-      <td class="num rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</td>
-      ${showBalance ? `<td class="num rf-muted opt">${tx.balanceAfter == null ? '&mdash;' : money(tx.balanceAfter)}</td>` : ''}
-    </tr>`;
-  }
 
   /** The detail sheet for one entry, opened from any transaction table. */
   async function openTransaction(id) {
@@ -52,13 +37,12 @@
       ['Balance after', tx.balanceAfter == null ? '&mdash;' : money(tx.balanceAfter)],
       ['Reference', `<span class="rf-mono">${esc(tx.reference)}</span>`],
     ];
-    if (tx.traceNumber) rows.push(['ACH trace', `<span class="rf-mono">${esc(tx.traceNumber)}</span>`]);
-    if (tx.checkNumber) rows.push(['Check number', esc(tx.checkNumber)]);
+    if (tx.traceNumber) rows.push(['Trace reference', `<span class="rf-mono">${esc(tx.traceNumber)}</span>`]);
     if (tx.location) rows.push(['Where', esc(tx.location)]);
     if (tx.memo) rows.push(['Memo', esc(tx.memo)]);
     if (tx.counterparty && tx.counterparty.name) {
       rows.push(['Counterparty', esc(tx.counterparty.name)]);
-      if (tx.counterparty.bank) rows.push(['Their bank', esc(tx.counterparty.bank)]);
+      if (tx.counterparty.bank) rows.push(['Held at', esc(tx.counterparty.bank)]);
       if (tx.counterparty.accountMasked || tx.counterparty.account_masked) {
         rows.push(['Their account', esc(tx.counterparty.accountMasked || tx.counterparty.account_masked)]);
       }
@@ -75,9 +59,7 @@
         </div>
         <div class="rf-modal-body">
           <dl class="rf-dl">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
-          ${data.dispute
-    ? `<div class="rf-notice warn rf-mt"><div><strong>Claim ${esc(data.dispute.reference)}</strong>${esc(data.dispute.status.replace(/_/g, ' '))}</div></div>`
-    : `<div class="rf-mt"><button class="rf-btn ghost sm" data-dispute>Something is wrong with this transaction</button></div>`}
+          <p class="rf-small rf-muted rf-mt">Something wrong with this entry? <a href="/messages">Send us a message</a> and quote the reference.</p>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -85,27 +67,11 @@
     RF.modal.open(el);
     el.addEventListener('click', (event) => { if (event.target === el) el.remove(); });
     qsa('[data-close-modal]', el).forEach((b) => b.addEventListener('click', () => el.remove()));
-
-    const disputeBtn = qs('[data-dispute]', el);
-    if (disputeBtn) {
-      disputeBtn.addEventListener('click', async () => {
-        const detail = prompt('Tell us what is wrong with this transaction:');
-        if (!detail) return;
-        try {
-          const res = await api.post('/disputes', { transactionId: tx.id, reason: 'unauthorized', detail });
-          toast(`Claim ${res.dispute.reference} opened. We will write within 10 business days.`, 'ok');
-          el.remove();
-          document.body.style.overflow = '';
-        } catch (err) {
-          toast(err.message, 'bad');
-        }
-      });
-    }
   }
 
   /** Every transaction table on the page gets click-to-open, once. */
   function wireTxTables(root) {
-    qsa('[data-recent], [data-rows], [data-detail-transactions]', root || document).forEach((tbody) => {
+    qsa('[data-recent-list], [data-rows]', root || document).forEach((tbody) => {
       if (tbody.dataset.wired) return;
       tbody.dataset.wired = '1';
       tbody.addEventListener('click', (event) => {
@@ -115,228 +81,322 @@
     });
   }
 
-  const accountTile = (account) => `
-    <div class="rf-acct ${account.isCredit ? 'credit' : ''}">
-      <a class="hs-acct-link" href="/accounts?id=${esc(account.id)}" aria-label="${esc(account.nickname || account.name)} details"></a>
-      <div class="top">
-        <strong>${esc(account.nickname || account.name)}</strong>
-        ${account.status === 'active' ? `<span class="hs-acct-type">${esc(account.typeLabel || '')}</span>` : badge(account.status)}
-      </div>
-      <div class="no">${esc(account.accountMask)}</div>
-      <div class="bal">${money(account.balance)}</div>
-      <div class="meta">
-        ${account.isCredit
-    ? `<span>${money(account.availableBalance)} available to spend</span>`
-    : `<span>${money(account.availableBalance)} available</span>`}
-        ${account.holdAmount ? `<span>${money(account.holdAmount)} on hold</span>` : ''}
-      </div>
-      ${account.isCredit || account.status !== 'active' ? '' : `<div class="hs-acct-actions">
-        <a href="/transfers?from=${esc(account.id)}">Transfer</a>
-        <a href="/invest?from=${esc(account.id)}" class="is-primary">Convert</a>
-      </div>`}
-    </div>`;
-
   /* ---------------------------------------------------------- dashboard -- */
 
-  async function dashboard() {
-    const data = await api.get('/overview');
+  const pct = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(Number(n)).toFixed(2)}%`;
+  const signed = (cents) => `${cents >= 0 ? '+' : '−'}${money(Math.abs(cents))}`;
+  const longDate = (iso) => date(iso, { day: 'numeric', month: 'short', year: 'numeric' });
+  const DAY = 86400000;
 
-    // Investments fill in on their own, so a slow price feed never holds up the balances.
-    const cash = data.totals.deposits;
-    const paintHero = (invested) => {
-      const total = qs('[data-hero="total"]');
-      if (!total) return;
-      total.textContent = money(cash + (invested || 0));
-      qs('[data-hero="cash"]').textContent = money(cash);
-      qs('[data-hero="invested"]').textContent = invested == null ? '—' : money(invested);
-    };
-    paintHero(null);
-    // What the invested figure is made of, beside it: each asset's mark, its
-    // symbol and what it is worth now, largest first.
-    const paintHeroAssets = (holdings) => {
-      const box = qs('[data-hero="assets"]');
-      if (!box) return;
-      const held = holdings.filter((h) => h.value != null).sort((a, b) => b.value - a.value);
-      if (!held.length) { box.hidden = true; return; }
-      const L = window.HSAssets || { logo: () => '' };
-      const MAX = 5;
-      // Cents in; whole dollars once there are thousands, so the row stays short.
-      const whole = (cents) => (Math.abs(cents) >= 100000
-        ? `$${Math.round(cents / 100).toLocaleString('en-US')}`
-        : money(cents));
-      box.innerHTML = held.slice(0, MAX).map((h) => `<span class="hs-hero-asset" title="${esc(h.name)}: ${esc(h.units)} ${esc(h.symbol)}, ${money(h.value)}">
-          ${L.logo(h.symbol, 22)}<span>${esc(h.symbol)}</span><b>${whole(h.value)}</b>
-        </span>`).join('') + (held.length > MAX ? `<span class="hs-hero-asset more">+${held.length - MAX} more</span>` : '');
-      box.setAttribute('aria-label', `Invested in ${held.map((h) => `${h.name} ${money(h.value)}`).join(', ')}. Open Invest.`);
-      box.hidden = false;
-    };
-    api.get('/invest').then((inv) => {
-      paintHero(inv.totals.value);
-      paintHeroAssets(inv.holdings);
-      const box = qs('[data-dash-invest]');
-      if (!box) return;
-      if (!inv.holdings.length) {
-        box.innerHTML = '<strong>$0.00</strong><small>Turn part of your balance into the S&amp;P 500, Bitcoin, gold or leading stocks, in one tap.</small>';
-        return;
-      }
-      // The breakdown: how the portfolio is split, then every holding.
-      const L = window.HSAssets || { logo: () => '', color: () => '#0b6b50' };
-      const total = inv.totals.value || 1;
-      const rows = inv.holdings.map((h) => ({ ...h, share: h.value == null ? 0 : (h.value / total) * 100 }));
-      const pct = (n) => `${n >= 0 ? '+' : ''}${Number(n).toFixed(2)}%`;
-      box.innerHTML = `<strong>${money(inv.totals.value)}</strong>
-        <small>${inv.holdings.length} asset${inv.holdings.length === 1 ? '' : 's'} &middot; cost ${money(inv.totals.cost)} &middot; <span class="rf-amt ${inv.totals.gain >= 0 ? 'credit' : 'debit'}">${inv.totals.gain >= 0 ? '+' : '-'}${money(Math.abs(inv.totals.gain))}${inv.totals.gainPct == null ? '' : ` (${pct(inv.totals.gainPct)})`}</span> all time</small>
-        <div class="hs-alloc" role="img" aria-label="${esc(rows.map((h) => `${h.name} ${h.share.toFixed(0)}%`).join(', '))}">
-          ${rows.map((h) => `<span style="width:${Math.max(h.share, 1.5).toFixed(2)}%;background:${L.color(h.symbol)}" title="${esc(h.name)} ${h.share.toFixed(1)}%"></span>`).join('')}
-        </div>
-        <ul class="hs-dash-holdings">${rows.map((h) => `<li>
-          ${L.logo(h.symbol, 34, h.name)}
-          <span class="n"><b>${esc(h.name)}</b><em>${esc(h.units)} ${esc(h.symbol)} &middot; ${h.share.toFixed(1)}% of portfolio</em></span>
-          <span class="v">${h.value == null ? '&mdash;' : money(h.value)}<em class="${(h.gain || 0) >= 0 ? 'up' : 'down'}">${h.gain == null ? '' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}${h.gainPct == null ? '' : ` (${pct(h.gainPct)})`}`}</em>${h.dayChangePct == null ? '' : `<em class="day ${h.dayChangePct >= 0 ? 'up' : 'down'}">${pct(h.dayChangePct)} today</em>`}</span>
-        </li>`).join('')}</ul>`;
-    }).catch(() => {});
-
-    const heading = qs('.rf-top h1');
-    if (heading && data.user) {
-      const hour = new Date().getHours();
-      const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-      heading.textContent = `${part}, ${data.user.preferredName || data.user.firstName || ''}`.trim();
-    }
-
-    qs('[data-total="deposits"]').textContent = money(data.totals.deposits);
-    qs('[data-total="available"]').textContent = money(data.totals.available);
-    qs('[data-total="owed"]').textContent = money(data.totals.owed);
-    qs('[data-total="creditAvailable"]').textContent = money(data.totals.creditAvailable);
-    const deposits = data.accounts.filter((a) => !a.isCredit).length;
-    qs('[data-total-sub="deposits"]').textContent = `across ${deposits} ${deposits === 1 ? 'account' : 'accounts'}`;
-    const owedSub = qs('[data-total-sub="owed"]');
-    if (owedSub) owedSub.textContent = data.totals.owed ? 'due on your card' : 'nothing owed';
-
-    qs('[data-accounts]').innerHTML = data.accounts.map(accountTile).join('')
-      || '<div class="rf-card rf-empty">No accounts yet.</div>';
-
-    qs('[data-recent]').innerHTML = data.recent.length
-      ? data.recent.map((tx) => txRow(tx)).join('')
-      : '<tr><td colspan="6" class="rf-center rf-muted">Nothing yet.</td></tr>';
-
-    // Six months in and out.
-    const months = data.months || [];
-    const peak = Math.max(1, ...months.flatMap((m) => [m.in, m.out]));
-    qs('[data-months]').innerHTML = months.map((m) => `
-      <div class="col">
-        <div class="pair">
-          <div class="bar in" style="height:${Math.max(3, (m.in / peak) * 100)}%" title="In ${money(m.in)}"></div>
-          <div class="bar out" style="height:${Math.max(3, (m.out / peak) * 100)}%" title="Out ${money(m.out)}"></div>
-        </div>
-        <span class="lbl">${esc(m.label)}</span>
-      </div>`).join('');
-
-    // Spending by category.
-    const spending = (data.spending || []).slice(0, 6);
-    const spendHost = qs('[data-spending]');
-    if (spending.length) {
-      const coloured = spending.map((s, i) => ({ ...s, color: RF.CHART_COLORS[i % RF.CHART_COLORS.length] }));
-      const total = coloured.reduce((sum, s) => sum + s.amount, 0);
-      spendHost.innerHTML = `
-        ${RF.donut(coloured.map((s) => ({ label: s.category, amount: s.amount, color: s.color })))}
-        <ul class="rf-list legend">
-          ${coloured.map((s) => `<li><span class="sw" style="background:${s.color}"></span><span>${esc(s.category)}</span><span class="amt">${money(s.amount)}</span></li>`).join('')}
-          <li><span class="sw" style="background:transparent"></span><strong>Total</strong><span class="amt">${money(total)}</span></li>
-        </ul>`;
-    } else {
-      spendHost.innerHTML = '<p class="rf-muted rf-small">No card spending in the last 30 days.</p>';
-    }
-
-    const pending = qs('[data-pending]');
-    pending.innerHTML = data.pending.length
-      ? data.pending.map((tx) => `<li>
-          <span class="t"><strong>${esc(tx.description)}</strong><span>${date(tx.date)} &middot; ${esc(tx.accountName)}</span></span>
-          <span class="rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</span>
-        </li>`).join('')
-      : '<li class="rf-muted rf-small">Nothing pending.</li>';
-
-    const upcoming = qs('[data-upcoming]');
-    upcoming.innerHTML = data.upcoming.length
-      ? data.upcoming.map((bill) => `<li>
-          <span class="t"><strong>${esc(bill.name)}</strong><span>${date(bill.dueDate)} &middot; ${esc(bill.category)}</span></span>
-          <span class="rf-amt">${money(bill.amount)}</span>
-        </li>`).join('')
-      : '<li class="rf-muted rf-small">No scheduled payments.</li>';
-
-    wireTxTables();
+  /** "1 year, 3 months" or "95 days": how long, in words that suit the size. */
+  function span(days) {
+    if (days < 62) return `${days} day${days === 1 ? '' : 's'}`;
+    const months = Math.round(days / 30.44);
+    const years = Math.floor(months / 12);
+    const rest = months % 12;
+    if (!years) return `${months} months`;
+    return `${years} year${years === 1 ? '' : 's'}${rest ? `, ${rest} month${rest === 1 ? '' : 's'}` : ''}`;
   }
 
-  /* ----------------------------------------------------------- accounts -- */
+  async function dashboard() {
+    const heading = qs('.rf-top h1');
+    const overview = api.get('/overview').then((data) => {
+      if (heading && data.user) {
+        const hour = new Date().getHours();
+        const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+        heading.textContent = `${part}, ${data.user.preferredName || data.user.firstName || ''}`.trim();
+      }
+      qs('[data-stat="cash"]').textContent = money(data.totals.available);
+      if (data.totals.available !== data.totals.deposits) {
+        qs('[data-stat="cashSub"]').textContent = `of ${money(data.totals.deposits)}; the rest is on hold`;
+      }
+      const recent = data.recent.slice(0, 6);
+      qs('[data-recent-list]').innerHTML = recent.length
+        ? recent.map((tx) => `<li class="clickable" data-tx="${esc(tx.id)}">
+            <span class="t"><strong>${esc(tx.description)}</strong><span>${date(tx.date)}${tx.status === 'posted' ? '' : ` &middot; ${esc(tx.status)}`}</span></span>
+            <span class="rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</span>
+          </li>`).join('')
+        : '<li class="rf-muted rf-small">Nothing yet.</li>';
+      wireTxTables();
+    });
 
-  async function accountsPage() {
-    const { accounts } = await api.get('/accounts');
-    qs('[data-accounts]').innerHTML = accounts.map(accountTile).join('')
-      || '<div class="rf-card rf-empty"><strong>No accounts yet</strong>Call us and we will open one.</div>';
+    const inv = await api.get('/invest');
+    const btc = inv.bitcoin;
+    const positions = inv.positions || [];
 
-    const panel = qs('[data-account-detail]');
-    const closeBtn = qs('[data-close-detail]');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        panel.hidden = true;
-        history.replaceState(null, '', '/accounts');
+    // The headline: what the Bitcoin is worth, what went in, and the difference.
+    qs('[data-hero="value"]').textContent = btc.value == null ? '—' : money(btc.value);
+    qs('[data-hero="cost"]').textContent = money(btc.cost);
+    const gainEl = qs('[data-hero="gain"]');
+    gainEl.textContent = btc.value == null ? '—' : `${signed(btc.gain)}${btc.gainPct == null ? '' : ` (${pct(btc.gainPct)})`}`;
+    gainEl.classList.toggle('down', (btc.gain || 0) < 0);
+    qs('[data-hero="units"]').textContent = `${btc.units} BTC`;
+
+    if (btc.firstPurchasedAt) {
+      const held = Math.floor((Date.now() - new Date(btc.firstPurchasedAt).getTime()) / DAY);
+      qs('[data-stat="since"]').textContent = longDate(btc.firstPurchasedAt);
+      qs('[data-stat="sinceSub"]').textContent = `${span(held)} invested`;
+    } else {
+      qs('[data-stat="since"]').textContent = 'Not yet';
+      qs('[data-stat="sinceSub"]').textContent = 'Buy Bitcoin to start';
+    }
+    if (btc.nextMaturity) {
+      const left = Math.max(0, Math.ceil((new Date(btc.nextMaturity).getTime() - Date.now()) / DAY));
+      qs('[data-stat="maturity"]').textContent = longDate(btc.nextMaturity);
+      qs('[data-stat="maturitySub"]').textContent = `${span(left)} to go`;
+    } else {
+      qs('[data-stat="maturity"]').textContent = positions.length ? 'All matured' : '—';
+      qs('[data-stat="maturitySub"]').textContent = positions.length ? 'Every purchase has reached its term' : 'Chosen when you buy';
+    }
+    if (btc.price) {
+      qs('[data-stat="price"]').textContent = money(btc.price);
+      qs('[data-stat="priceSub"]').innerHTML = `${btc.dayChangePct == null ? '' : `<span class="rf-amt ${btc.dayChangePct >= 0 ? 'credit' : 'debit'}">${pct(btc.dayChangePct)}</span> today &middot; `}${esc(btc.source)}`;
+    }
+
+    // Each purchase, as a row: what went in, what it is worth now.
+    qs('[data-positions]').innerHTML = positions.length
+      ? positions.slice().reverse().map((p) => `<tr>
+          <td class="rf-nowrap">${longDate(p.purchasedAt)}<span class="sub">${money(p.cost)} &middot; ${esc(p.units)} BTC</span></td>
+          <td class="num opt">${money(p.cost)}</td>
+          <td class="num opt">${p.price ? money(p.price) : '&mdash;'}</td>
+          <td class="num">${p.value == null ? '&mdash;' : money(p.value)}</td>
+          <td class="num rf-amt ${(p.gain || 0) >= 0 ? 'credit' : 'debit'}">${p.gain == null ? '&mdash;' : `${signed(p.gain)}<span class="sub">${p.gainPct == null ? '' : pct(p.gainPct)}</span>`}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="5" class="rf-center rf-muted">No Bitcoin yet. <a href="/invest?buy=1">Buy your first</a> and it appears here.</td></tr>';
+
+    // How far through its term each purchase is.
+    qs('[data-terms]').innerHTML = positions.length
+      ? positions.slice().sort((a, b) => (a.maturesAt < b.maturesAt ? -1 : 1)).map((p) => {
+        const share = Math.round(p.progress * 100);
+        return `<li class="hs-term${p.matured ? ' is-matured' : ''}">
+          <span class="t">
+            <strong>${p.matured ? 'Matured' : `${span(p.daysToMaturity)} to go`}</strong>
+            <span>${money(p.cost)} bought ${longDate(p.purchasedAt)} &middot; ${p.termMonths}-month term &middot; matures ${longDate(p.maturesAt)}</span>
+            <span class="hs-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${share}" aria-label="${share}% of the term has passed"><i style="width:${share}%"></i></span>
+          </span>
+          <span class="rf-small rf-muted rf-nowrap">${share}%</span>
+        </li>`;
+      }).join('')
+      : '<li class="rf-muted rf-small">You choose a term when you buy: 3, 6, 12 or 24 months. Its maturity date is counted down here.</li>';
+
+    await overview;
+
+    // The chart: what the Bitcoin held now has been worth on each day since
+    // the first purchase, against what was paid for it.
+    const host = qs('[data-growth-chart]');
+    if (!positions.length) {
+      host.innerHTML = '<div class="hs-chart-empty"><strong>Your chart starts the day you buy.</strong><span>It shows what your Bitcoin is worth on every day since, against what you paid.</span><a class="rf-btn sm" href="/invest?buy=1">Buy Bitcoin</a></div>';
+      return;
+    }
+    const first = new Date(positions[0].purchasedAt).getTime();
+    const days = Math.ceil((Date.now() - first) / DAY) + 7;
+    let history = { points: [], source: '' };
+    try {
+      history = await api.get(`/markets/history?symbol=BTC&days=${days}`);
+    } catch (err) { /* drawn from the purchases alone, and said so */ }
+    const series = growthSeries(positions, history.points, btc.price);
+    drawGrowth(host, series, positions);
+    let resized;
+    window.addEventListener('resize', () => {
+      clearTimeout(resized);
+      resized = setTimeout(() => drawGrowth(host, series, positions), 150);
+    });
+    qs('[data-chart-note]').textContent = history.points.length
+      ? `Daily closing prices from ${history.source}; today's point is the live price. The value is of the Bitcoin you hold now, on each day since you bought it.`
+      : 'The price history could not be loaded just now, so the chart joins each purchase to today\'s value. Reload to try again.';
+    paintChartTable(series);
+  }
+
+  /**
+   * One point a day from the first purchase to today: the Bitcoin price, what
+   * had been invested by then, and what the Bitcoin held now was worth that
+   * day. Units and cost are each purchase's as held now (after any sales), so
+   * the line ends exactly on the headline value.
+   */
+  function growthSeries(positions, points, livePrice) {
+    const lots = positions.map((p) => ({
+      t: new Date(p.purchasedAt).getTime(),
+      units: Number(p.units),
+      cost: p.cost,
+      price: p.price,
+    }));
+    const start = lots[0].t;
+    const startDay = new Date(start).toISOString().slice(0, 10);
+    let prices = points.filter((p) => p.t >= startDay).map((p) => ({ t: new Date(`${p.t}T12:00:00Z`).getTime(), p: p.p * 100 }));
+    if (!prices.length) {
+      // No history: the purchases themselves are the only prices we know.
+      prices = lots.map((l) => ({ t: l.t, p: l.price || livePrice }));
+    }
+    // Each purchase at the moment and price it was made, so the line steps up
+    // where the money went in rather than half a day later.
+    lots.forEach((l) => { if (l.price) prices.push({ t: l.t, p: l.price, buy: true }); });
+    if (livePrice) prices.push({ t: Date.now(), p: livePrice, live: true });
+    prices.sort((a, b) => a.t - b.t);
+
+    return prices.filter((pt) => pt.t >= start).map((pt) => {
+      const held = lots.filter((l) => l.t <= pt.t);
+      const units = held.reduce((n, l) => n + l.units, 0);
+      const cost = held.reduce((n, l) => n + l.cost, 0);
+      return { t: pt.t, price: pt.p, cost, value: Math.floor(units * pt.p), buy: Boolean(pt.buy), live: Boolean(pt.live) };
+    });
+  }
+
+  /** Clean round steps for the value axis: 0 / 2.5K / 5K ... */
+  function ticks(max) {
+    const raw = max / 4;
+    const mag = 10 ** Math.floor(Math.log10(raw || 1));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || raw;
+    const out = [];
+    for (let v = 0; v <= max + step * 0.001; v += step) out.push(v);
+    if (out[out.length - 1] < max) out.push(out[out.length - 1] + step);
+    return out;
+  }
+
+  const compact = (cents) => {
+    const d = cents / 100;
+    if (Math.abs(d) >= 1e6) return `$${(d / 1e6).toFixed(d % 1e6 ? 1 : 0)}M`;
+    if (Math.abs(d) >= 1e3) return `$${(d / 1e3).toFixed(d % 1e3 ? 1 : 0)}K`;
+    return `$${Math.round(d)}`;
+  };
+
+  /**
+   * Value against amount invested, as inline SVG with a crosshair readout.
+   * Two series, so a legend sits in the card head and the line ends are
+   * labelled; purchases are marked on the value line.
+   */
+  function drawGrowth(host, series, positions) {
+    const width = Math.max(280, host.clientWidth || 640);
+    const height = host.clientHeight || 300;
+    const pad = { top: 16, right: width < 520 ? 12 : 92, bottom: 30, left: 52 };
+    const w = width - pad.left - pad.right;
+    const h = height - pad.top - pad.bottom;
+    const t0 = series[0].t;
+    const t1 = Math.max(series[series.length - 1].t, t0 + DAY);
+    const yTicks = ticks(Math.max(...series.map((d) => Math.max(d.value, d.cost))) * 1.06);
+    const yMax = yTicks[yTicks.length - 1] || 1;
+    const x = (t) => pad.left + ((t - t0) / (t1 - t0)) * w;
+    const y = (v) => pad.top + h - (v / yMax) * h;
+
+    // The invested line is a staircase: flat between purchases, up at each.
+    const costPath = series.map((d, i) => `${i ? 'L' : 'M'}${x(d.t).toFixed(1)},${y(d.cost).toFixed(1)}`).join('');
+    const valuePath = series.map((d, i) => `${i ? 'L' : 'M'}${x(d.t).toFixed(1)},${y(d.value).toFixed(1)}`).join('');
+    const area = `${valuePath}L${x(series[series.length - 1].t).toFixed(1)},${y(0)}L${x(t0).toFixed(1)},${y(0)}Z`;
+
+    // Four or five dates along the bottom, evenly spaced in time.
+    const xCount = width < 520 ? 3 : 5;
+    const xTicks = Array.from({ length: xCount }, (_, i) => t0 + ((t1 - t0) * i) / (xCount - 1));
+    const spanDays = (t1 - t0) / DAY;
+    const xLabel = (t) => new Date(t).toLocaleDateString('en-US', spanDays > 300 ? { month: 'short', year: '2-digit' } : { month: 'short', day: 'numeric' });
+
+    const last = series[series.length - 1];
+    const buys = series.filter((d) => d.buy);
+    const endLabels = width < 520 ? '' : (() => {
+      let vy = y(last.value);
+      let cy = y(last.cost);
+      if (Math.abs(vy - cy) < 30) { // keep the two end labels apart without leaving their lines
+        if (vy <= cy) { vy = Math.min(vy, cy - 30); } else { cy = Math.min(cy, vy - 30); }
+      }
+      return `
+        <text class="end v" x="${(x(last.t) + 10).toFixed(1)}" y="${(vy - 2).toFixed(1)}">${esc(compact(last.value))}</text>
+        <text class="end-k" x="${(x(last.t) + 10).toFixed(1)}" y="${(vy + 12).toFixed(1)}">Value</text>
+        <text class="end c" x="${(x(last.t) + 10).toFixed(1)}" y="${(cy - 2).toFixed(1)}">${esc(compact(last.cost))}</text>
+        <text class="end-k" x="${(x(last.t) + 10).toFixed(1)}" y="${(cy + 12).toFixed(1)}">Invested</text>`;
+    })();
+
+    host.innerHTML = `
+      <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-hidden="true">
+        <defs><linearGradient id="hs-growth-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--hs-chart-value);stop-opacity:.16"/><stop offset="1" style="stop-color:var(--hs-chart-value);stop-opacity:.02"/></linearGradient></defs>
+        ${yTicks.map((v) => `<line class="grid" x1="${pad.left}" x2="${pad.left + w}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="ytick" x="${pad.left - 8}" y="${(y(v) + 4).toFixed(1)}">${esc(compact(v))}</text>`).join('')}
+        ${xTicks.map((t, i) => `<text class="xtick" x="${x(t).toFixed(1)}" y="${height - 8}" text-anchor="${i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle'}">${esc(xLabel(t))}</text>`).join('')}
+        <path class="area" d="${area}"/>
+        <path class="cost" d="${costPath}"/>
+        <path class="value" d="${valuePath}"/>
+        ${buys.map((d) => `<circle class="buy" cx="${x(d.t).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="5"/>`).join('')}
+        <circle class="now" cx="${x(last.t).toFixed(1)}" cy="${y(last.value).toFixed(1)}" r="4.5"/>
+        ${endLabels}
+        <g class="cross" visibility="hidden">
+          <line class="cross-line" y1="${pad.top}" y2="${pad.top + h}"/>
+          <circle class="cross-v" r="4.5"/><circle class="cross-c" r="4"/>
+        </g>
+        <rect class="hit" x="${pad.left}" y="${pad.top}" width="${w}" height="${h}" fill="transparent" tabindex="0" aria-label="Move across the chart to read each day's value"/>
+      </svg>
+      <div class="hs-tip" hidden></div>`;
+
+    const svg = qs('svg', host);
+    const cross = qs('.cross', svg);
+    const tip = qs('.hs-tip', host);
+    const hit = qs('.hit', svg);
+    const at = (t) => series.reduce((best, d) => (Math.abs(d.t - t) < Math.abs(best.t - t) ? d : best), series[0]);
+
+    function show(d) {
+      const cx = x(d.t);
+      cross.setAttribute('visibility', 'visible');
+      qs('.cross-line', cross).setAttribute('x1', cx);
+      qs('.cross-line', cross).setAttribute('x2', cx);
+      qs('.cross-v', cross).setAttribute('cx', cx);
+      qs('.cross-v', cross).setAttribute('cy', y(d.value));
+      qs('.cross-c', cross).setAttribute('cx', cx);
+      qs('.cross-c', cross).setAttribute('cy', y(d.cost));
+      const gain = d.value - d.cost;
+      tip.textContent = '';
+      const head = document.createElement('div');
+      head.className = 'd';
+      head.textContent = d.live ? 'Now' : longDate(new Date(d.t).toISOString()) + (d.buy ? ' · purchase' : '');
+      tip.appendChild(head);
+      [['value', money(d.value), 'Value'], ['cost', money(d.cost), 'Invested'], ['', `${signed(gain)}${d.cost ? ` (${pct((gain / d.cost) * 100)})` : ''}`, 'Growth'], ['', money(d.price), 'Bitcoin price']].forEach(([key, val, label]) => {
+        const row = document.createElement('div');
+        row.className = 'r';
+        const k = document.createElement('i');
+        k.className = `k ${key}`;
+        const b = document.createElement('b');
+        b.textContent = val;
+        const s = document.createElement('span');
+        s.textContent = label;
+        row.append(k, b, s);
+        tip.appendChild(row);
       });
+      tip.hidden = false;
+      const left = cx + 14 + tip.offsetWidth > width ? cx - 14 - tip.offsetWidth : cx + 14;
+      tip.style.left = `${Math.max(0, left)}px`;
+      tip.style.top = `${pad.top}px`;
     }
+    const hide = () => { cross.setAttribute('visibility', 'hidden'); tip.hidden = true; };
+    const fromEvent = (event) => {
+      const box = svg.getBoundingClientRect();
+      const px = ((event.clientX - box.left) / box.width) * width;
+      return at(t0 + ((px - pad.left) / w) * (t1 - t0));
+    };
+    hit.addEventListener('pointermove', (event) => show(fromEvent(event)));
+    hit.addEventListener('pointerleave', hide);
+    // Keyboard: arrow keys walk the days, starting from today.
+    let index = series.length - 1;
+    hit.addEventListener('focus', () => show(series[index]));
+    hit.addEventListener('blur', hide);
+    hit.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      index = Math.max(0, Math.min(series.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)));
+      show(series[index]);
+    });
+    host.setAttribute('aria-label', `Your Bitcoin was worth ${money(last.value)} against ${money(last.cost)} invested, across ${positions.length} purchase${positions.length === 1 ? '' : 's'} since ${longDate(positions[0].purchasedAt)}.`);
+  }
 
-    async function show(id) {
-      const data = await api.get(`/accounts/${id}`);
-      const a = data.account;
-      panel.hidden = false;
-      qs('[data-detail-title]').textContent = `${a.nickname || a.name} ${a.accountMask}`;
-      qs('[data-statements-link]').href = `/statements?account=${a.id}`;
-
-      qs('[data-detail-dl]').innerHTML = [
-        ['Type', esc(a.typeLabel)],
-        ['Status', badge(a.status)],
-        ['Balance', `<span class="rf-amt">${money(a.balance)}</span>`],
-        ['Available', money(a.availableBalance)],
-        a.holdAmount ? ['On hold', money(a.holdAmount)] : null,
-        a.isCredit ? ['Credit limit', money(a.creditLimit)] : ['Overdraft cover', money(a.overdraftLimit)],
-        a.apy ? ['APY', `${a.apy.toFixed(2)}%`] : null,
-        a.apr ? ['APR', `${a.apr.toFixed(2)}%`] : null,
-        ['Opened', date(a.openedAt)],
-      ].filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-
-      qs('[data-detail-wire]').innerHTML = [
-        ['Account number', `<span class="rf-mono">${esc(data.details.accountNumber)}</span>`],
-        ['Routing (ABA)', `<span class="rf-mono">${esc(data.details.routingNumber)}</span>`],
-        ['SWIFT', `<span class="rf-mono">${esc(data.details.swift)}</span>`],
-        ['Bank', esc(data.details.bankName)],
-        // The address is operator-supplied and blank until it is set. A wire
-        // form with an empty "Bank address" beside it is worse than one
-        // without the row: it looks like the detail is missing rather than
-        // not published.
-        data.details.bankAddress ? ['Bank address', esc(data.details.bankAddress)] : null,
-      ].filter(Boolean).map(([k, v]) => `<dt>${k}</dt><dd class="mono">${v}</dd>`).join('');
-
-      qs('[data-copy-details]').onclick = () => RF.copy(data.details.wireInstructions, 'Account details copied');
-
-      qs('[data-detail-transactions]').innerHTML = data.recent.length
-        ? data.recent.map((tx) => txRow(tx, { showAccount: false })).join('')
-        : '<tr><td colspan="5" class="rf-center rf-muted">Nothing on this account yet.</td></tr>';
-
-      qs('[data-rename]').onclick = async () => {
-        const nickname = prompt('What should we call this account?', a.nickname || a.name);
-        if (nickname == null) return;
-        try {
-          await api.patch(`/accounts/${a.id}`, { nickname });
-          toast('Account renamed.', 'ok');
-          location.reload();
-        } catch (err) {
-          toast(err.message, 'bad');
-        }
-      };
-
-      wireTxTables(panel);
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    const requested = new URLSearchParams(location.search).get('id');
-    if (requested) show(requested).catch((err) => toast(err.message, 'bad'));
+  /** The chart's figures as a table: the first of each month, each purchase, and today. */
+  function paintChartTable(series) {
+    const seen = new Set();
+    const rows = series.filter((d, i) => {
+      const month = new Date(d.t).toISOString().slice(0, 7);
+      const keep = d.buy || d.live || i === 0 || !seen.has(month);
+      seen.add(month);
+      return keep;
+    });
+    qs('[data-chart-rows]').innerHTML = rows.map((d) => `<tr>
+      <td class="rf-nowrap">${d.live ? 'Now' : longDate(new Date(d.t).toISOString())}${d.buy ? '<span class="sub">Purchase</span>' : ''}</td>
+      <td class="num">${money(d.price)}</td>
+      <td class="num">${money(d.cost)}</td>
+      <td class="num">${money(d.value)}</td>
+      <td class="num rf-amt ${d.value >= d.cost ? 'credit' : 'debit'}">${signed(d.value - d.cost)}</td>
+    </tr>`).join('');
   }
 
   /* ------------------------------------------------------- transactions -- */
@@ -410,171 +470,7 @@
     await load();
   }
 
-  /* --------------------------------------------------------- statements -- */
-
-  async function statementsPage() {
-    const select = qs('#s-account');
-    const tbody = qs('[data-rows]');
-    const panel = qs('[data-statement]');
-    const { accounts } = await api.get('/accounts');
-
-    select.innerHTML = accounts.map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)}</option>`).join('');
-    const preset = new URLSearchParams(location.search).get('account');
-    if (preset && accounts.some((a) => a.id === preset)) select.value = preset;
-
-    async function load() {
-      tbody.innerHTML = '<tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr>';
-      const data = await api.get(`/accounts/${select.value}/statements`);
-      tbody.innerHTML = data.statements.length
-        ? data.statements.map((s) => `<tr>
-            <td><strong>${esc(s.label)}</strong><span class="sub">${s.entries} entries</span></td>
-            <td class="num opt">${money(s.opening)}</td>
-            <td class="num rf-amt credit opt">${money(s.credits)}</td>
-            <td class="num opt">${money(s.debits)}</td>
-            <td class="num"><strong>${money(s.closing)}</strong></td>
-            <td class="rf-right"><button class="rf-btn ghost sm" data-open="${esc(s.periodStart.slice(0, 7))}">Open</button></td>
-          </tr>`).join('')
-        : '<tr><td colspan="6" class="rf-center rf-muted">No statements yet.</td></tr>';
-    }
-
-    async function openStatement(period) {
-      const data = await api.get(`/accounts/${select.value}/statements/${period}`);
-      const s = data.statement;
-      const a = data.account;
-      panel.hidden = false;
-      qs('[data-statement-title]').textContent = `Statement ${date(s.periodStart, { month: 'long', year: 'numeric' })}`;
-      qs('[data-statement-body]').innerHTML = `
-        <div class="rf-statement">
-          <div class="rf-statement-head">
-            <div>
-              <h2>${esc(data.bank.name)}</h2>
-              <div class="addr">${[data.bank.address, data.bank.phone].filter(Boolean).map(esc).join('<br />')}</div>
-            </div>
-            <div class="rf-right">
-              <div class="addr"><strong>${esc(data.customer.name)}</strong><br />${data.customer.addressLines.map(esc).join('<br />')}</div>
-            </div>
-          </div>
-          <div class="rf-spread rf-mb">
-            <div>
-              <div class="rf-small rf-muted">Account</div>
-              <div class="rf-mono">${esc(a.name)} ${esc(a.accountMask)}</div>
-            </div>
-            <div class="rf-right">
-              <div class="rf-small rf-muted">Statement period</div>
-              <div>${date(s.periodStart)} to ${date(s.periodEnd)}</div>
-            </div>
-          </div>
-          <div class="rf-statement-summary">
-            <div class="box"><div class="k">Opening balance</div><div class="v">${money(s.opening)}</div></div>
-            <div class="box"><div class="k">Deposits and credits</div><div class="v">${money(s.credits)}</div></div>
-            <div class="box"><div class="k">Withdrawals and debits</div><div class="v">${money(s.debits)}</div></div>
-            <div class="box"><div class="k">Closing balance</div><div class="v">${money(s.closing)}</div></div>
-          </div>
-          <table class="rf-table">
-            <thead><tr><th>Date</th><th>Description</th><th class="num">Debits</th><th class="num">Credits</th><th class="num">Balance</th></tr></thead>
-            <tbody>
-              ${s.transactions.map((tx) => `<tr>
-                <td class="rf-nowrap">${date(tx.date, { month: 'short', day: 'numeric' })}</td>
-                <td>${esc(tx.description)}${tx.reference ? `<span class="sub rf-mono">${esc(tx.reference)}</span>` : ''}</td>
-                <td class="num">${tx.direction === 'debit' ? money(tx.amount) : ''}</td>
-                <td class="num">${tx.direction === 'credit' ? money(tx.amount) : ''}</td>
-                <td class="num">${tx.balanceAfter == null ? '' : money(tx.balanceAfter)}</td>
-              </tr>`).join('') || '<tr><td colspan="5" class="rf-center rf-muted">No activity in this period.</td></tr>'}
-            </tbody>
-          </table>
-          <p class="rf-disclosure rf-mt">
-            ${esc(data.bank.legalName)} &middot; Member FDIC &middot; Equal Housing Lender. In case of errors or questions about your electronic transfers,
-            ${data.bank.phone ? `telephone ${esc(data.bank.phone)} or ` : ''}write to us${data.bank.address ? ' at the address above' : ''} as soon as you can. We must hear from you no later than 60 days after we sent you
-            the first statement on which the problem appeared.
-          </p>
-        </div>`;
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    tbody.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-open]');
-      if (button) openStatement(button.getAttribute('data-open')).catch((err) => toast(err.message, 'bad'));
-    });
-    qs('[data-close-statement]').addEventListener('click', () => { panel.hidden = true; });
-    select.addEventListener('change', () => { panel.hidden = true; load(); });
-    await load();
-  }
-
-  /* --------------------------------------------------------------- cards -- */
-
-  async function cardsPage() {
-    const host = qs('[data-cards]');
-
-    async function load() {
-      const { cards } = await api.get('/cards');
-      host.innerHTML = cards.length ? cards.map((card) => `
-        <section class="rf-card">
-          <div class="rf-card-body">
-            <div class="rf-plastic ${card.kind === 'credit' ? 'brass' : ''} ${card.status === 'active' ? '' : 'is-frozen'}">
-              <div class="brandline"><span>Hedgestone</span><span class="scheme">${esc(card.brand.toUpperCase())}</span></div>
-              <div class="chip"></div>
-              <div class="pan">${esc(card.masked)}</div>
-              <div class="foot">
-                <span><span class="k">Card holder</span>${esc(card.nameOnCard)}</span>
-                <span><span class="k">Expires</span>${esc(card.expires)}</span>
-              </div>
-            </div>
-            <div class="rf-spread rf-mt">
-              <div>
-                <strong>${esc(card.accountName || card.kind)}</strong>
-                <div class="rf-small rf-muted">${esc(card.kind === 'credit' ? 'Credit card' : 'Debit card')} &middot; ${badge(card.status)}</div>
-              </div>
-              <div class="rf-inline">
-                ${card.status === 'active'
-    ? `<button class="rf-btn ghost sm" data-card="${esc(card.id)}" data-action="freeze">Freeze</button>`
-    : card.status === 'frozen'
-      ? `<button class="rf-btn sm" data-card="${esc(card.id)}" data-action="unfreeze">Unfreeze</button>`
-      : ''}
-                <button class="rf-btn ghost sm" data-card="${esc(card.id)}" data-action="limits">Limits</button>
-                <button class="rf-btn ghost sm" data-card="${esc(card.id)}" data-action="report_lost">Report lost</button>
-              </div>
-            </div>
-            <dl class="rf-dl rf-mt">
-              <dt>Daily purchases</dt><dd>${money(card.dailyPurchaseLimit)}</dd>
-              <dt>Daily ATM</dt><dd>${money(card.dailyAtmLimit)}</dd>
-              <dt>Contactless</dt><dd>${card.contactless ? 'On' : 'Off'}</dd>
-              <dt>International use</dt><dd>${card.internationalAllowed ? 'Allowed' : 'Blocked'}</dd>
-            </dl>
-          </div>
-        </section>`).join('') : '<div class="rf-card rf-empty"><strong>No cards yet</strong>Call us and we will send one out.</div>';
-    }
-
-    host.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-card]');
-      if (!button) return;
-      const id = button.getAttribute('data-card');
-      const action = button.getAttribute('data-action');
-      try {
-        if (action === 'limits') {
-          const purchases = prompt('Daily purchase limit, in dollars:', '7500');
-          if (purchases == null) return;
-          const atm = prompt('Daily ATM limit, in dollars:', '1000');
-          if (atm == null) return;
-          await api.post(`/cards/${id}`, { action: 'limits', dailyPurchaseLimit: Number(purchases), dailyAtmLimit: Number(atm) });
-          toast('Card limits updated.', 'ok');
-        } else if (action === 'report_lost') {
-          if (!confirm('Report this card lost? We will cancel it and post a replacement today.')) return;
-          const res = await api.post(`/cards/${id}`, { action });
-          toast(res.replacement ? `Card cancelled. A replacement ending ${res.replacement.last4} is on its way.` : 'Card cancelled.', 'ok');
-        } else {
-          await api.post(`/cards/${id}`, { action });
-          toast(action === 'freeze' ? 'Card frozen.' : 'Card unfrozen.', 'ok');
-        }
-        await load();
-      } catch (err) {
-        toast(err.message, 'bad');
-      }
-    });
-
-    await load();
-  }
-
-  /* -------------------------------------------------------------- alerts -- */
+  /* ------------------------------------------------------------- alerts -- */
 
   async function alertsPage() {
     const list = qs('[data-rows]');
@@ -628,7 +524,7 @@
       <h4 class="rf-label rf-mt">${esc(group)}</h4>
       ${types.map((type) => `
         <div class="rf-switch">
-          <span class="t">${esc(type.label)}${type.locked ? '<small>Always on. We are required to tell you.</small>' : ''}</span>
+          <span class="t">${esc(type.label)}${type.locked ? '<small>Always on, for your security.</small>' : ''}</span>
           <input type="checkbox" name="${esc(type.id)}" ${prefs.preferences[type.id] ? 'checked' : ''} ${type.locked ? 'disabled' : ''} />
         </div>`).join('')}`).join('');
 
@@ -684,7 +580,7 @@
       qs('[data-thread-subject]').textContent = thread.subject;
       body.innerHTML = thread.messages.map((m) => `
         <div style="margin-bottom:16px;padding:12px 14px;border-radius:12px;background:${m.from === 'bank' ? 'var(--rf-surface-3)' : 'var(--rf-info-soft)'}">
-          <div class="rf-spread rf-small rf-muted"><strong>${esc(m.authorName || (m.from === 'bank' ? 'Hedgestone' : 'You'))}</strong><span>${datetime(m.createdAt)}</span></div>
+          <div class="rf-spread rf-small rf-muted"><strong>${esc(m.authorName || (m.from === 'bank' ? 'Our team' : 'You'))}</strong><span>${datetime(m.createdAt)}</span></div>
           <div style="margin-top:6px;white-space:pre-wrap">${esc(m.body)}</div>
         </div>`).join('');
       api.post(`/messages/${thread.id}/read`).then(() => RF.paintUser(RF.state.session)).catch(() => {});
@@ -701,7 +597,7 @@
       current = null;
       subjectField.classList.remove('rf-hide');
       qs('[data-thread-subject]').textContent = 'New secure message';
-      body.innerHTML = '<p class="rf-muted rf-small">Write your message below. Anything you send here stays inside your banking session.</p>';
+      body.innerHTML = '<p class="rf-muted rf-small">Write your message below. Anything you send here stays inside your signed-in session.</p>';
     });
 
     RF.onSubmit(form, async (data) => {
@@ -723,10 +619,7 @@
 
   const ROUTES = {
     '/dashboard': dashboard,
-    '/accounts': accountsPage,
     '/transactions': transactionsPage,
-    '/statements': statementsPage,
-    '/cards': cardsPage,
     '/alerts': alertsPage,
     '/messages': messagesPage,
   };

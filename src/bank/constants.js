@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * Everything about the institution that the rest of the bank reads but never
- * decides for itself: who we are, what we sell, what we charge and where the
- * ceilings sit.
+ * Everything about the platform that the rest of the application reads but
+ * never decides for itself: who we are, what we sell, what we charge and where
+ * the ceilings sit.
  *
  * Values here are the defaults a fresh install boots with. The admin console
  * writes overrides into the `settings` collection, so anything an operator can
@@ -11,12 +11,19 @@
  * at the point of use.
  */
 
-/** The institution. Fictional, on a routing prefix the Fed has not assigned. */
+/**
+ * The platform. The name here is only the one a fresh install starts with:
+ * staff change it at the console under Settings, Platform name, and every
+ * page, email and text follows (see public/js/bankname.js).
+ *
+ * The routing number and SWIFT code are internal plumbing for the ledger and
+ * are never shown to a customer.
+ */
 const BANK = {
-  name: 'Hedgestone Global Bank',
-  shortName: 'Hedgestone',
-  legalName: 'Hedgestone Global Bank',
-  tagline: 'Banking that travels with your family.',
+  name: 'Hedgestone Finance',
+  shortName: 'Hedgestone Finance',
+  legalName: 'Hedgestone Finance',
+  tagline: 'Invest in Bitcoin, and watch every step of it.',
   // ABA checksum valid: 3(8+2+4)+7(1+6+1)+(9+4+7) = 42+56+20 = 118... see
   // validateRouting() in ids.js, which is what actually enforces this.
   routingNumber: '819264176',
@@ -29,6 +36,14 @@ const BANK = {
   established: 1924,
 };
 
+/**
+ * Names this application has shipped as its default and since retired. A
+ * stored setting holding one of these was written by the seed, not chosen by
+ * anyone, so settings.get() reads it as "the default" - see RETIRED in
+ * src/utils/siteSettings.js for the same problem with the support address.
+ */
+const RETIRED_NAMES = ['Hedgestone Global Bank'];
+
 /*
  * The telephone numbers and the postal address are deliberately not here.
  *
@@ -39,110 +54,73 @@ const BANK = {
  * Read them through src/bank/contact.js, never from BANK.
  */
 
-/** Deposit and credit products, as they appear in the open-account flows. */
+/**
+ * What a customer can hold. One cash balance - where money waits to buy
+ * Bitcoin, and where a sale is paid - and the Bitcoin itself, which lives in
+ * the holdings ledger (src/bank/invest.js), not here.
+ */
 const PRODUCTS = [
   {
-    id: 'everyday_checking',
+    id: 'investment_cash',
     type: 'checking',
-    name: 'Everyday Checking',
-    blurb: 'The account the rest of your money moves through.',
-    apy: 0.01,
+    name: 'Cash balance',
+    blurb: 'Money waiting to buy Bitcoin, and where the proceeds of a sale are paid.',
+    apy: 0,
     monthlyFee: 0,
     minimumBalance: 0,
-    overdraftLimit: 50000,
-    features: ['No monthly service fee', 'Early direct deposit', 'Zelle-style instant sends', '60,000 fee-free ATMs'],
-  },
-  {
-    id: 'premier_checking',
-    type: 'checking',
-    name: 'Premier Interest Checking',
-    blurb: 'Interest-bearing checking for balances that sit still.',
-    apy: 0.45,
-    monthlyFee: 2500,
-    minimumBalance: 250000,
-    overdraftLimit: 150000,
-    features: ['Waived fee at $2,500', 'Free cashier checks', 'Wire fee rebates', 'Dedicated banker line'],
-  },
-  {
-    id: 'high_yield_savings',
-    type: 'savings',
-    name: 'High-Yield Savings',
-    blurb: 'A rate that actually keeps up, with nothing locked away.',
-    apy: 4.35,
-    monthlyFee: 0,
-    minimumBalance: 0,
-    withdrawalLimit: 6,
-    features: ['4.35% APY', 'No minimum', 'Automatic round-ups', 'Goal buckets'],
-  },
-  {
-    id: 'money_market',
-    type: 'money_market',
-    name: 'Money Market',
-    blurb: 'Savings rates with check-writing attached.',
-    apy: 3.9,
-    monthlyFee: 1000,
-    minimumBalance: 1000000,
-    features: ['Tiered rates', 'Check writing', 'Debit access', 'FDIC insured'],
-  },
-  {
-    id: 'cd_12',
-    type: 'cd',
-    name: '12-Month Certificate',
-    blurb: 'Lock the rate for a year.',
-    apy: 4.6,
-    termMonths: 12,
-    minimumBalance: 100000,
-    features: ['Guaranteed rate', 'Auto-renew option', 'Interest paid monthly'],
-  },
-  {
-    id: 'hedgestone_signature_card',
-    type: 'credit',
-    name: 'Hedgestone Signature Card',
-    blurb: '2% back on everything, no categories to remember.',
-    apr: 18.99,
-    creditLimit: 1500000,
-    features: ['2% unlimited cash back', 'No foreign transaction fee', 'Cell phone protection', 'Zero fraud liability'],
+    overdraftLimit: 0,
+    features: ['Buy Bitcoin from $1', 'Sell back to cash at any time', 'Withdraw to your own bank account', 'No monthly fee'],
   },
 ];
 
-/** Account type labels used across statements, transfers and the admin console. */
+/**
+ * Account type labels used across withdrawals and the admin console. Only the
+ * cash balance is opened now; the rest stay so older records still read.
+ */
 const ACCOUNT_TYPES = {
-  checking: { label: 'Checking', code: 'DDA', sign: 1 },
-  savings: { label: 'Savings', code: 'SAV', sign: 1 },
-  money_market: { label: 'Money Market', code: 'MMA', sign: 1 },
-  cd: { label: 'Certificate of Deposit', code: 'CDA', sign: 1 },
-  credit: { label: 'Credit Card', code: 'CCA', sign: -1 },
+  checking: { label: 'Cash balance', code: 'CSH', sign: 1 },
+  savings: { label: 'Cash reserve', code: 'RSV', sign: 1 },
+  money_market: { label: 'Cash reserve', code: 'RSV', sign: 1 },
+  cd: { label: 'Fixed term', code: 'FIX', sign: 1 },
+  credit: { label: 'Credit', code: 'CRD', sign: -1 },
   loan: { label: 'Loan', code: 'LNA', sign: -1 },
-  mortgage: { label: 'Mortgage', code: 'MTG', sign: -1 },
-  ira: { label: 'Retirement (IRA)', code: 'IRA', sign: 1 },
+  mortgage: { label: 'Loan', code: 'LNA', sign: -1 },
+  ira: { label: 'Retirement', code: 'RET', sign: 1 },
 };
 
-/** How money moved. Drives the icon, the clearing time and the wording. */
+/**
+ * How money moved. Drives the icon, the clearing time and the wording. Older
+ * methods are kept so history recorded before Bitcoin-only still reads.
+ */
 const TRANSACTION_METHODS = {
-  internal: { label: 'Internal transfer', clearing: 0 },
-  ach: { label: 'ACH transfer', clearing: 1 },
-  wire_domestic: { label: 'Domestic wire', clearing: 0 },
-  wire_international: { label: 'International wire', clearing: 2 },
-  instant: { label: 'Instant send', clearing: 0 },
-  card: { label: 'Card purchase', clearing: 1 },
-  atm: { label: 'ATM', clearing: 0 },
-  check: { label: 'Check', clearing: 2 },
-  mobile_deposit: { label: 'Mobile check deposit', clearing: 1 },
+  internal: { label: 'Between your balances', clearing: 0 },
+  ach: { label: 'Standard withdrawal', clearing: 1 },
+  wire_domestic: { label: 'Same-day withdrawal', clearing: 0 },
+  wire_international: { label: 'International withdrawal', clearing: 2 },
+  instant: { label: 'Instant transfer', clearing: 0 },
+  card: { label: 'Card payment', clearing: 1 },
+  atm: { label: 'Cash withdrawal', clearing: 0 },
+  check: { label: 'Cheque', clearing: 2 },
+  mobile_deposit: { label: 'Cheque deposit', clearing: 1 },
   bill_pay: { label: 'Bill payment', clearing: 1 },
-  direct_deposit: { label: 'Direct deposit', clearing: 0 },
+  direct_deposit: { label: 'Deposit', clearing: 0 },
   fee: { label: 'Fee', clearing: 0 },
   interest: { label: 'Interest', clearing: 0 },
-  adjustment: { label: 'Adjustment', clearing: 0 },
+  adjustment: { label: 'Deposit or adjustment', clearing: 0 },
   refund: { label: 'Refund', clearing: 1 },
-  investment: { label: 'Investment', clearing: 0 },
-  member: { label: 'Hedgestone transfer', clearing: 0 },
+  investment: { label: 'Bitcoin', clearing: 0 },
+  member: { label: 'Transfer from another customer', clearing: 0 },
 };
 
-/** Spending categories. The dashboard groups the last 30 days by these. */
+/**
+ * Categories an entry can be filed under. The first four are the ones this
+ * platform writes; the rest stay so older history still files correctly.
+ */
 const CATEGORIES = [
+  'Deposits', 'Investments', 'Withdrawals', 'Fees & Interest',
+  'Income', 'Transfers', 'Taxes', 'Other',
   'Groceries', 'Dining', 'Transport', 'Fuel', 'Travel', 'Utilities', 'Rent & Mortgage',
-  'Insurance', 'Healthcare', 'Shopping', 'Entertainment', 'Subscriptions', 'Education',
-  'Transfers', 'Investments', 'Income', 'Fees & Interest', 'Taxes', 'Cash & ATM', 'Other',
+  'Insurance', 'Healthcare', 'Shopping', 'Entertainment', 'Subscriptions', 'Education', 'Cash & ATM',
 ];
 
 const US_STATES = [
@@ -162,6 +140,12 @@ const US_STATES = [
  */
 const DEFAULT_SETTINGS = {
   bankName: BANK.name,
+  // How long a Bitcoin purchase is planned to be held, in months. The buyer
+  // picks one of `investmentTerms` (staff can book any whole number); the
+  // dashboard counts down to the date it matures. A maturity date is a plan,
+  // not a lock: Bitcoin can still be sold before it.
+  investmentTerms: [3, 6, 12, 24],
+  investmentTermMonths: 12,
   routingNumber: BANK.routingNumber,
   supportEmail: BANK.email,
   // Blank until an operator sets them at the console. Everything that prints
@@ -212,10 +196,10 @@ const DEFAULT_SETTINGS = {
     cardReplacement: 0,
     expeditedCardReplacement: 2500,
   },
-  // Business-day clearing windows shown to the customer.
+  // Business-day timings shown to the customer for each kind of withdrawal.
   clearing: {
     ach: '1-3 business days',
-    wireDomestic: 'Same business day if submitted before 4:00pm ET',
+    wireDomestic: 'Same business day if requested before 4:00pm ET',
     wireInternational: '2-5 business days',
     mobileDeposit: 'First $225 next business day, remainder in 2 business days',
   },
@@ -236,39 +220,44 @@ const SECURITY_QUESTIONS = [
   'What street did you grow up on?',
 ];
 
-/** Alert types a customer can switch on or off, grouped for the settings page. */
+/**
+ * Alert types a customer can switch on or off, grouped for the settings page.
+ * The last three are only raised by features that have been retired; they
+ * stay defined so older alerts still have a label, and are hidden from the
+ * preferences list (`retired`).
+ */
 const ALERT_TYPES = [
   { id: 'login_new_device', group: 'Security', label: 'Sign-in from a new device', default: true, locked: true },
   { id: 'password_changed', group: 'Security', label: 'Password or security settings changed', default: true, locked: true },
   { id: 'profile_changed', group: 'Security', label: 'Profile or contact details changed', default: true },
-  { id: 'transfer_submitted', group: 'Money movement', label: 'Transfer submitted', default: true },
-  { id: 'transfer_completed', group: 'Money movement', label: 'Transfer completed', default: true },
-  { id: 'transfer_rejected', group: 'Money movement', label: 'Transfer returned or rejected', default: true, locked: true },
-  { id: 'deposit_posted', group: 'Money movement', label: 'Deposit posted', default: true },
-  { id: 'balance_available', group: 'Money movement', label: 'Available balance after money arrives', default: true },
-  { id: 'large_transaction', group: 'Money movement', label: 'Transaction over your alert threshold', default: true },
-  { id: 'low_balance', group: 'Balances', label: 'Balance falls below your threshold', default: true },
-  { id: 'overdraft', group: 'Balances', label: 'Overdraft or returned item', default: true, locked: true },
-  { id: 'statement_ready', group: 'Statements', label: 'Monthly statement ready', default: true },
-  { id: 'card_activity', group: 'Cards', label: 'Card frozen, replaced or declined', default: true },
-  { id: 'investment_trade', group: 'Investments', label: 'Balance converted to an asset, or an asset sold', default: true },
+  { id: 'investment_trade', group: 'Bitcoin', label: 'Bitcoin bought or sold', default: true },
+  { id: 'deposit_posted', group: 'Cash', label: 'Money added to your cash balance', default: true },
+  { id: 'balance_available', group: 'Cash', label: 'Cash available to invest after money arrives', default: true },
+  { id: 'large_transaction', group: 'Cash', label: 'A movement over your alert threshold', default: true },
+  { id: 'low_balance', group: 'Cash', label: 'Cash balance falls below your threshold', default: true },
+  { id: 'transfer_submitted', group: 'Withdrawals', label: 'Withdrawal requested', default: true },
+  { id: 'transfer_completed', group: 'Withdrawals', label: 'Withdrawal sent', default: true },
+  { id: 'transfer_rejected', group: 'Withdrawals', label: 'Withdrawal returned', default: true, locked: true },
   { id: 'account_opened', group: 'Account', label: 'New account opened', default: true },
   { id: 'message_received', group: 'Account', label: 'New secure message', default: true },
   { id: 'marketing', group: 'Account', label: 'Product news and offers', default: false },
+  { id: 'overdraft', group: 'Account', label: 'Returned item', default: true, locked: true, retired: true },
+  { id: 'statement_ready', group: 'Account', label: 'Monthly statement ready', default: false, retired: true },
+  { id: 'card_activity', group: 'Account', label: 'Card activity', default: false, retired: true },
 ];
 
-/** Why an operator or the system stopped a transfer. Shown to the customer verbatim. */
+/** Why an operator or the system stopped a withdrawal. Shown to the customer verbatim. */
 const REJECTION_REASONS = [
   { code: 'insufficient_funds', label: 'Insufficient available funds' },
-  { code: 'limit_exceeded', label: 'Exceeds your daily transfer limit' },
+  { code: 'limit_exceeded', label: 'Exceeds your daily withdrawal limit' },
   { code: 'beneficiary_unverified', label: 'Beneficiary details could not be verified' },
   { code: 'compliance_review', label: 'Held by compliance review (BSA/AML)' },
   { code: 'ofac_hit', label: 'Sanctions screening requires manual clearance' },
   { code: 'kyc_incomplete', label: 'Identity verification incomplete' },
   { code: 'fraud_suspected', label: 'Suspected fraud - contact the fraud line' },
   { code: 'account_restricted', label: 'Account restricted' },
-  { code: 'invalid_routing', label: 'Receiving bank routing number invalid' },
-  { code: 'duplicate', label: 'Duplicate of a transfer already submitted' },
+  { code: 'invalid_routing', label: 'Receiving account details invalid' },
+  { code: 'duplicate', label: 'Duplicate of a withdrawal already requested' },
   { code: 'customer_request', label: 'Cancelled at the customer’s request' },
   { code: 'other', label: 'Other - see note' },
 ];
@@ -279,15 +268,14 @@ const DOCUMENT_KINDS = [
   { id: 'id_back', label: 'Government ID (back)' },
   { id: 'ssn_card', label: 'Social Security card' },
   { id: 'proof_address', label: 'Proof of address' },
-  { id: 'signature', label: 'Signature card' },
-  { id: 'check_front', label: 'Check (front)' },
-  { id: 'check_back', label: 'Check (back)' },
+  { id: 'signature', label: 'Signature' },
   { id: 'w9', label: 'Form W-9' },
   { id: 'other', label: 'Other document' },
 ];
 
 module.exports = {
   BANK,
+  RETIRED_NAMES,
   PRODUCTS,
   ACCOUNT_TYPES,
   TRANSACTION_METHODS,

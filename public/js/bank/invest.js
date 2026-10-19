@@ -1,9 +1,11 @@
-/* Hedgestone Global - the Invest screen.
+/* The Bitcoin screen.
 
-   Tap an asset, pick how much of a balance to convert (25%, half, all, or an
-   amount), see how many units it buys at the live price, confirm. Selling is
-   the same sheet the other way round. The server books every trade at the
-   price of the moment it is confirmed; this page only ever previews. */
+   Tap Buy, pick how much of the cash balance to use (25%, half, all, or an
+   amount) and how long to hold it, see how much Bitcoin it buys at the live
+   price, confirm. Selling is the same sheet the other way round. The server
+   books every trade at the price of the moment it is confirmed; this page only
+   ever previews. Assets bought before the platform became Bitcoin only are
+   listed separately and can only be sold. */
 (function () {
   'use strict';
 
@@ -12,8 +14,9 @@
 
   let data = null;
   let refreshTimer = null;
-  // /invest?from=<account> - from an account card - converts from that account.
+  // /invest?from=<account> buys from that account.
   const preferredAccount = new URLSearchParams(location.search).get('from');
+  const BTC = 'BTC';
 
   /* ------------------------------------------------------------ helpers -- */
 
@@ -23,6 +26,18 @@
   const unitWord = (asset, n) => (asset.unit === 'share' ? `share${Number(n) === 1 ? '' : 's'}` : asset.unit);
   const assetBy = (symbol) => data && data.assets.find((a) => a.symbol === symbol);
   const holdingBy = (symbol) => data && data.holdings.find((h) => h.symbol === symbol);
+  const longDate = (iso) => new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  /** `months` calendar months from now, the way the server dates a maturity. */
+  function maturityFrom(months) {
+    const d = new Date();
+    const day = d.getUTCDate();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + Number(months));
+    d.setUTCDate(Math.min(day, new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate()));
+    return d.toISOString();
+  }
+  const termLabel = (m) => (m % 12 === 0 ? `${m / 12} year${m === 12 ? '' : 's'}` : `${m} months`);
 
   /** How many units `cents` buys at `price` dollars, rounded down like the server does. */
   function previewUnits(cents, price, decimals) {
@@ -44,50 +59,64 @@
   /* ------------------------------------------------------------- render -- */
 
   function renderTotals() {
-    const t = data.totals;
-    qs('[data-inv="value"]').textContent = money(t.value);
+    const b = data.bitcoin;
+    const holds = Number(b.units) > 0;
+    qs('[data-inv="value"]').textContent = b.value == null ? '—' : money(b.value);
     const gain = qs('[data-inv="gain"]');
-    gain.textContent = data.holdings.length ? `${t.gain >= 0 ? '+' : '-'}${money(Math.abs(t.gain))} (${pct(t.gainPct || 0)}) all time` : 'Nothing invested yet';
-    gain.className = `d ${data.holdings.length ? dirOf(t.gain) : ''}`;
-    qs('[data-inv="cost"]').textContent = money(t.cost);
+    gain.textContent = holds && b.value != null ? `${b.gain >= 0 ? '+' : '-'}${money(Math.abs(b.gain))} (${pct(b.gainPct || 0)}) since you bought` : 'Nothing invested yet';
+    gain.className = `d ${holds ? dirOf(b.gain) : ''}`;
+    qs('[data-inv="cost"]').textContent = money(b.cost);
     qs('[data-inv="cash"]').textContent = money(data.accounts.reduce((s, a) => s + Math.max(0, a.available), 0));
-    qs('[data-inv="count"]').textContent = String(data.holdings.length);
-    const priced = data.assets.filter((a) => a.quote);
-    const newest = priced.map((a) => a.quote.fetchedAt).sort().pop();
-    qs('[data-inv="asof"]').textContent = newest ? `prices at ${new Date(newest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'prices unavailable';
-    const sources = Array.from(new Set(priced.map((a) => a.quote.source)));
-    qs('[data-inv-source]').textContent = sources.length ? `Live prices: ${sources.join(', ')}` : 'Prices unavailable right now';
+    qs('[data-inv="count"]').textContent = `${b.units} BTC`;
+    const btc = assetBy(BTC);
+    const q = btc && btc.quote;
+    qs('[data-inv="asof"]').textContent = q ? `price at ${new Date(q.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'price unavailable';
+    qs('[data-inv-source]').textContent = q ? `Live price: ${q.source}` : 'Price unavailable right now';
   }
 
   function renderAssets() {
-    qs('[data-inv-assets]').innerHTML = data.assets.map((a) => {
+    qs('[data-inv-assets]').innerHTML = data.assets.filter((a) => !a.retired).map((a) => {
       const q = a.quote;
       const held = holdingBy(a.symbol);
       const disabled = !q || q.stale;
       return `<button type="button" class="hs-asset ${q ? dirOf(q.change) : ''}" data-convert="${esc(a.symbol)}"${disabled ? ' disabled' : ''}>
         <span class="hs-asset-top">${logoOf(a.symbol, 38)}<span><strong>${esc(a.name)}</strong><small>${esc(a.symbol)} &middot; ${esc(a.kind)}</small></span></span>
         <span class="hs-asset-px">${q ? dollars(q.price) : 'No price'}</span>
-        <span class="hs-asset-foot"><span class="chg">${q && q.changePct != null ? `${q.change > 0 ? '&#9650;' : q.change < 0 ? '&#9660;' : ''} ${pct(q.changePct)}` : '&nbsp;'}</span>${held ? `<span class="held">You hold ${fmtUnits(held.units, a.decimals)}</span>` : '<span class="go">Convert &rarr;</span>'}</span>
-      </button>`;
+        <span class="hs-asset-foot"><span class="chg">${q && q.changePct != null ? `${q.change > 0 ? '&#9650;' : q.change < 0 ? '&#9660;' : ''} ${pct(q.changePct)} today` : '&nbsp;'}</span>${held ? `<span class="held">You hold ${fmtUnits(held.units, a.decimals)} ${esc(a.unit)}</span>` : ''}<span class="go">Buy &rarr;</span></span>
+      </button>${held ? `<button type="button" class="rf-btn ghost hs-asset-sell" data-sell="${esc(a.symbol)}">Sell ${esc(a.name)}</button>` : ''}`;
     }).join('');
   }
 
-  function renderHoldings() {
-    const body = qs('[data-inv-holdings]');
-    if (!data.holdings.length) {
-      body.innerHTML = '<tr><td colspan="7" class="rf-center rf-muted">You do not hold any assets yet. Tap one above to convert part of your balance.</td></tr>';
+  /** Each Bitcoin purchase still held, with its term and how far through it is. */
+  function renderPositions() {
+    const body = qs('[data-inv-positions]');
+    const positions = data.positions || [];
+    if (!positions.length) {
+      body.innerHTML = '<tr><td colspan="6" class="rf-center rf-muted">You do not hold any Bitcoin yet. Tap Bitcoin above to buy your first.</td></tr>';
       return;
     }
-    body.innerHTML = data.holdings.map((h) => {
+    body.innerHTML = positions.slice().reverse().map((p) => `<tr>
+      <td class="rf-nowrap">${longDate(p.purchasedAt)}<span class="sub">${money(p.cost)} invested</span></td>
+      <td class="num rf-mono">${esc(p.units)}</td>
+      <td class="num opt">${p.price ? money(p.price) : '&mdash;'}</td>
+      <td class="num"><strong>${p.value == null ? '&mdash;' : money(p.value)}</strong></td>
+      <td class="num rf-amt ${(p.gain || 0) >= 0 ? 'credit' : 'debit'}">${p.gain == null ? '&mdash;' : `${p.gain >= 0 ? '+' : '-'}${money(Math.abs(p.gain))}<span class="sub">${pct(p.gainPct)}</span>`}</td>
+      <td class="rf-nowrap">${p.matured ? '<strong>Matured</strong>' : longDate(p.maturesAt)}<span class="sub">${p.matured ? `${longDate(p.maturesAt)}` : `${p.daysToMaturity} days to go`} &middot; ${p.termMonths}-month term</span></td>
+    </tr>`).join('');
+  }
+
+  /** Assets bought before Bitcoin only: valued, and sellable, nothing else. */
+  function renderHoldings() {
+    const legacy = data.holdings.filter((h) => h.retired);
+    qs('[data-inv-holdings-wrap]').hidden = !legacy.length;
+    qs('[data-inv-holdings]').innerHTML = legacy.map((h) => {
       const a = assetBy(h.symbol);
       return `<tr>
-        <td><span class="hs-cell-asset">${logoOf(h.symbol, 30)}<span><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)} &middot; ${esc(h.kind)}</span></span></span></td>
+        <td><span class="hs-cell-asset">${logoOf(h.symbol, 30)}<span><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)}</span></span></span></td>
         <td class="num rf-mono">${fmtUnits(h.units, a ? a.decimals : 8)}</td>
-        <td class="num opt">${money(h.averagePrice)}</td>
-        <td class="num opt">${h.price == null ? '&mdash;' : money(h.price)}</td>
         <td class="num"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></td>
         <td class="num rf-amt ${h.gain >= 0 ? 'credit' : 'debit'}">${h.gain == null ? '&mdash;' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}<span class="sub">${pct(h.gainPct)}</span>`}</td>
-        <td class="num rf-nowrap"><button class="rf-btn ghost sm" data-convert="${esc(h.symbol)}">Buy</button> <button class="rf-btn ghost sm" data-sell="${esc(h.symbol)}">Sell</button></td>
+        <td class="num rf-nowrap"><button class="rf-btn ghost sm" data-sell="${esc(h.symbol)}">Sell</button></td>
       </tr>`;
     }).join('');
   }
@@ -95,7 +124,7 @@
   function renderTrades() {
     const list = qs('[data-inv-trades]');
     if (!data.trades.length) {
-      list.innerHTML = '<li class="rf-muted rf-small">Your conversions will appear here.</li>';
+      list.innerHTML = '<li class="rf-muted rf-small">Your purchases and sales will appear here.</li>';
       return;
     }
     list.innerHTML = data.trades.slice(0, 8).map((t) => `<li>
@@ -109,6 +138,7 @@
   function render() {
     renderTotals();
     renderAssets();
+    renderPositions();
     renderHoldings();
     renderTrades();
   }
@@ -151,13 +181,14 @@
   function receiptHtml(trade, asset) {
     return `<div class="hs-receipt">
       <div class="hs-receipt-ok">&#10003;</div>
-      <h3>${trade.side === 'buy' ? 'Converted' : 'Sold'}</h3>
+      <h3>${trade.side === 'buy' ? 'Bought' : 'Sold'}</h3>
       <p class="rf-muted">${trade.side === 'buy'
     ? `${money(trade.amount)} is now <strong>${esc(trade.units)} ${unitWord(asset, trade.units)}</strong> of ${esc(asset.name)}.`
     : `${esc(trade.units)} ${unitWord(asset, trade.units)} of ${esc(asset.name)} became <strong>${money(trade.amount)}</strong>.`}</p>
       <dl class="rf-dl">
         <dt>Price</dt><dd>${money(trade.price)} per ${asset.unit === 'share' ? 'share' : asset.unit}</dd>
-        <dt>${trade.side === 'buy' ? 'Debited' : 'Credited'}</dt><dd>${money(trade.amount)}</dd>
+        <dt>${trade.side === 'buy' ? 'Paid' : 'Received'}</dt><dd>${money(trade.amount)}</dd>
+        ${trade.side === 'buy' && trade.maturesAt ? `<dt>Matures</dt><dd>${longDate(trade.maturesAt)} (${trade.termMonths}-month term)</dd>` : ''}
         <dt>Price source</dt><dd>${esc(trade.source || '')}</dd>
         <dt>Reference</dt><dd class="rf-mono">${esc(trade.reference)}</dd>
       </dl>
@@ -165,22 +196,28 @@
     </div>`;
   }
 
-  /** Convert: cash -> asset. */
+  /** Buy: cash -> Bitcoin, for a term. */
   function openConvert(symbol) {
-    const asset = assetBy(symbol) || data.assets.find((a) => a.quote && !a.quote.stale);
-    if (!asset || !asset.quote) { toast('There is no live price for that asset right now.', 'bad'); return; }
-    if (!data.accounts.length) { toast('You need a checking or savings account to convert from.', 'bad'); return; }
+    const buyable = data.assets.filter((a) => !a.retired);
+    const asset = buyable.find((a) => a.symbol === symbol) || buyable.find((a) => a.quote && !a.quote.stale);
+    if (!asset || !asset.quote) { toast('There is no live Bitcoin price right now. Try again in a minute.', 'bad'); return; }
+    if (!data.accounts.length) { toast('You need a cash balance to buy from. Send us a message and we will open one.', 'bad'); return; }
 
-    const options = data.assets.filter((a) => a.quote).map((a) => `<option value="${esc(a.symbol)}"${a.symbol === asset.symbol ? ' selected' : ''}>${esc(a.name)} (${esc(a.symbol)})</option>`).join('');
+    const options = buyable.filter((a) => a.quote).map((a) => `<option value="${esc(a.symbol)}"${a.symbol === asset.symbol ? ' selected' : ''}>${esc(a.name)} (${esc(a.symbol)})</option>`).join('');
     const preferred = data.accounts.some((a) => a.id === preferredAccount) ? preferredAccount : data.accounts[0].id;
     const accounts = data.accounts.map((a) => `<option value="${esc(a.id)}"${a.id === preferred ? ' selected' : ''}>${esc(a.nickname || a.name)} &bull;&bull;${esc(a.last4)} - ${money(a.available)} available</option>`).join('');
+    const terms = (data.terms && data.terms.length ? data.terms : [data.defaultTerm || 12])
+      .map((m) => `<option value="${m}"${m === data.defaultTerm ? ' selected' : ''}>${termLabel(m)}</option>`).join('');
 
     const { el, close } = sheet(`
-      <div class="rf-modal-head"><h3>Convert balance</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
+      <div class="rf-modal-head"><h3>Buy Bitcoin</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
       <form class="rf-modal-body" data-form novalidate>
         <div class="hs-sheet-asset" data-asset-head></div>
-        <div class="rf-field"><label class="rf-label" for="inv-asset">Asset</label><select class="rf-select" id="inv-asset" name="symbol">${options}</select></div>
-        <div class="rf-field"><label class="rf-label" for="inv-account">From</label><select class="rf-select" id="inv-account" name="accountId">${accounts}</select></div>
+        <div class="rf-field"${buyable.length > 1 ? '' : ' hidden'}><label class="rf-label" for="inv-asset">Asset</label><select class="rf-select" id="inv-asset" name="symbol">${options}</select></div>
+        <div class="rf-row">
+          <div class="rf-field"><label class="rf-label" for="inv-account">Pay from</label><select class="rf-select" id="inv-account" name="accountId">${accounts}</select></div>
+          <div class="rf-field"><label class="rf-label" for="inv-term">Hold for</label><select class="rf-select" id="inv-term" name="termMonths">${terms}</select></div>
+        </div>
         <div class="rf-field">
           <label class="rf-label" for="inv-amount">Amount</label>
           <input class="rf-input money" id="inv-amount" name="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" />
@@ -190,14 +227,15 @@
         </div>
         <div class="hs-preview" data-preview aria-live="polite"></div>
         <div class="rf-notice bad rf-hide" data-error></div>
-        <button class="rf-btn lg hs-block" type="submit" data-submit disabled>Convert</button>
-        <p class="rf-small rf-muted hs-center">Booked at the live price when you confirm. Not FDIC insured. May lose value.</p>
+        <button class="rf-btn lg hs-block" type="submit" data-submit disabled>Buy</button>
+        <p class="rf-small rf-muted hs-center">Booked at the live price when you confirm. Bitcoin&rsquo;s price can fall as well as rise. The maturity date ends your term; you can still sell before it.</p>
       </form>`);
 
     const f = qs('[data-form]', el);
     const sel = qs('#inv-asset', el);
     const acct = qs('#inv-account', el);
     const amt = qs('#inv-amount', el);
+    const term = qs('#inv-term', el);
     let pctChosen = null;
 
     const current = () => assetBy(sel.value);
@@ -222,12 +260,13 @@
         ? `<div><span>You pay</span><strong>${money(c)}</strong></div>
            <div><span>You get about</span><strong>${fmtUnits(units, a.decimals)} ${unitWord(a, units)}</strong></div>
            <div><span>At</span><strong>${dollars(q.price)} per ${a.unit === 'share' ? 'share' : a.unit}</strong></div>
+           <div><span>Matures</span><strong>${longDate(maturityFrom(term.value))}</strong></div>
            ${tooMuch ? `<p class="hs-warn">That is more than the ${money(account().available)} available.</p>` : ''}
-           ${tooSmall ? `<p class="hs-warn">The smallest conversion is ${money(data.minimum)}.</p>` : ''}`
+           ${tooSmall ? `<p class="hs-warn">The smallest purchase is ${money(data.minimum)}.</p>` : ''}`
         : '<p class="rf-muted rf-small">Enter an amount or tap a percentage.</p>';
       const btn = qs('[data-submit]', el);
       btn.disabled = !(c >= data.minimum) || tooMuch || units <= 0;
-      btn.textContent = c > 0 ? `Convert ${money(c)} to ${a.name}` : 'Convert';
+      btn.textContent = c > 0 ? `Buy ${money(c)} of ${a.name}` : 'Buy';
       qsa('[data-pct]', el).forEach((b) => b.classList.toggle('is-active', Number(b.dataset.pct) === pctChosen));
     }
 
@@ -238,6 +277,7 @@
     }));
     amt.addEventListener('input', () => { pctChosen = null; paint(); });
     sel.addEventListener('change', paint);
+    term.addEventListener('change', paint);
     acct.addEventListener('change', () => {
       if (pctChosen != null) amt.value = (Math.floor((account().available * pctChosen) / 100) / 100).toFixed(2);
       paint();
@@ -252,7 +292,7 @@
       const errBox = qs('[data-error]', el);
       errBox.classList.add('rf-hide');
       const a = current();
-      const body = { accountId: acct.value, symbol: a.symbol, quotedPrice: a.quote.price };
+      const body = { accountId: acct.value, symbol: a.symbol, quotedPrice: a.quote.price, termMonths: Number(term.value) };
       if (pctChosen === 100) body.all = true;
       else if (pctChosen != null) body.percent = pctChosen;
       else body.amount = (cents() / 100).toFixed(2);
@@ -263,7 +303,7 @@
         clearInterval(refreshTimer);
         qs('.hs-sheet', el).innerHTML = receiptHtml(res.trade, a);
         qsa('[data-close-modal]', el).forEach((b) => b.addEventListener('click', close));
-        toast(`Converted ${money(res.trade.amount)} to ${res.trade.units} ${a.symbol}.`, 'ok');
+        toast(`Bought ${res.trade.units} ${a.symbol} for ${money(res.trade.amount)}.`, 'ok');
         load().catch(() => {});
       } catch (err) {
         if (err.code === 'price_moved' && err.body && err.body.details) {
@@ -377,19 +417,23 @@
     if (conv && data) { e.preventDefault(); openConvert(conv.dataset.convert); return; }
     const sell = e.target.closest('[data-sell]');
     if (sell && data) { e.preventDefault(); openSell(sell.dataset.sell); return; }
-    if (e.target.closest('[data-inv-quick]') && data) { e.preventDefault(); openConvert('SPY'); }
+    if (e.target.closest('[data-inv-quick]') && data) { e.preventDefault(); openConvert(BTC); }
   });
 
   RF.ready(async () => {
     try {
       await load();
-      // /invest?convert=BTC - from the ticker - opens straight onto that asset.
-      const wanted = new URLSearchParams(location.search).get('convert');
-      if (wanted && assetBy(wanted.toUpperCase())) openConvert(wanted.toUpperCase());
-      else if (preferredAccount) openConvert('SPY');
+      // /invest?buy=1 (the dashboard), ?convert=BTC (the ticker) or ?from=
+      // opens the buy sheet; ?sell=1 opens the sell sheet when there is
+      // Bitcoin to sell.
+      const params = new URLSearchParams(location.search);
+      const wanted = String(params.get('convert') || '').toUpperCase();
+      if (params.get('sell') && holdingBy(BTC)) openSell(BTC);
+      else if (params.get('sell')) toast('You do not hold any Bitcoin to sell yet.', 'info');
+      else if (params.get('buy') || preferredAccount || wanted) openConvert(wanted || BTC);
       setInterval(() => { if (!document.hidden && !qs('.hs-sheet')) load().catch(() => {}); }, 30000);
     } catch (err) {
-      toast(err.message || 'Investments could not load.', 'bad');
+      toast(err.message || 'Your Bitcoin could not load.', 'bad');
     }
   });
 }());

@@ -29,16 +29,13 @@
   /* ---------------------------------------------------------------- tabs -- */
 
   const TITLES = {
-    overview: ['Today', 'What needs a decision, and how the bank stands.'],
-    queue: ['Transfer queue', 'Outgoing transfers held for review.'],
-    deposits: ['Check deposits', 'Mobile deposits waiting on a decision.'],
+    overview: ['Today', 'What needs a decision, and how the platform stands.'],
+    queue: ['Withdrawals', 'Withdrawals held for review.'],
     messages: ['Messages', 'Secure messages from customers.'],
-    disputes: ['Claims', 'Disputed transactions.'],
     customers: ['Customers', 'Search, open and act on any customer.'],
-    register: ['Register a customer', 'Open a customer and their first accounts.'],
-    cards: ['Cards', 'Every card the bank has issued.'],
-    investments: ['Investments', 'What customers hold, valued at live prices.'],
-    alerts: ['Email alerts', 'Everything the bank has sent, and to whom.'],
+    register: ['Register a customer', 'Open a customer and their cash balance.'],
+    investments: ['Bitcoin investments', 'What customers hold, valued at the live price.'],
+    alerts: ['Email alerts', 'Everything we have sent, and to whom.'],
     activity: ['Activity log', 'Every action, by customers and staff.'],
     settings: ['Settings', 'Limits, fees, contact details and switches.'],
     setup: ['Setup checklist', 'What the backend needs, checked live.'],
@@ -77,18 +74,15 @@
     const s = data.stats;
 
     qs('[data-stats]').innerHTML = [
-      ['Customers', String(s.customers), `${esc(String(s.newCustomers30d))} joined in 30 days`],
-      ['On deposit', money(s.deposits), `${esc(String(s.accounts))} accounts`],
-      ['Credit outstanding', money(s.creditOutstanding), `across card accounts &middot; ${s.suspended} suspended`],
+      ['Customers', String(s.customers), `${esc(String(s.newCustomers30d))} joined in 30 days &middot; ${s.suspended} suspended`],
+      ['Cash held', money(s.deposits), `${esc(String(s.accounts))} cash balances`],
     ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${d}</div></div>`).join('');
 
     // What needs a person, first and largest. Each tile opens its section.
     const attention = [
-      ['queue', 'Transfers to review', s.pendingTransfers, s.pendingTransferValue ? `${money(s.pendingTransferValue)} held` : 'nothing held'],
-      ['deposits', 'Check deposits', s.pendingDeposits, 'waiting on a decision'],
+      ['queue', 'Withdrawals to review', s.pendingTransfers, s.pendingTransferValue ? `${money(s.pendingTransferValue)} held` : 'nothing held'],
       ['customers?kyc=pending', 'Identity checks', s.pendingKyc, 'customers to verify'],
       ['messages', 'Unanswered messages', s.unansweredMessages, 'from customers'],
-      ['disputes', 'Open claims', s.openDisputes, 'disputed transactions'],
     ];
     qs('[data-attention]').innerHTML = attention.map(([tab, label, n, d]) => `
       <a class="hs-attn-tile${n ? ' is-hot' : ''}" href="#${tab.split('?')[0]}" data-goto-tab="${tab}">
@@ -97,7 +91,7 @@
         <span class="go" aria-hidden="true">&rarr;</span>
       </a>`).join('');
 
-    const pips = { queue: s.pendingTransfers, deposits: s.pendingDeposits, messages: s.unansweredMessages, disputes: s.openDisputes };
+    const pips = { queue: s.pendingTransfers, messages: s.unansweredMessages };
     Object.entries(pips).forEach(([key, n]) => {
       qsa(`[data-staff-pip="${key}"]`).forEach((pip) => {
         pip.textContent = String(n || '');
@@ -109,14 +103,14 @@
     api.get('/admin/investments').then((inv) => {
       const host = qs('[data-stats]');
       if (!host || qs('[data-stat-invested]', host)) return;
-      host.insertAdjacentHTML('beforeend', `<a class="rf-card rf-stat hs-stat-link" href="#investments" data-goto-tab="investments" data-stat-invested><div class="k">Invested by customers</div><div class="v">${money(inv.totals.value)}</div><div class="d">${inv.totals.investors} investor${inv.totals.investors === 1 ? '' : 's'} &middot; ${inv.totals.trades24h} trade${inv.totals.trades24h === 1 ? '' : 's'} today</div></a>`);
+      host.insertAdjacentHTML('beforeend', `<a class="rf-card rf-stat hs-stat-link" href="#investments" data-goto-tab="investments" data-stat-invested><div class="k">Bitcoin held by customers</div><div class="v">${money(inv.totals.value)}</div><div class="d">${inv.totals.investors} investor${inv.totals.investors === 1 ? '' : 's'} &middot; ${inv.totals.trades24h} trade${inv.totals.trades24h === 1 ? '' : 's'} today</div></a>`);
     }).catch(() => {});
     api.get('/admin/setup').then((setupData) => {
       const left = setupData.counts.todo || 0;
       qsa('[data-staff-pip="setup"]').forEach((pip) => { pip.textContent = String(left || ''); pip.classList.toggle('rf-hide', !left); });
       const banner = qs('[data-setup-banner]');
       if (banner && left) {
-        banner.innerHTML = `<span><strong>${left} setup item${left === 1 ? '' : 's'} left</strong> before this bank is ready for real customers.</span><a class="rf-btn sm" href="#setup" data-goto-tab="setup">Open the checklist</a>`;
+        banner.innerHTML = `<span><strong>${left} setup item${left === 1 ? '' : 's'} left</strong> before this platform is ready for real customers.</span><a class="rf-btn sm" href="#setup" data-goto-tab="setup">Open the checklist</a>`;
         banner.classList.remove('rf-hide');
       }
     }).catch(() => {});
@@ -230,16 +224,9 @@
               </tr>`).join('') || '<tr><td class="rf-muted rf-small">No accounts.</td></tr>'}
             </tbody>
           </table>
-          <button class="rf-btn ghost sm rf-mt" data-open-account="${esc(c.id)}">Open another account</button>
+          ${data.accounts.some((a) => !a.isCredit && a.status !== 'closed') ? '' : `<button class="rf-btn ghost sm rf-mt" data-open-account="${esc(c.id)}">Open a cash balance</button>`}
 
-          <h4 class="rf-label rf-mt">Cards</h4>
-          <ul class="rf-list">
-            ${data.cards.map((card) => `<li>
-              <span class="t"><strong>${esc(card.brand.toUpperCase())} &bull;&bull;&bull;&bull; ${esc(card.last4)}</strong><span>${esc(card.kind)} &middot; expires ${esc(card.expires)}</span></span>
-              ${badge(card.status)}
-            </li>`).join('') || '<li class="rf-muted rf-small">No cards.</li>'}
-          </ul>
-          <h4 class="rf-label rf-mt">Investments</h4>
+          <h4 class="rf-label rf-mt">Bitcoin</h4>
           <ul class="rf-list" data-sheet-investments><li class="rf-muted rf-small">Loading&hellip;</li></ul>
         </div>
       </div>
@@ -276,7 +263,7 @@
           </ul>
         </div>
         <div>
-          <h4 class="rf-label">Recipients</h4>
+          <h4 class="rf-label">Withdrawal accounts</h4>
           <ul class="rf-list">
             ${data.beneficiaries.map((b) => `<li>
               <span class="t"><strong>${esc(b.nickname || b.name)}</strong><span>${esc(b.bankName || '')} ${esc(b.accountMask)}</span></span>
@@ -311,19 +298,24 @@
       const list = qs('[data-sheet-investments]', customerModal);
       if (!list) return;
       const holdings = inv.holdings.length ? inv.holdings.map((h) => `<li>
-        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)} &middot; cost ${money(h.costBasis)}</span></span>
+        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)}${h.retired ? ' (no longer offered)' : ''} &middot; cost ${money(h.costBasis)}</span></span>
         <span class="rf-nowrap"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></span>
-      </li>`).join('') + `<li class="rf-small"><span class="t"><strong>Total</strong></span><strong>${money(inv.totals.value)}</strong></li>` : '<li class="rf-muted rf-small">No investments.</li>';
+      </li>`).join('') + `<li class="rf-small"><span class="t"><strong>Total</strong></span><strong>${money(inv.totals.value)}</strong></li>` : '<li class="rf-muted rf-small">No Bitcoin yet.</li>';
+      const positions = (inv.positions || []).map((p) => `<li>
+        <span class="t"><strong>${esc(p.units)} BTC bought ${date(p.purchasedAt)}</strong><span>${money(p.cost)} &middot; ${p.termMonths}-month term &middot; ${p.matured ? 'matured' : `matures ${date(p.maturesAt)}`}</span></span>
+        <span class="rf-nowrap">${p.value == null ? '&mdash;' : money(p.value)}</span>
+      </li>`).join('');
       const trades = inv.trades.slice(0, 8).map((t) => `<li class="${t.status === 'reversed' ? 'is-reversed' : ''}">
-        <span class="t"><strong>${t.side === 'buy' ? 'Bought' : 'Sold'} ${esc(t.units)} ${esc(t.symbol)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.bookedByStaff ? ' &middot; booked by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
-        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}">Change time</button> <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${t.side === 'buy' ? 'Bought' : 'Sold'} ${t.units} ${t.symbol} for ${money(t.amount)}`)}">Reverse</button></span>`}
+        <span class="t"><strong>${t.side === 'buy' ? 'Bought' : 'Sold'} ${esc(t.units)} ${esc(t.symbol)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${t.termMonths}-month term` : ''}${t.bookedByStaff ? ' &middot; booked by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
+        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths || '')}">Change date or term</button> <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${t.side === 'buy' ? 'Bought' : 'Sold'} ${t.units} ${t.symbol} for ${money(t.amount)}`)}">Reverse</button></span>`}
       </li>`).join('');
       list.innerHTML = `${holdings}
-        <li class="hs-sheet-actions"><button class="rf-btn sm" data-book-trade>Book a conversion</button><span class="rf-small rf-muted">For walk-ins, or instructions taken while the network was down.</span></li>
-        ${trades ? `<li class="rf-label" style="border:0;padding-bottom:0">Conversions</li>${trades}` : ''}`;
+        ${positions ? `<li class="rf-label" style="border:0;padding-bottom:0">Purchases and maturity</li>${positions}` : ''}
+        <li class="hs-sheet-actions"><button class="rf-btn sm" data-book-trade>Book a purchase or sale</button><span class="rf-small rf-muted">For instructions taken by phone or while the network was down.</span></li>
+        ${trades ? `<li class="rf-label" style="border:0;padding-bottom:0">Purchases and sales</li>${trades}` : ''}`;
     }).catch(() => {
       const list = qs('[data-sheet-investments]', customerModal);
-      if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load investments.</li>';
+      if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load their Bitcoin.</li>';
     });
     paintInvestments();
     acting.paintInvestments = paintInvestments;
@@ -375,7 +367,7 @@
     qsa('[data-verify-beneficiary]', root).forEach((button) => button.addEventListener('click', async () => {
       try {
         await api.post(`/admin/beneficiaries/${button.getAttribute('data-verify-beneficiary')}/review`, { status: 'verified' });
-        toast('Recipient verified.', 'ok');
+        toast('Withdrawal account verified.', 'ok');
         openCustomer(customer.id);
       } catch (err) { toast(err.message, 'bad'); }
     }));
@@ -501,11 +493,11 @@
         ${whenFields(tx.date, 'Moving an entry restates the running balances after it. The account balance itself does not change.')}
         <div class="rf-row">
           <div class="rf-field"><label>Amount</label><input class="rf-input money" name="amount" value="${(tx.amount / 100).toFixed(2)}" inputmode="decimal" ${tx.status !== 'posted' || isTrade ? 'disabled' : ''} />
-            <div class="hint">${isTrade ? 'A conversion is corrected by reversing it and booking it again.' : tx.status !== 'posted' ? 'Post it first to change the amount.' : 'The balance moves by the difference.'}</div></div>
+            <div class="hint">${isTrade ? 'A Bitcoin purchase or sale is corrected by reversing it and booking it again.' : tx.status !== 'posted' ? 'Post it first to change the amount.' : 'The balance moves by the difference.'}</div></div>
           <div class="rf-field"><label>Category</label><input class="rf-input" name="category" value="${esc(tx.category || '')}" /></div>
         </div>
         <div class="rf-field"><label>Memo shown to the customer</label><input class="rf-input" name="memo" value="${esc(tx.memo || '')}" /></div>
-        <div class="rf-field"><label>Internal note (why)</label><input class="rf-input" name="note" placeholder="Walk-in at branch 2; slip #4471" /></div>`, 'Save changes');
+        <div class="rf-field"><label>Internal note (why)</label><input class="rf-input" name="note" placeholder="Deposit confirmed by the customer's bank" /></div>`, 'Save changes');
       onSubmit(form, async (values) => {
         const body = { description: values.description, category: values.category, memo: values.memo, note: values.note };
         const when = whenOf(values.date, values.time);
@@ -519,28 +511,32 @@
       return;
     }
 
-    /* Book a conversion or sale for the customer, at a price and time. */
+    /* Book a Bitcoin purchase or sale for the customer, at a price, time and term. */
     if (event.target.closest('[data-book-trade]')) {
       event.preventDefault();
       const data = acting.customerData;
       const accounts = data.accounts.filter((a) => !a.isCredit && a.status === 'active');
-      if (!accounts.length) { toast('This customer has no active checking or savings account.', 'bad'); return; }
+      if (!accounts.length) { toast('This customer has no active cash balance.', 'bad'); return; }
       let assets = [];
       try { assets = (await api.get('/markets')).assets; } catch (err) { assets = []; }
-      const { el, form, close } = staffSheet('Book a conversion', `
-        <div class="rf-segment rf-mb" data-side><button type="button" class="is-active" data-side-value="buy">Convert cash to an asset</button><button type="button" data-side-value="sell">Sell an asset to cash</button></div>
+      if (!state.meta) { try { state.meta = await api.get('/admin/settings'); } catch (err) { /* default term below */ } }
+      const terms = (state.meta && state.meta.settings.investmentTerms) || [3, 6, 12, 24];
+      const defaultTerm = (state.meta && state.meta.settings.investmentTermMonths) || 12;
+      const { el, form, close } = staffSheet('Book a purchase or sale', `
+        <div class="rf-segment rf-mb" data-side><button type="button" class="is-active" data-side-value="buy">Buy Bitcoin with cash</button><button type="button" data-side-value="sell">Sell Bitcoin to cash</button></div>
         <input type="hidden" name="side" value="buy" />
         <div class="rf-row">
-          <div class="rf-field"><label>Account</label><select class="rf-select" name="accountId">${accounts.map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)} - ${money(a.availableBalance)}</option>`).join('')}</select></div>
-          <div class="rf-field"><label>Asset</label><select class="rf-select" name="symbol">${assets.map((a) => `<option value="${esc(a.symbol)}" data-price="${a.quote ? a.quote.price : ''}" data-decimals="${a.decimals}">${esc(a.name)} (${esc(a.symbol)})</option>`).join('')}</select></div>
+          <div class="rf-field"><label>Cash balance</label><select class="rf-select" name="accountId">${accounts.map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)} - ${money(a.availableBalance)}</option>`).join('')}</select></div>
+          <div class="rf-field"${assets.length > 1 ? '' : ' hidden'}><label>Asset</label><select class="rf-select" name="symbol">${assets.map((a) => `<option value="${esc(a.symbol)}" data-price="${a.quote ? a.quote.price : ''}" data-decimals="${a.decimals}">${esc(a.name)} (${esc(a.symbol)})</option>`).join('')}</select></div>
+          <div class="rf-field" data-buy-only><label>Term (months)</label><input class="rf-input" name="termMonths" inputmode="numeric" list="hs-terms" value="${esc(defaultTerm)}" /><datalist id="hs-terms">${terms.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist></div>
         </div>
         <div class="rf-row">
           <div class="rf-field" data-buy-only><label>Cash amount</label><input class="rf-input money" name="amount" inputmode="decimal" placeholder="0.00" /></div>
-          <div class="rf-field" data-sell-only hidden><label>Units to sell</label><input class="rf-input money" name="units" inputmode="decimal" placeholder="0" /></div>
-          <div class="rf-field"><label>Price per unit</label><input class="rf-input money" name="price" inputmode="decimal" /><div class="hint" data-live-hint></div></div>
+          <div class="rf-field" data-sell-only hidden><label>Bitcoin to sell</label><input class="rf-input money" name="units" inputmode="decimal" placeholder="0" /></div>
+          <div class="rf-field"><label>Price per Bitcoin</label><input class="rf-input money" name="price" inputmode="decimal" /><div class="hint" data-live-hint></div></div>
         </div>
         ${whenFields('', 'Leave blank for now. Set it to the time the customer gave the instruction.')}
-        <div class="rf-field"><label>Note (why it was booked by staff)</label><input class="rf-input" name="note" placeholder="Walk-in at branch 2" /></div>
+        <div class="rf-field"><label>Note (why it was booked by staff)</label><input class="rf-input" name="note" placeholder="Instruction taken by phone" /></div>
         <div class="hs-preview" data-book-preview></div>`, 'Book it');
       const sideInput = qs('[name="side"]', form);
       const symbol = qs('[name="symbol"]', form);
@@ -566,7 +562,7 @@
       qsa('[data-side-value]', el).forEach((b) => b.addEventListener('click', () => {
         qsa('[data-side-value]', el).forEach((x) => x.classList.toggle('is-active', x === b));
         sideInput.value = b.getAttribute('data-side-value');
-        qs('[data-buy-only]', form).hidden = sideInput.value !== 'buy';
+        qsa('[data-buy-only]', form).forEach((f) => { f.hidden = sideInput.value !== 'buy'; });
         qs('[data-sell-only]', form).hidden = sideInput.value !== 'sell';
         preview();
       }));
@@ -575,7 +571,7 @@
       fillPrice();
       onSubmit(form, async (values) => {
         const body = { customerId: acting.customerId, side: values.side, accountId: values.accountId, symbol: values.symbol, price: values.price, note: values.note, date: whenOf(values.date, values.time) || undefined };
-        if (values.side === 'sell') body.units = values.units; else body.amount = values.amount;
+        if (values.side === 'sell') body.units = values.units; else { body.amount = values.amount; body.termMonths = values.termMonths; }
         const res = await api.post('/admin/trades', body);
         close();
         toast(`${res.trade.side === 'buy' ? 'Booked' : 'Sold'} ${res.trade.units} ${res.trade.symbol} at ${money(res.trade.price)}.`, 'ok');
@@ -584,33 +580,37 @@
       return;
     }
 
-    /* Move a conversion to when it really happened. */
+    /* Move a purchase or sale to when it really happened, or change a purchase's term. */
     const timeBtn = event.target.closest('[data-trade-time]');
     if (timeBtn) {
       event.preventDefault();
-      const { form, close } = staffSheet('Change the time of this conversion', `
+      const isBuy = timeBtn.getAttribute('data-trade-side') === 'buy';
+      const { form, close } = staffSheet(isBuy ? 'Change the date or term of this purchase' : 'Change the date of this sale', `
         ${whenFields(timeBtn.getAttribute('data-trade-at'), 'Its ledger entry moves with it, and the running balances are restated.')}
-        <div class="rf-field"><label>Reason</label><input class="rf-input" name="note" placeholder="Instruction taken by phone during the outage" /></div>`, 'Save time');
+        ${isBuy ? `<div class="rf-field"><label>Term (months)</label><input class="rf-input" name="termMonths" inputmode="numeric" value="${esc(timeBtn.getAttribute('data-trade-term'))}" /><div class="hint">The maturity date is always the purchase date plus the term.</div></div>` : ''}
+        <div class="rf-field"><label>Reason</label><input class="rf-input" name="note" placeholder="Instruction taken by phone during the outage" /></div>`, 'Save');
       onSubmit(form, async (values) => {
         const when = whenOf(values.date, values.time);
         if (!when) throw new Error('Enter a date and time.');
-        await api.patch(`/admin/trades/${timeBtn.getAttribute('data-trade-time')}`, { date: when, note: values.note });
+        const body = { date: when, note: values.note };
+        if (isBuy && values.termMonths) body.termMonths = values.termMonths;
+        await api.patch(`/admin/trades/${timeBtn.getAttribute('data-trade-time')}`, body);
         close();
-        toast('Conversion re-timed.', 'ok');
+        toast(isBuy ? 'Purchase updated.' : 'Sale re-dated.', 'ok');
         openCustomer(acting.customerId);
       });
       return;
     }
 
-    /* Undo a conversion completely. */
+    /* Undo a purchase or sale completely. */
     const revBtn = event.target.closest('[data-trade-reverse]');
     if (revBtn) {
       event.preventDefault();
-      const note = prompt(`Reverse this conversion?\n\n${revBtn.getAttribute('data-trade-label')}\n\nThe units come off the holding and the cash goes back. Why? (the customer sees this)`);
+      const note = prompt(`Reverse this?\n\n${revBtn.getAttribute('data-trade-label')}\n\nThe Bitcoin comes off (or goes back on) the holding and the cash goes back. Why? (the customer sees this)`);
       if (note == null) return;
       try {
         await api.post(`/admin/trades/${revBtn.getAttribute('data-trade-reverse')}/reverse`, { note });
-        toast('Conversion reversed.', 'ok');
+        toast('Reversed.', 'ok');
         openCustomer(acting.customerId);
       } catch (err) { toast(err.message, 'bad'); }
     }
@@ -660,45 +660,7 @@
 
   /* ------------------------------------------------------------ register -- */
 
-  function accountRow(index) {
-    const products = (state.meta && state.meta.products) || [];
-    return `
-      <div class="rf-card rf-mb" data-account-row>
-        <div class="rf-card-body tight">
-          <div class="rf-row">
-            <div class="rf-field">
-              <label>Product</label>
-              <select class="rf-select" data-field="productId">
-                ${products.map((p) => `<option value="${esc(p.id)}"${index === 0 && p.id === 'everyday_checking' ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
-              </select>
-            </div>
-            <div class="rf-field">
-              <label>Opening balance</label>
-              <input class="rf-input money" data-field="openingBalance" inputmode="decimal" placeholder="0.00" />
-            </div>
-          </div>
-          <div class="rf-row">
-            <div class="rf-field"><label>Nickname</label><input class="rf-input" data-field="nickname" /></div>
-            <div class="rf-field"><label>Credit limit (cards)</label><input class="rf-input" data-field="creditLimit" inputmode="decimal" /></div>
-          </div>
-          <label class="rf-check"><input type="checkbox" data-field="issueCard" checked /><span>Issue a card on this account</span></label>
-          ${index > 0 ? '<button class="rf-btn link sm" type="button" data-remove-row>Remove this account</button>' : ''}
-        </div>
-      </div>`;
-  }
-
   async function register() {
-    if (!state.meta) state.meta = await api.get('/admin/settings');
-    const host = qs('[data-account-rows]');
-    host.innerHTML = accountRow(0);
-
-    qs('[data-add-account]').addEventListener('click', () => {
-      host.insertAdjacentHTML('beforeend', accountRow(host.children.length));
-    });
-    host.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-remove-row]');
-      if (button) button.closest('[data-account-row]').remove();
-    });
 
     // Identity documents, read as data URLs before the form is sent.
     const documents = {};
@@ -717,26 +679,10 @@
     });
 
     onSubmit(qs('#rf-register-form'), async (values) => {
-      const accounts = qsa('[data-account-row]', host).map((row) => {
-        const read = (field) => {
-          const el = qs(`[data-field="${field}"]`, row);
-          if (!el) return undefined;
-          return el.type === 'checkbox' ? el.checked : el.value.trim();
-        };
-        return {
-          productId: read('productId'),
-          openingBalance: read('openingBalance'),
-          nickname: read('nickname'),
-          creditLimit: read('creditLimit'),
-          issueCard: read('issueCard'),
-        };
-      });
-
-      const result = await api.post('/admin/customers', { ...values, ...documents, accounts });
+      const result = await api.post('/admin/customers', { ...values, ...documents });
       showRegistration(result);
       toast('Customer registered and the welcome email sent.', 'ok');
       qs('#rf-register-form').reset();
-      host.innerHTML = accountRow(0);
       loaded.delete('customers');
       showTab('customers');
     });
@@ -744,8 +690,8 @@
 
   /**
    * What was just created, in something an operator can read out or copy: the
-   * customer number, the username, the temporary password and every account
-   * with its opening balance. A native alert() would block the page and could
+   * customer number, the username, the temporary password and the cash
+   * balance with what it opened with. A native alert() would block the page and could
    * not be copied from.
    */
   function showRegistration(result) {
@@ -810,7 +756,7 @@
           <td class="rf-right rf-nowrap">
             ${['pending_review', 'pending_verification', 'processing', 'scheduled'].includes(t.status) ? `
               <button class="rf-btn sm" data-approve="${esc(t.id)}">Release</button>
-              <button class="rf-btn ghost sm" data-reject="${esc(t.id)}" data-summary="${esc(`${money(t.total)} to ${(t.recipient && (t.recipient.nickname || t.recipient.name)) || 'recipient'}`)}">Return</button>` : ''}
+              <button class="rf-btn ghost sm" data-reject="${esc(t.id)}" data-summary="${esc(`${money(t.total)} to ${(t.recipient && (t.recipient.nickname || t.recipient.name)) || 'their account'}`)}">Return</button>` : ''}
           </td>
         </tr>`).join('') : '<tr><td colspan="8" class="rf-center rf-muted">Nothing here.</td></tr>';
     }
@@ -819,10 +765,10 @@
       const approve = event.target.closest('[data-approve]');
       const reject = event.target.closest('[data-reject]');
       if (approve) {
-        if (!confirm('Release this transfer? The money leaves the customer’s account now.')) return;
+        if (!confirm('Release this withdrawal? The money leaves the customer’s cash balance now.')) return;
         try {
           await api.post(`/admin/transfers/${approve.getAttribute('data-approve')}/approve`, { note: '' });
-          toast('Transfer released and the customer emailed.', 'ok');
+          toast('Withdrawal released and the customer emailed.', 'ok');
           load();
           loaded.delete('overview');
         } catch (err) { toast(err.message, 'bad'); }
@@ -838,90 +784,16 @@
     statusSelect.addEventListener('change', load);
     qs('[data-run-scheduled]').addEventListener('click', async () => {
       const res = await api.post('/admin/scheduled/run');
-      toast(`${res.processed.length} scheduled transfer(s) processed.`, 'ok');
+      toast(`${res.processed.length} scheduled withdrawal(s) processed.`, 'ok');
       load();
     });
 
     onSubmit(qs('#rf-reject-form'), async (values) => {
       await api.post(`/admin/transfers/${acting.transferId}/reject`, values);
       RF.modal.close(rejectModal);
-      toast('Transfer returned, funds released and the customer told why.', 'ok');
+      toast('Withdrawal returned, funds released and the customer told why.', 'ok');
       load();
       loaded.delete('overview');
-    });
-
-    await load();
-  }
-
-  /* ------------------------------------------------------------ deposits -- */
-
-  async function deposits() {
-    const tbody = qs('[data-deposits]');
-
-    async function load() {
-      const data = await api.get('/admin/deposits');
-      tbody.innerHTML = data.deposits.length ? data.deposits.map((d) => `
-        <tr>
-          <td class="rf-nowrap rf-small">${datetime(d.createdAt)}</td>
-          <td>${d.customer ? `<button class="rf-btn link sm" data-customer="${esc(d.customer.id)}">${esc(d.customer.fullName)}</button>` : '&mdash;'}</td>
-          <td class="rf-mono rf-small">${esc(d.reference)}</td>
-          <td class="rf-small">${esc(d.checkNumber || '&mdash;')}</td>
-          <td class="num rf-amt">${money(d.amount)}</td>
-          <td>${badge(d.status)}</td>
-          <td><a class="rf-btn ghost sm" href="${esc(d.frontUrl)}" target="_blank" rel="noopener">Front</a> <a class="rf-btn ghost sm" href="${esc(d.backUrl)}" target="_blank" rel="noopener">Back</a></td>
-          <td class="rf-right rf-nowrap">
-            ${d.status === 'review' ? `
-              <button class="rf-btn sm" data-deposit="${esc(d.id)}" data-action="accept">Accept</button>
-              <button class="rf-btn ghost sm" data-deposit="${esc(d.id)}" data-action="reject">Return</button>` : ''}
-          </td>
-        </tr>`).join('') : '<tr><td colspan="8" class="rf-center rf-muted">No deposits.</td></tr>';
-    }
-
-    tbody.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-deposit]');
-      if (!button) return;
-      const action = button.getAttribute('data-action');
-      const note = action === 'reject' ? prompt('Why is this check being returned? The customer sees this.') : '';
-      if (action === 'reject' && note == null) return;
-      try {
-        await api.post(`/admin/deposits/${button.getAttribute('data-deposit')}/review`, { action, note });
-        toast(action === 'accept' ? 'Deposit accepted and the funds released.' : 'Deposit returned.', 'ok');
-        load();
-      } catch (err) { toast(err.message, 'bad'); }
-    });
-
-    await load();
-  }
-
-  /* --------------------------------------------------------------- cards -- */
-
-  async function cards() {
-    const tbody = qs('[data-cards]');
-
-    async function load() {
-      const data = await api.get('/admin/cards');
-      tbody.innerHTML = data.cards.length ? data.cards.map((card) => `
-        <tr>
-          <td class="rf-mono">${esc(card.masked)}<span class="sub">${esc(card.brand)}</span></td>
-          <td>${card.customer ? `<button class="rf-btn link sm" data-customer="${esc(card.customer.id)}">${esc(card.customer.fullName)}</button>` : '&mdash;'}</td>
-          <td class="rf-small">${esc(card.kind)}</td>
-          <td class="rf-small">${esc(card.expires)}</td>
-          <td class="num">${money(card.dailyPurchaseLimit)}</td>
-          <td>${badge(card.status)}</td>
-          <td class="rf-right rf-nowrap">
-            <button class="rf-btn ghost sm" data-card="${esc(card.id)}" data-action="${card.status === 'active' ? 'frozen' : 'active'}">${card.status === 'active' ? 'Freeze' : 'Activate'}</button>
-          </td>
-        </tr>`).join('') : '<tr><td colspan="7" class="rf-center rf-muted">No cards issued.</td></tr>';
-    }
-
-    tbody.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-card]');
-      if (!button) return;
-      try {
-        await api.patch(`/admin/cards/${button.getAttribute('data-card')}`, { status: button.getAttribute('data-action') });
-        toast('Card updated.', 'ok');
-        load();
-      } catch (err) { toast(err.message, 'bad'); }
     });
 
     await load();
@@ -1029,46 +901,6 @@
     await load();
   }
 
-  /* ------------------------------------------------------------ disputes -- */
-
-  async function disputes() {
-    const tbody = qs('[data-disputes]');
-
-    async function load() {
-      const data = await api.get('/admin/disputes');
-      tbody.innerHTML = data.disputes.length ? data.disputes.map((d) => `
-        <tr>
-          <td class="rf-nowrap rf-small">${date(d.createdAt)}</td>
-          <td>${d.customer ? `<button class="rf-btn link sm" data-customer="${esc(d.customer.id)}">${esc(d.customer.fullName)}</button>` : '&mdash;'}</td>
-          <td class="rf-mono rf-small">${esc(d.reference)}</td>
-          <td class="rf-small">${esc(d.reason)}<span class="sub">${esc(d.detail || '')}</span></td>
-          <td class="num rf-amt">${money(d.amount)}</td>
-          <td>${badge(d.status)}</td>
-          <td class="rf-right rf-nowrap">
-            ${d.status === 'open' || d.status === 'provisional_credit' ? `
-              <button class="rf-btn sm" data-dispute="${esc(d.id)}" data-outcome="upheld">Credit</button>
-              <button class="rf-btn ghost sm" data-dispute="${esc(d.id)}" data-outcome="provisional">Provisional</button>
-              <button class="rf-btn ghost sm" data-dispute="${esc(d.id)}" data-outcome="declined">Decline</button>` : ''}
-          </td>
-        </tr>`).join('') : '<tr><td colspan="7" class="rf-center rf-muted">No claims.</td></tr>';
-    }
-
-    tbody.addEventListener('click', async (event) => {
-      const button = event.target.closest('[data-dispute]');
-      if (!button) return;
-      const outcome = button.getAttribute('data-outcome');
-      const note = prompt('What should the customer be told?');
-      if (note == null) return;
-      try {
-        await api.post(`/admin/disputes/${button.getAttribute('data-dispute')}/resolve`, { outcome, note });
-        toast('Claim updated and the customer emailed.', 'ok');
-        load();
-      } catch (err) { toast(err.message, 'bad'); }
-    });
-
-    await load();
-  }
-
   /* ------------------------------------------------------------ activity -- */
 
   async function activity() {
@@ -1123,7 +955,8 @@
     };
 
     set('bankName', s.bankName);
-    set('routingNumber', s.routingNumber);
+    set('investmentTerms', (s.investmentTerms || []).join(', '));
+    set('investmentTermMonths', s.investmentTermMonths);
     set('supportEmail', s.supportEmail);
     set('supportPhone', s.supportPhone);
     set('fraudPhone', s.fraudPhone);
@@ -1139,24 +972,21 @@
     set('maintenanceMode', s.maintenanceMode);
     set('holdThresholdCents', (s.holdThresholdCents / 100).toFixed(2));
 
+    // Only what still applies: withdrawals, and the ceiling on any one
+    // purchase or withdrawal. The rest stay stored, untouched.
     const LIMIT_LABELS = {
-      internalDaily: 'Between own accounts', achDaily: 'ACH', wireDaily: 'Wires',
-      instantDaily: 'Instant sends', memberDaily: 'To other Hedgestone customers', billPayDaily: 'Bill pay', mobileDepositDaily: 'Mobile deposits',
-      atmDaily: 'ATM', cardDaily: 'Card purchases', singleTransactionMax: 'Any single transfer',
+      achDaily: 'Standard withdrawals', wireDaily: 'Same-day and international withdrawals', singleTransactionMax: 'Any single purchase or withdrawal',
     };
-    qs('[data-limits]').innerHTML = Object.entries(s.limits).map(([key, value]) => `
+    qs('[data-limits]').innerHTML = Object.entries(s.limits).filter(([key]) => LIMIT_LABELS[key]).map(([key, value]) => `
       <div class="rf-field">
         <label for="lim-${key}">${esc(LIMIT_LABELS[key] || key)}</label>
         <input class="rf-input" id="lim-${key}" data-limit="${key}" inputmode="decimal" value="${(value / 100).toFixed(2)}" />
       </div>`).join('');
 
     const FEE_LABELS = {
-      achOutgoing: 'Outgoing ACH', wireDomestic: 'Domestic wire', wireInternational: 'International wire',
-      expeditedTransfer: 'Expedited transfer', overdraft: 'Overdraft item', returnedItem: 'Returned item',
-      stopPayment: 'Stop payment', outOfNetworkAtm: 'Out-of-network ATM', foreignTransactionPct: 'Foreign transaction %',
-      paperStatement: 'Paper statement', cardReplacement: 'Card replacement', expeditedCardReplacement: 'Expedited card',
+      achOutgoing: 'Standard withdrawal', wireDomestic: 'Same-day withdrawal', wireInternational: 'International withdrawal',
     };
-    qs('[data-fees]').innerHTML = Object.entries(s.fees).map(([key, value]) => `
+    qs('[data-fees]').innerHTML = Object.entries(s.fees).filter(([key]) => FEE_LABELS[key]).map(([key, value]) => `
       <div class="rf-field">
         <label for="fee-${key}">${esc(FEE_LABELS[key] || key)}</label>
         <input class="rf-input" id="fee-${key}" data-fee="${key}" inputmode="decimal" value="${key === 'foreignTransactionPct' ? value : (value / 100).toFixed(2)}" />
@@ -1164,7 +994,7 @@
 
     qs('[data-mail-configured]').textContent = data.emailConfigured
       ? 'Email is configured: alerts are delivered.'
-      : 'No mail provider configured: alerts show in online banking but are not emailed.';
+      : 'No mail provider configured: alerts show when customers sign in but are not emailed.';
 
     onSubmit(form, async (values) => {
       const limits = {};
@@ -1175,8 +1005,9 @@
         fees[key] = key === 'foreignTransactionPct' ? Number(el.value || 0) : Math.round(Number(el.value || 0) * 100);
       });
       await api.put('/admin/settings', {
-        bankName: values.bankName,
-        routingNumber: values.routingNumber,
+        bankName: (values.bankName || '').trim(),
+        investmentTerms: values.investmentTerms,
+        investmentTermMonths: Number(values.investmentTermMonths),
         supportEmail: values.supportEmail,
         // Trimmed, and sent even when empty: clearing a field at the console
         // has to be able to take the detail back off the site.
@@ -1208,8 +1039,8 @@
     const t = data.totals;
     const gain = t.value - t.cost;
     qs('[data-inv-stats]').innerHTML = [
-      ['Invested by customers', money(t.value), 'at live prices'],
-      ['Paid in', money(t.cost), 'cost of the units held'],
+      ['Held by customers', money(t.value), 'at the live price'],
+      ['Paid in', money(t.cost), 'what the Bitcoin held cost'],
       ['Unrealised gain / loss', `${gain >= 0 ? '+' : '-'}${money(Math.abs(gain))}`, t.cost ? `${Math.abs(gain / t.cost) < 0.00005 ? '0.00' : ((gain / t.cost) * 100).toFixed(2)}%` : '&nbsp;'],
       ['Investors', String(t.investors), `${t.trades24h} trade${t.trades24h === 1 ? '' : 's'} in 24 hours`],
     ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${d}</div></div>`).join('');
@@ -1222,7 +1053,7 @@
         <td class="num opt">${money(h.cost)}</td>
         <td class="num"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></td>
         <td class="num rf-amt ${h.gain >= 0 ? 'credit' : 'debit'}">${h.gain == null ? '&mdash;' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}`}</td>
-      </tr>`).join('') : '<tr><td colspan="6" class="rf-center rf-muted">No customer holds an asset yet.</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="6" class="rf-center rf-muted">No customer holds Bitcoin yet.</td></tr>';
 
     qs('[data-inv-assets]').innerHTML = data.byAsset.length ? data.byAsset.map((a) => `<li>
       <span class="t"><strong>${esc(a.name)}</strong><span>${esc(a.symbol)} &middot; ${a.holders} holder${a.holders === 1 ? '' : 's'}</span></span>
@@ -1232,7 +1063,7 @@
     qs('[data-inv-trades]').innerHTML = data.trades.length ? data.trades.slice(0, 12).map((tr) => `<li class="clickable" data-customer="${esc(tr.customer.id)}">
       <span class="t"><strong>${tr.side === 'buy' ? 'Bought' : 'Sold'} ${esc(tr.units)} ${esc(tr.symbol)}</strong><span>${esc(tr.customer.fullName)} &middot; ${ago(tr.createdAt)} &middot; @ ${money(tr.price)}</span></span>
       <span class="rf-amt ${tr.side === 'buy' ? 'debit' : 'credit'}">${money(tr.amount)}</span>
-    </li>`).join('') : '<li class="rf-muted rf-small">No conversions yet.</li>';
+    </li>`).join('') : '<li class="rf-muted rf-small">No purchases or sales yet.</li>';
   }
 
   /* --------------------------------------------------------------- setup -- */
@@ -1305,7 +1136,7 @@
 
   /* -------------------------------------------------------------- wiring -- */
 
-  const TABS = { overview, customers, register, queue, deposits, cards, messages, alerts, disputes, activity, settings, investments, setup };
+  const TABS = { overview, customers, register, queue, messages, alerts, activity, settings, investments, setup };
 
   // Any [data-customer] in a table or list opens the customer sheet. Elements
   // inside a modal are excluded: a modal's own controls must keep their normal

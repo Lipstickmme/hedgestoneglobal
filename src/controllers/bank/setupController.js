@@ -21,10 +21,11 @@ const { asyncHandler } = require('../../bank/http');
 const MIGRATIONS = [
   { file: '0001_init.sql', what: 'Website enquiries, applications, live chat and the /admin desk' },
   { file: '0002_email.sql', what: 'The inbound mailbox in /admin' },
-  { file: '0003_bank.sql', what: 'Customers, accounts, the ledger, transfers, cards and everything else in the bank' },
+  { file: '0003_bank.sql', what: 'Customers, cash balances, the ledger, withdrawals and everything else on the platform' },
   { file: '0004_bank_sms.sql', what: 'Text-message delivery status on alerts' },
-  { file: '0005_bank_invest.sql', what: 'Investments: holdings, trades and stored prices' },
-  { file: '0006_bank_backposting.sql', what: 'Staff booking, re-timing and reversing conversions' },
+  { file: '0005_bank_invest.sql', what: 'Bitcoin: holdings, purchases and stored prices' },
+  { file: '0006_bank_backposting.sql', what: 'Staff booking, re-timing and reversing purchases' },
+  { file: '0007_invest_term.sql', what: 'A term and maturity date on every Bitcoin purchase' },
 ];
 
 const setup = asyncHandler(async (req, res) => {
@@ -34,7 +35,7 @@ const setup = asyncHandler(async (req, res) => {
 
   /* ---- database ---- */
   add('Database', 'supabase', 'Supabase connected', supabase ? 'done' : 'todo',
-    supabase ? 'Every record is stored in Supabase.' : 'The bank is running on temporary files. On Vercel they are lost between requests, so customers, balances and chats will not stay saved.',
+    supabase ? 'Every record is stored in Supabase.' : 'The platform is running on temporary files. On Vercel they are lost between requests, so customers, balances and chats will not stay saved.',
     'Create a Supabase project, then in Vercel set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (Project Settings, API) and redeploy. Connecting Supabase from Vercel\'s Storage tab sets them for you.');
 
   let probe = null;
@@ -64,12 +65,12 @@ const setup = asyncHandler(async (req, res) => {
   /* ---- security ---- */
   const key = process.env.BANK_ENCRYPTION_KEY || '';
   add('Security', 'encryption', 'Encryption key for personal data', key.length >= 32 ? 'done' : 'todo',
-    key ? (key.length >= 32 ? 'SSNs, card and ID numbers are encrypted under your own key.' : 'The key is shorter than 32 characters.') : 'Running on the built-in development key. Never take real customers this way.',
+    key ? (key.length >= 32 ? 'SSNs and ID numbers are encrypted under your own key.' : 'The key is shorter than 32 characters.') : 'Running on the built-in development key. Never take real customers this way.',
     'Generate one with: openssl rand -hex 32. Set it in Vercel as BANK_ENCRYPTION_KEY before the first real customer, and never change it afterwards.');
 
   add('Security', 'admin', 'Staff console sign-in set by you', process.env.BANK_ADMIN_EMAIL && process.env.BANK_ADMIN_PASSWORD ? 'done' : 'todo',
     process.env.BANK_ADMIN_EMAIL ? 'The administrator comes from BANK_ADMIN_EMAIL.' : 'The administrator is still the built-in demonstration login.',
-    'Set BANK_ADMIN_EMAIL and BANK_ADMIN_PASSWORD in Vercel and redeploy. The bank moves the administrator to them on the next start.');
+    'Set BANK_ADMIN_EMAIL and BANK_ADMIN_PASSWORD in Vercel and redeploy. The administrator moves to them on the next start.');
 
   const devCodes = config.showDevCodes();
   add('Security', 'devcodes', 'Sign-in codes kept private', devCodes ? 'todo' : 'done',
@@ -100,14 +101,16 @@ const setup = asyncHandler(async (req, res) => {
   try { priced = (await markets.list()).filter((a) => a.quote && !a.quote.stale); } catch (err) { priced = []; }
   const sources = Array.from(new Set(priced.map((a) => a.quote.source)));
   const fixture = /^(1|true|yes|on)$/i.test(String(process.env.MARKET_DATA_FIXTURE || ''));
-  add('Investments', 'prices', 'Live market prices', fixture ? 'todo' : priced.length === markets.ASSETS.length ? 'done' : priced.length ? 'todo' : 'todo',
+  add('Bitcoin', 'prices', 'Live Bitcoin price', fixture ? 'todo' : priced.length ? 'done' : 'todo',
     fixture ? 'Showing fixed demonstration prices (MARKET_DATA_FIXTURE is set).'
-      : priced.length ? `${priced.length} of ${markets.ASSETS.length} assets priced, from ${sources.join(', ')}.`
-        : 'No live price could be fetched. The ticker is hidden and nobody can convert.',
-    fixture ? 'Remove MARKET_DATA_FIXTURE from Vercel and redeploy.' : 'Get a free API key at finnhub.io and set FINNHUB_API_KEY in Vercel. It is the most dependable source from a cloud host.');
-  add('Investments', 'finnhub', 'Real-time stock prices (Finnhub)', process.env.FINNHUB_API_KEY ? 'done' : 'optional',
-    process.env.FINNHUB_API_KEY ? 'Stocks and ETFs are priced in real time.' : 'Optional but recommended. Without it, stock prices come from free sources that sometimes refuse cloud servers.',
-    'Sign up free at finnhub.io, copy the API key, set FINNHUB_API_KEY in Vercel and redeploy.');
+      : priced.length ? `Bitcoin is priced live, from ${sources.join(', ')}.`
+        : 'No live Bitcoin price could be fetched. The ticker is hidden and nobody can buy or sell.',
+    fixture ? 'Remove MARKET_DATA_FIXTURE from Vercel and redeploy.' : 'The price comes from CoinGecko, then Coinbase, then Yahoo Finance. If none answers, check the deployment can reach the internet, and try again in a minute.');
+  let charted = null;
+  try { charted = await markets.history('BTC', 365); } catch (err) { charted = null; }
+  add('Bitcoin', 'history', 'Price history for the dashboard chart', charted && charted.points.length ? 'done' : 'todo',
+    charted && charted.points.length ? `${charted.points.length} days of Bitcoin prices, from ${charted.source}.` : 'No price history could be fetched, so the dashboard shows the purchase and today\'s value without the line between them.',
+    'The history comes from CoinGecko, then Yahoo Finance, then Coinbase. It is retried every page view; nothing needs setting.');
 
   /* ---- people ---- */
   let customers = 0;

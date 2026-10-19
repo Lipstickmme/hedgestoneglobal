@@ -3,11 +3,13 @@
 /**
  * First-run data.
  *
- * A banking dashboard with no history is impossible to judge, so a fresh
- * install comes up with an administrator, two customers and roughly six months
- * of plausible activity: payroll on the 15th and the last working day, rent on
- * the 1st, a card that gets used at the same handful of places, a savings
- * sweep, a credit card that gets paid off most months.
+ * A dashboard with no history is impossible to judge, so a fresh install
+ * comes up with an administrator and two customers. The demonstration customer
+ * has a cash balance, a withdrawal account, and three Bitcoin purchases made
+ * over the last fourteen months - one that has already matured, one part way
+ * through its term and one recent - each booked at the price Bitcoin actually
+ * had on that day, so the chart and the growth figures on the dashboard are
+ * the real market's.
  *
  * Everything is generated through the same ledger the live application uses,
  * so the seeded balances are the sum of the seeded entries rather than numbers
@@ -23,8 +25,9 @@ const security = require('./security');
 const { BANK, DEFAULT_SETTINGS } = require('./constants');
 
 const nowIso = () => new Date().toISOString();
+const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
 
-/* A small deterministic PRNG, so two installs of the same build look alike. */
+/* A small deterministic PRNG, kept for anything that wants repeatable noise. */
 function rng(seed = 20260912) {
   let s = seed >>> 0;
   return function next() {
@@ -33,287 +36,61 @@ function rng(seed = 20260912) {
   };
 }
 
-const MERCHANTS = {
-  Groceries: ['Harrow Market', 'Northside Grocers', 'Field & Vine', 'Belmont Foods'],
-  Dining: ['Cafe Torrent', 'The Quarry Room', 'Ninth Street Diner', 'Mori Ramen', 'Basalt Coffee'],
-  Transport: ['Metro Transit', 'Ridehail Inc', 'City Parking Authority'],
-  Fuel: ['Granite Fuel', 'Trailhead Gas'],
-  Travel: ['Continental Air', 'Harborview Hotel'],
-  Utilities: ['Columbus Power & Light', 'Clearwater Utilities', 'Fibernet Broadband'],
-  Shopping: ['Meridian Supply Co', 'Ashgate Hardware', 'Lantern Books'],
-  Entertainment: ['Palace Cinema', 'Hedgestone Arena'],
-  Subscriptions: ['Streamline Media', 'Cloudline Storage', 'Ledger App Pro'],
-  Healthcare: ['Brookfield Dental', 'Riverside Pharmacy'],
-  Insurance: ['Sentinel Mutual'],
-  Education: ['Ohio State Bursar'],
-};
-
-const CATEGORY_WEIGHTS = [
-  ['Groceries', 0.22, 3200, 14500],
-  ['Dining', 0.2, 900, 7800],
-  ['Transport', 0.1, 250, 3400],
-  ['Fuel', 0.08, 3200, 8900],
-  ['Shopping', 0.12, 1500, 22000],
-  ['Entertainment', 0.07, 1200, 9500],
-  ['Subscriptions', 0.08, 599, 2499],
-  ['Healthcare', 0.05, 1500, 18000],
-  ['Utilities', 0.05, 4500, 19500],
-  ['Travel', 0.03, 12000, 68000],
+/** The demonstration purchases: how long ago, how much, and for how long. */
+const DEMO_PURCHASES = [
+  { daysAgo: 425, amount: 250000, termMonths: 12 },
+  { daysAgo: 270, amount: 600000, termMonths: 12 },
+  { daysAgo: 95, amount: 300000, termMonths: 24 },
 ];
 
-function pick(list, r) {
-  return list[Math.floor(r() * list.length) % list.length];
-}
-
-function weightedCategory(r) {
-  const roll = r();
-  let acc = 0;
-  for (const row of CATEGORY_WEIGHTS) {
-    acc += row[1];
-    if (roll <= acc) return row;
-  }
-  return CATEGORY_WEIGHTS[0];
-}
-
-function amountBetween(r, min, max) {
-  return Math.round(min + r() * (max - min));
-}
-
-function isWeekend(date) {
-  const d = date.getUTCDay();
-  return d === 0 || d === 6;
-}
-
 /**
- * True when this date is the working day a semi-monthly payroll actually lands
- * on: the 15th and the last day of the month, pulled back to the Friday before
- * when they fall on a weekend.
+ * Book the demonstration purchases at Bitcoin's closing price on each day.
+ *
+ * Without a price history (no network, no fixture) a backdated purchase would
+ * have to be booked at a price nobody saw, so instead there is one purchase,
+ * today, at the live price - or none, if there is no price at all. The seed
+ * never invents a market.
  */
-function isPayday(date, lastDay) {
-  if (isWeekend(date)) return false;
-  const day = date.getUTCDate();
-  for (const nominal of [15, lastDay]) {
-    const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), nominal));
-    while (isWeekend(target)) target.setUTCDate(target.getUTCDate() - 1);
-    if (target.getUTCDate() === day) return true;
+async function seedPurchases(customer, cash, admin) {
+  const invest = require('./invest');
+  const markets = require('./markets');
+  let points = [];
+  try {
+    points = (await markets.history('BTC', 730)).points;
+  } catch (err) {
+    points = [];
   }
-  return false;
-}
+  const priceOn = (iso) => {
+    const day = iso.slice(0, 10);
+    const hit = points.filter((p) => p.t <= day).pop();
+    return hit ? hit.p : null;
+  };
 
-/**
- * Build one customer's six months of history and post it in date order.
- * Returns the entries posted, so the caller can log how much was created.
- */
-async function generateHistory({ user, checking, savings, card, cardAccountId, monthlyIncome, seed }) {
-  const r = rng(seed);
-  const today = new Date();
-  const start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 5, 1));
-  const entries = [];
-
-  const cursor = new Date(start);
-  while (cursor <= today) {
-    const day = cursor.getUTCDate();
-    const iso = new Date(cursor).toISOString();
-
-    // Payroll: the 15th and the last day of the month, moved back to the
-    // preceding business day when either lands on a weekend - which is what a
-    // real payroll file does, and skipping those months instead would quietly
-    // halve the customer's income.
-    const lastDay = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0)).getUTCDate();
-    if (isPayday(cursor, lastDay)) {
-      entries.push({
-        accountId: checking.id,
-        direction: 'credit',
-        amount: Math.round(monthlyIncome / 2) + amountBetween(r, -4000, 6000),
-        description: 'MERIDIAN LOGISTICS PAYROLL DIRECT DEP',
-        merchant: 'Meridian Logistics',
-        category: 'Income',
-        method: 'direct_deposit',
-        date: iso,
-        counterparty: { name: 'Meridian Logistics Inc', bank: 'First Coast Bank', account_masked: '••••4417', type: 'ach' },
-        traceNumber: ids.achTrace(BANK.routingNumber),
-      });
+  const booked = [];
+  const plan = points.length ? DEMO_PURCHASES : [{ daysAgo: 0, amount: 300000, termMonths: 12 }];
+  for (const step of plan) {
+    const at = step.daysAgo ? daysAgo(step.daysAgo) : null;
+    const price = at ? priceOn(at) : null;
+    if (at && !price) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const { trade } = await invest.convert(customer, {
+        accountId: cash.id, symbol: 'BTC', amount: step.amount, termMonths: step.termMonths,
+      }, null, at ? { staff: admin, price, at, silent: true, note: 'Demonstration purchase' } : { staff: admin, silent: true, note: 'Demonstration purchase' });
+      booked.push(trade);
+    } catch (err) {
+      console.warn(`[hedgestone] demonstration purchase skipped: ${err.message}`);
     }
-
-    // Rent on the 1st.
-    if (day === 1) {
-      entries.push({
-        accountId: checking.id,
-        direction: 'debit',
-        amount: 178500,
-        description: 'HARROW STREET RESIDENCES RENT',
-        merchant: 'Harrow Street Residences',
-        category: 'Rent & Mortgage',
-        method: 'bill_pay',
-        date: iso,
-      });
-    }
-
-    // Utilities mid-month.
-    if (day === 12) {
-      entries.push({
-        accountId: checking.id,
-        direction: 'debit',
-        amount: amountBetween(r, 8400, 17600),
-        description: 'COLUMBUS POWER & LIGHT AUTOPAY',
-        merchant: 'Columbus Power & Light',
-        category: 'Utilities',
-        method: 'ach',
-        date: iso,
-      });
-    }
-
-    // Savings sweep the day after payday.
-    if (day === 16) {
-      const amount = amountBetween(r, 25000, 60000);
-      entries.push({
-        accountId: checking.id,
-        direction: 'debit',
-        amount,
-        description: `Transfer to Savings ${ids.maskAccount(savings.account_number)}`,
-        category: 'Transfers',
-        method: 'internal',
-        date: iso,
-      });
-      entries.push({
-        accountId: savings.id,
-        direction: 'credit',
-        amount,
-        description: `Transfer from Checking ${ids.maskAccount(checking.account_number)}`,
-        category: 'Transfers',
-        method: 'internal',
-        date: iso,
-      });
-    }
-
-    // Monthly interest on savings.
-    if (day === lastDay) {
-      entries.push({
-        accountId: savings.id,
-        direction: 'credit',
-        amount: amountBetween(r, 900, 4200),
-        description: 'INTEREST PAID',
-        category: 'Income',
-        method: 'interest',
-        date: iso,
-      });
-    }
-
-    // Card payment on the 20th: out of checking and against the card balance.
-    if (day === 20 && cardAccountId) {
-      const amount = amountBetween(r, 18000, 52000);
-      const label = card ? `••••${card.last4}` : '';
-      entries.push({
-        accountId: checking.id,
-        direction: 'debit',
-        amount,
-        description: `HEDGESTONE CARD PAYMENT ${label}`.trim(),
-        category: 'Transfers',
-        method: 'internal',
-        date: iso,
-      });
-      entries.push({
-        accountId: cardAccountId,
-        direction: 'credit',
-        amount,
-        description: 'PAYMENT THANK YOU - ONLINE',
-        category: 'Transfers',
-        method: 'internal',
-        date: iso,
-      });
-    }
-
-    // Day-to-day card spending.
-    const purchases = isWeekend(cursor) ? (r() < 0.7 ? 2 : 1) : (r() < 0.5 ? 1 : r() < 0.85 ? 2 : 3);
-    for (let i = 0; i < purchases; i += 1) {
-      const [category, , min, max] = weightedCategory(r);
-      const merchant = pick(MERCHANTS[category] || ['Hedgestone Merchant'], r);
-      // Roughly a third of card spending sits on the credit card, so both the
-      // debit and the credit product have a history worth looking at.
-      const onCard = Boolean(cardAccountId) && r() < 0.35;
-      entries.push({
-        accountId: onCard ? cardAccountId : checking.id,
-        direction: 'debit',
-        amount: amountBetween(r, min, max),
-        description: `${merchant.toUpperCase()} ${['COLUMBUS OH', 'DUBLIN OH', 'WESTERVILLE OH'][Math.floor(r() * 3) % 3]}`,
-        merchant,
-        category,
-        method: 'card',
-        date: new Date(cursor.getTime() + Math.floor(r() * 36000000)).toISOString(),
-        location: 'Columbus, OH',
-      });
-    }
-
-    // The occasional ATM withdrawal.
-    if (r() < 0.06) {
-      entries.push({
-        accountId: checking.id,
-        direction: 'debit',
-        amount: amountBetween(r, 4000, 20000) - (amountBetween(r, 4000, 20000) % 2000),
-        description: 'ATM WITHDRAWAL - 45 HIGH ST COLUMBUS OH',
-        category: 'Cash & ATM',
-        method: 'atm',
-        date: iso,
-      });
-    }
-
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-
-  entries.sort((a, b) => (a.date < b.date ? -1 : 1));
-  // One bulk write per account rather than two round trips per entry. See
-  // ledger.postMany: this is the difference between the bank seeding itself in
-  // a couple of seconds and being killed by a serverless timeout part way
-  // through, which leaves a sign-in page with no accounts behind it.
-  await ledger.postMany(entries.map((entry) => ({ ...entry, status: 'posted', createdBy: 'system' })));
-  return entries;
-}
-
-/** A couple of entries still in flight, so pending states are visible. */
-async function addPending(checking, card) {
-  await ledger.post({
-    accountId: checking.id,
-    direction: 'debit',
-    amount: 6742,
-    description: 'BASALT COFFEE COLUMBUS OH',
-    merchant: 'Basalt Coffee',
-    category: 'Dining',
-    method: 'card',
-    status: 'pending',
-    createdBy: 'system',
-  });
-  if (card) {
-    await ledger.post({
-      accountId: card.id,
-      direction: 'debit',
-      amount: 12999,
-      description: 'CLOUDLINE STORAGE ANNUAL',
-      merchant: 'Cloudline Storage',
-      category: 'Subscriptions',
-      method: 'card',
-      status: 'pending',
-      createdBy: 'system',
-    });
-  }
+  return booked;
 }
 
 async function seedBeneficiaries(user) {
   const rows = [
     {
-      nickname: 'Mum', name: 'Eleanor Vance', bank_name: 'First Coast Bank',
+      nickname: 'My bank', name: 'Jordan R Ellis', bank_name: 'First Coast Bank',
       account_number: '4410028866', routing_number: ids.completeRouting('06100022'),
-      account_type: 'checking', type: 'domestic_ach', relationship: 'Family',
-    },
-    {
-      nickname: 'Landlord', name: 'Harrow Street Residences LLC', bank_name: 'Union Trust',
-      account_number: '9930114725', routing_number: ids.completeRouting('04400011'),
-      account_type: 'checking', type: 'domestic_ach', relationship: 'Housing',
-    },
-    {
-      nickname: 'Sam (Berlin)', name: 'Samira Okonkwo', bank_name: 'Nordbank AG',
-      account_number: 'DE89370400440532013000', routing_number: '', swift: 'NORDDEFFXXX',
-      account_type: 'checking', type: 'international_wire', country: 'Germany', relationship: 'Friend',
-      bank_address: 'Kurfurstendamm 21, 10719 Berlin, Germany',
+      account_type: 'checking', type: 'domestic_ach', relationship: 'Own account',
     },
   ];
   for (const row of rows) {
@@ -334,26 +111,6 @@ async function seedBeneficiaries(user) {
   }
 }
 
-async function seedPayees(user) {
-  const rows = [
-    { name: 'Columbus Power & Light', category: 'Utilities', account_number: '7741-88213', autopay: true, amount: 12400, due_day: 12 },
-    { name: 'Fibernet Broadband', category: 'Utilities', account_number: 'FB-559210', autopay: true, amount: 8999, due_day: 8 },
-    { name: 'Sentinel Mutual Auto', category: 'Insurance', account_number: 'SM-4471902', autopay: false, amount: 15600, due_day: 22 },
-  ];
-  for (const row of rows) {
-    await db.payees.insert({
-      id: ids.uuid(),
-      created_at: nowIso(),
-      user_id: user.id,
-      status: 'active',
-      phone: '',
-      address: '',
-      last_paid_at: null,
-      ...row,
-    });
-  }
-}
-
 async function seedMessages(user) {
   const thread = ids.uuid();
   await db.messages.insert({
@@ -362,9 +119,9 @@ async function seedMessages(user) {
     thread_id: thread,
     user_id: user.id,
     from_side: 'bank',
-    author_name: 'Hedgestone Client Services',
-    subject: 'Welcome to Hedgestone',
-    body: 'Your online banking is live. Set a transfer PIN under Security before your first payment, and add the people you pay regularly as beneficiaries - transfers to a verified beneficiary clear without a second review.',
+    author_name: `${BANK.name} support`,
+    subject: `Welcome to ${BANK.name}`,
+    body: 'Your account is live. Your dashboard shows your Bitcoin from the day you bought it, what it is worth now and how long each purchase has left to maturity. Set a withdrawal PIN under Security before your first withdrawal.',
     read_at: null,
     attachments: null,
   });
@@ -507,53 +264,34 @@ async function ensureSeed(options = {}) {
     openedBy: admin.id,
   });
 
-  // The relationship starts six months ago, so the seeded history has somewhere
-  // to sit and the first statement is not also the account's first day.
-  const relationshipStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 5, 1)).toISOString();
+  // The relationship starts fifteen months ago, before the first purchase.
+  const relationshipStart = daysAgo(450);
 
-  const checking = await accountsLib.openAccount(customer, {
-    productId: 'everyday_checking', type: 'checking', isPrimary: true, nickname: 'Everyday',
+  const cash = await accountsLib.openAccount(customer, {
+    productId: 'investment_cash', isPrimary: true,
     createdBy: 'system', openedAt: relationshipStart,
   });
-  const savings = await accountsLib.openAccount(customer, {
-    productId: 'high_yield_savings', type: 'savings', nickname: 'Rainy day', openingBalance: 1284000,
-    openingDescription: 'Opening balance', createdBy: 'system', openedAt: relationshipStart,
-    openingDate: relationshipStart,
-  });
-  const cardAccount = await accountsLib.openAccount(customer, {
-    productId: 'hedgestone_signature_card', type: 'credit', nickname: 'Signature card', creditLimit: 1500000,
-    createdBy: 'system', openedAt: relationshipStart,
-  });
+  // Money in first, so every purchase has a balance to come out of.
+  for (const [days, amount, description] of [
+    [450, 300000, 'Opening deposit'],
+    [280, 650000, 'Deposit received'],
+    [100, 450000, 'Deposit received'],
+  ]) {
+    await ledger.post({
+      accountId: cash.id,
+      direction: 'credit',
+      amount,
+      description,
+      method: 'adjustment',
+      category: 'Deposits',
+      status: 'posted',
+      createdBy: 'system',
+      date: daysAgo(days),
+    });
+  }
 
-  // Seed the opening balance on checking first so the running balance never
-  // goes negative across six months of spending.
-  await ledger.post({
-    accountId: checking.id,
-    direction: 'credit',
-    amount: 640000,
-    description: 'Opening deposit',
-    method: 'adjustment',
-    category: 'Income',
-    status: 'posted',
-    createdBy: 'system',
-    date: relationshipStart,
-  });
-
-  const debitCard = await accountsLib.issueCard(customer, checking, { brand: 'visa', kind: 'debit' });
-  const creditCard = await accountsLib.issueCard(customer, cardAccount, { brand: 'mastercard', kind: 'credit' });
-
-  await generateHistory({
-    user: customer,
-    checking,
-    savings,
-    card: creditCard,
-    cardAccountId: cardAccount.id,
-    monthlyIncome: 780000,
-    seed: 20260912,
-  });
-  await addPending(checking, cardAccount);
+  await seedPurchases(customer, cash, admin);
   await seedBeneficiaries(customer);
-  await seedPayees(customer);
   await seedMessages(customer);
 
   // A second customer, so the console has more than one row to show.
@@ -576,11 +314,10 @@ async function ensureSeed(options = {}) {
     tier: 'Standard',
     openedBy: admin.id,
   });
-  const maraChecking = await accountsLib.openAccount(second, {
-    productId: 'premier_checking', type: 'checking', isPrimary: true, openingBalance: 2450000,
-    openingDescription: 'Opening deposit - cashier check', createdBy: 'system',
+  const maraCash = await accountsLib.openAccount(second, {
+    productId: 'investment_cash', isPrimary: true, openingBalance: 2450000,
+    openingDescription: 'Opening deposit', createdBy: 'system',
   });
-  await accountsLib.issueCard(second, maraChecking, { brand: 'visa', kind: 'debit' });
 
   await db.settings.insert({
     id: 'global',
@@ -611,8 +348,7 @@ async function ensureSeed(options = {}) {
     customer: { email: demoEmail, password: demoPassword },
     demoEmailIgnored: demoClashesWithAdmin ? requestedDemoEmail : null,
     secondary: { email: second.email, password: temporaryPassword },
-    accounts: [checking.account_number, savings.account_number, cardAccount.account_number],
-    cards: [debitCard.last4, creditCard.last4],
+    accounts: [cash.account_number, maraCash.account_number],
   };
 }
 
@@ -621,8 +357,8 @@ async function ensureSeed(options = {}) {
 /**
  * Bring the administrator's sign-in into line with the environment.
  *
- * ensureSeed() only runs while the bank has no users at all, which is right -
- * it writes six months of history and must never do that twice. But it means
+ * ensureSeed() only runs while the platform has no users at all, which is
+ * right - it writes over a year of history and must never do that twice. But it means
  * BANK_ADMIN_EMAIL and BANK_ADMIN_PASSWORD only ever take effect if they were
  * set before the very first request. Set them afterwards, as anybody actually
  * deploying will, and the administrator keeps whatever the defaults were and
@@ -694,7 +430,7 @@ async function reconcileAdmin() {
     email,
     password,
     role: 'admin',
-    firstName: 'Bank',
+    firstName: 'Platform',
     lastName: 'Administrator',
     status: 'active',
     emailVerified: true,
@@ -763,5 +499,5 @@ function ensureSeedOnce() {
 module.exports = {
   ensureSeed, ensureSeedOnce, reconcileAdmin, seedStatus,
   seedComplete, seedState, resetBank,
-  generateHistory, rng,
+  seedPurchases, rng,
 };

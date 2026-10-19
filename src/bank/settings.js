@@ -10,7 +10,7 @@
  */
 
 const { db } = require('./db');
-const { DEFAULT_SETTINGS } = require('./constants');
+const { DEFAULT_SETTINGS, RETIRED_NAMES } = require('./constants');
 
 const ROW_ID = 'global';
 const TTL_MS = 5000;
@@ -39,14 +39,24 @@ async function get() {
   } catch (err) {
     console.warn('[hedgestone] settings read failed, using defaults:', err.message);
   }
-  cached = deepMerge(DEFAULT_SETTINGS, stored ? stored.values : null);
+  cached = settle(deepMerge(DEFAULT_SETTINGS, stored ? stored.values : null));
   cachedAt = Date.now();
   return cached;
 }
 
+/**
+ * A stored name that is one we used to ship was written by the seed, not
+ * chosen, so it gives way to today's default. A blank one does too.
+ */
+function settle(values) {
+  const name = String(values.bankName || '').trim();
+  if (!name || RETIRED_NAMES.includes(name)) values.bankName = DEFAULT_SETTINGS.bankName;
+  return values;
+}
+
 async function save(patch) {
   const current = await get();
-  const values = deepMerge(current, patch);
+  const values = settle(deepMerge(current, patch));
   const existing = await db.settings.findById(ROW_ID);
   if (existing) {
     await db.settings.update(ROW_ID, { values, updated_at: new Date().toISOString() });

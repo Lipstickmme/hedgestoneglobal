@@ -28,7 +28,7 @@
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const POLL_MS = 4000;
   const COLUMNS = 'id,created_at,sender,body';
-  const GREETING = "Hi, you're through to Hedgestone client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
+  const GREETING = "Hi, you're through to Hedgestone Finance support. How can we help? Please never send a password or a one-time code in chat.";
 
   const store = {
     get(key) {

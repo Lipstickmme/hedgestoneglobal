@@ -72,7 +72,7 @@ function showDevCodes() {
 const resendWebhookSecret = () => pick('RESEND_WEBHOOK_SECRET');
 
 const formTo = () => pick('FORM_TO', 'CONTACT_NOTIFY_EMAIL');
-const formFrom = () => pick('FORM_FROM', 'NOTIFY_FROM') || 'Hedgestone Global Bank <onboarding@resend.dev>';
+const formFrom = () => pick('FORM_FROM', 'NOTIFY_FROM') || 'Hedgestone Finance <onboarding@resend.dev>';
 const mailboxAddress = () => pick('MAILBOX_ADDRESS');
 const forwardTo = () => pick('FORWARD_TO');
 
@@ -80,7 +80,37 @@ const forwardTo = () => pick('FORWARD_TO');
  * The name a recipient sees beside the address. Without one, mail clients fall
  * back to the local part, so a reply from contact@ shows up as "contact".
  */
-const senderName = () => pick('BANK_NAME', 'STUDIO_NAME') || 'Hedgestone Global Bank';
+const senderName = () => chosenName(pick('BANK_NAME', 'STUDIO_NAME')) || platformName();
+
+/** The platform's name as set at the console, read lazily (settings needs this module). */
+function platformName() {
+  try {
+    return String(require('../bank/settings').snapshot().bankName || '').trim() || 'Hedgestone Finance';
+  } catch (err) {
+    return 'Hedgestone Finance';
+  }
+}
+
+/*
+ * A display name in an environment variable that is a name this application
+ * has shipped as its default - copied from .env.example, say - was never a
+ * choice, and must not outrank the name set at the console. Otherwise every
+ * email keeps saying "Hedgestone Global Bank" after the platform is renamed.
+ * A name somebody actually typed is kept.
+ */
+function chosenName(name) {
+  const value = String(name || '').trim();
+  if (!value) return '';
+  const { BANK, RETIRED_NAMES } = require('../bank/constants');
+  return value === BANK.name || RETIRED_NAMES.includes(value) ? '' : value;
+}
+
+/** "Name <a@b.c>" with the platform's name wherever the name was not chosen. */
+function withPlatformName(value, name = senderName()) {
+  const parsed = parseAddress(value);
+  if (!parsed.email) return value;
+  return chosenName(parsed.name) ? String(value).trim() : `${name} <${parsed.email}>`;
+}
 
 /** Bare address out of "Name <a@b.c>". */
 function parseAddress(value) {
@@ -200,6 +230,7 @@ module.exports = {
   mailboxAddress,
   forwardTo,
   senderName,
+  withPlatformName,
   // STUDIO_NAME is still read above, and the old export name still answers,
   // because a deployment may have either set. Neither is worth breaking over
   // a word.

@@ -1,19 +1,18 @@
-/* Hedgestone Global - the bank's name, as the staff console has it.
+/* The platform's name, as the staff console has it.
 
-   The pages are built ahead of time with the name in them. When staff set a
-   different one under Settings, Bank name, this swaps it in wherever the
-   built name appears as words: headings, sentences, the tab title, and alt
-   text. The logo images carry the name as artwork and are not touched.
+   The pages are built ahead of time with the default name in them. When staff
+   set a different one under Settings, Platform name, this swaps it in wherever
+   the built name appears as words: headings, sentences, the tab title, alt
+   text, and the name beside the logo mark, which is type rather than artwork
+   precisely so that it can change.
 
-   main.js (public pages) and core.js (online banking) call
-   HSName.apply(name) with what the server says. The last name seen is kept
-   in this browser so the next page shows it straight away rather than
-   flashing the built one first. */
+   main.js (public pages) and core.js (signed in) call HSName.apply(name) with
+   what the server says. The last name seen is kept in this browser so the next
+   page shows it straight away rather than flashing the built one first. */
 (function () {
   'use strict';
 
-  var BUILT = 'Hedgestone Global Bank';
-  var BUILT_SHORT = 'Hedgestone';
+  var BUILT = 'Hedgestone Finance';
   var KEY = 'hs_bank_name';
   var current = BUILT;
   var observer = null;
@@ -29,21 +28,15 @@
     try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; }
   }
 
-  // The first word, for the places that print the short name next to the
-  // mark (the sidebar's "Hedgestone / Online banking").
-  function shortOf(name) {
-    return String(name).split(/\s+/)[0] || name;
-  }
-
   // Safe to run twice on the same words, even when the new name contains the
-  // old one ("Hedgestone Global Bank Ltd"): the new name is stepped over.
+  // old one ("Hedgestone Finance Ltd"): the new name is stepped over.
   function swapText(text, from, to) {
     if (text.indexOf(from) === -1) return text;
     if (to.indexOf(from) === -1) return text.split(from).join(to);
     return text.split(to).map(function (part) { return part.split(from).join(to); }).join(to);
   }
 
-  var ATTRS = ['alt', 'aria-label', 'title', 'placeholder'];
+  var ATTRS = ['alt', 'aria-label', 'title', 'placeholder', 'content'];
 
   function swapIn(root, from, to) {
     if (!root) return;
@@ -74,15 +67,26 @@
     });
   }
 
-  function paintShort(name) {
-    var short = name === BUILT ? BUILT_SHORT : shortOf(name);
-    Array.prototype.forEach.call(document.querySelectorAll('[data-bank-short]'), function (el) {
-      el.textContent = short;
+  // The name beside the mark: the first word set large, the rest small and
+  // spaced beneath it, the way the old artwork had HEDGESTONE over GLOBAL
+  // BANK. One word is just the one line.
+  function paintBrand(name) {
+    var words = String(name).split(/\s+/).filter(Boolean);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-brand-name]'), function (el) {
+      el.textContent = '';
+      var big = document.createElement('b');
+      big.textContent = words[0] || name;
+      el.appendChild(big);
+      if (words.length > 1) {
+        var small = document.createElement('small');
+        small.textContent = words.slice(1).join(' ');
+        el.appendChild(small);
+      }
     });
   }
 
-  // Screens that draw themselves after load (statements, account details,
-  // the console) can print the built name too; catch those as they arrive.
+  // Screens that draw themselves after load (the dashboard, the console) can
+  // print the built name too; catch those as they arrive.
   function watch() {
     if (observer || !window.MutationObserver || !document.body) return;
     observer = new MutationObserver(function (records) {
@@ -102,9 +106,10 @@
     if (next === current) return;
     var from = current;
     current = next;
-    swapIn(document.body, from, next);
+    if (document.body) swapIn(document.body, from, next);
+    swapIn(document.head, from, next);
     if (document.title.indexOf(from) !== -1) document.title = swapText(document.title, from, next);
-    paintShort(next);
+    paintBrand(next);
     if (next !== BUILT) watch();
   }
 

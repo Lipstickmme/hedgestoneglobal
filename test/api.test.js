@@ -179,7 +179,7 @@ async function withApp(env, fn) {
         SUPABASE_URL: `http://127.0.0.1:${receiving.address().port}`,
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
-        MAILBOX_ADDRESS: 'Hedgestone Global Bank <contact@hedgestone.test>',
+        MAILBOX_ADDRESS: 'Hedgestone Finance <contact@hedgestone.test>',
       },
       async (base) => {
         const res = await req(base, 'GET', '/api/health?probe=1');
@@ -247,10 +247,10 @@ async function withApp(env, fn) {
       async (base) => {
         // Break the history write, which is how a serverless timeout shows up.
         const ledger = require(ROOT + '/src/bank/ledger');
-        const real = ledger.postMany;
-        ledger.postMany = async () => { throw new Error('function timed out'); };
+        const real = ledger.post;
+        ledger.post = async () => { throw new Error('function timed out'); };
         await require(ROOT + '/src/bank/seed').ensureSeed().catch(() => {});
-        ledger.postMany = real;
+        ledger.post = real;
 
         const stuck = await req(base, 'GET', '/api/health');
         assert.strictEqual(stuck.body.bank.seedState, 'incomplete');
@@ -493,6 +493,17 @@ async function withApp(env, fn) {
         `bank routes with no Vercel entry point at their depth:\n${missing.map((m) => `  ${m.route} needs ${m.file}`).join('\n')}`
       );
       console.log(`  ok  all ${paths.length} bank routes have a Vercel entry point at their depth`);
+
+      // Pages retired with the banking features redirect in the app and on
+      // Vercel alike, so an old bookmark lands somewhere on either.
+      const retired = require(ROOT + '/src/site/retired');
+      const vercel = JSON.parse(require('fs').readFileSync(ROOT + '/vercel.json', 'utf8'));
+      const redirects = Object.fromEntries((vercel.redirects || []).map((r) => [r.source, r.destination]));
+      assert.deepStrictEqual(redirects, retired, 'vercel.json redirects match src/site/retired.js');
+      Object.keys(retired).forEach((from) => {
+        assert.ok(!require('fs').existsSync(`${ROOT}/public${from}.html`), `${from}.html is no longer built`);
+      });
+      console.log(`  ok  ${Object.keys(retired).length} retired pages redirect, on Vercel and in the app alike`);
     }
 
     // supabase/setup.sql is every migration in one paste, and must not drift.
@@ -777,7 +788,7 @@ async function withApp(env, fn) {
         SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY,
         SUPABASE_ANON_KEY: mock.ANON_KEY,
         RESEND_WEBHOOK_SECRET: SECRET,
-        MAILBOX_ADDRESS: 'Hedgestone Global Bank <contact@hedgestone.test>',
+        MAILBOX_ADDRESS: 'Hedgestone Finance <contact@hedgestone.test>',
         // No forwarding here: this asserts the archive that /admin reads.
         FORWARD_TO: '',
         RESEND_API_KEY: '',
@@ -982,8 +993,8 @@ async function withApp(env, fn) {
         // Threading headers are what put the reply inside Ada's conversation.
         assert.strictEqual(sentMail[0].headers['In-Reply-To'], '<ada-1@example.com>');
         // A bare MAILBOX_ADDRESS would otherwise show in the recipient's inbox
-        // as "contact", the local part, rather than as the studio.
-        assert.strictEqual(sentMail[0].from, 'Hedgestone Global Bank <contact@hedgestone.test>');
+        // as "contact", the local part, rather than as the platform.
+        assert.strictEqual(sentMail[0].from, 'Hedgestone Finance <contact@hedgestone.test>');
         // Written by a person, so no monospace HTML part goes with it.
         assert.strictEqual(sentMail[0].html, undefined);
         assert.strictEqual(sentMail[0].text, 'Quoting next week.');

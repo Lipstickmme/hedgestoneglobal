@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Hedgestone Global Bank - application styling
+   Hedgestone Finance - application styling
    Loaded after styles.css. The marketing pages borrow the tokens and the
    components; the signed-in application uses the shell, the tables and the
    forms below.
@@ -1909,3 +1909,147 @@ img.hs-logo { object-fit: contain; background: #fff; padding: 2px; }
 .rf-segment button.is-active { background-image: linear-gradient(180deg, #fff, rgba(255, 255, 255, .7)); box-shadow: inset 0 1px 0 #fff, 0 4px 10px -6px rgba(12, 29, 74, .35); }
 .hs-asset-foot { gap: 6px; flex-wrap: wrap; }
 .hs-asset-foot .held { white-space: nowrap; }
+
+/* ==========================================================================
+   The logo: the mark, and the platform's name set in type beside it
+   (layout.js brand()). The name used to be part of the artwork; as type it
+   follows the name set under Settings, like every other word on the page.
+   ========================================================================== */
+.hs-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--rf-ink); line-height: 1; text-decoration: none; min-width: 0; }
+.hs-brand .hs-brand-mark { display: block; height: 38px; width: auto; flex: 0 0 auto; }
+.hs-brand .hs-brand-name { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.hs-brand .hs-brand-name b { display: block; font-family: var(--rf-display); font-weight: 800; font-size: 24px; letter-spacing: .015em; text-transform: uppercase; color: var(--rf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hs-brand .hs-brand-name small { display: block; font-size: 10px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase; color: var(--rf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hs-brand.nav .hs-brand-mark { height: 34px; }
+.hs-brand.nav .hs-brand-name b { font-size: 20px; }
+.hs-brand.nav .hs-brand-name small { font-size: 8.5px; letter-spacing: .3em; }
+.hs-brand.lg .hs-brand-mark { height: 46px; }
+.hs-brand.lg .hs-brand-name b { font-size: 29px; }
+.hs-brand.lg .hs-brand-name small { font-size: 11px; }
+.rf-footer-brand { display: block; margin-bottom: 16px; }
+.admin-brand .hs-brand .hs-brand-mark { height: 26px; }
+.admin-brand .hs-brand .hs-brand-name b { font-size: 16px; }
+.admin-brand .hs-brand .hs-brand-name small { font-size: 7px; font-family: inherit; color: var(--rf-ink); letter-spacing: .3em; }
+@media (max-width: 720px) {
+  .hs-brand.nav { gap: 8px; }
+  .hs-brand.nav .hs-brand-mark { height: 28px; }
+  .hs-brand.nav .hs-brand-name b { font-size: 16px; max-width: 46vw; }
+  .rf-marketing-nav .brandline .hs-brand small { display: block; font-size: 7px; color: var(--rf-ink); }
+}
+
+/* One price in the strip stands still rather than chasing itself across it. */
+.hs-ticker.is-single .hs-ticker-track { animation: none; }
+.hs-ticker.is-single .hs-ticker-window { -webkit-mask-image: none; mask-image: none; }
+
+/* ==========================================================================
+   The investment dashboard: the hero, the growth chart, time to maturity.
+   Chart colours were checked with the dataviz palette validator (two series,
+   light surface): value #0e8a62, amount invested #7a5cd6 - and the invested
+   line is also dashed, so the pair never rests on hue alone.
+   ========================================================================== */
+:root { --hs-chart-value: #0e8a62; --hs-chart-cost: #7a5cd6; }
+
+.hs-btc-hero .k { display: inline-flex; align-items: center; gap: 8px; }
+.hs-btc-hero .d b.down { color: #ffd9d4; }
+
+.hs-growth .rf-card-body { padding-top: 6px; }
+.hs-growth-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--rf-ink-2); }
+.hs-growth-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.hs-growth-legend .k, .hs-tip .k { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--hs-chart-value); }
+.hs-growth-legend .k.cost, .hs-tip .k.cost { border-top: 2px dashed var(--hs-chart-cost); }
+.hs-growth-legend .k.buy { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--hs-chart-value); box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--hs-chart-value); }
+.hs-tip .k:not(.value):not(.cost) { border-color: transparent; }
+
+.hs-chart { position: relative; height: 300px; }
+.hs-chart svg { display: block; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
+.hs-chart .grid { stroke: var(--rf-line); stroke-width: 1; }
+.hs-chart .ytick { font: 500 11px/1 var(--rf-sans); fill: var(--rf-ink-3); text-anchor: end; font-variant-numeric: tabular-nums; }
+.hs-chart .xtick { font: 500 11px/1 var(--rf-sans); fill: var(--rf-ink-3); }
+.hs-chart .area { fill: url(#hs-growth-fill); }
+.hs-chart .value { fill: none; stroke: var(--hs-chart-value); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.hs-chart .cost { fill: none; stroke: var(--hs-chart-cost); stroke-width: 2; stroke-dasharray: 6 4; stroke-linejoin: round; }
+.hs-chart .buy, .hs-chart .now, .hs-chart .cross-v { fill: var(--hs-chart-value); stroke: #fff; stroke-width: 2; }
+.hs-chart .cross-c { fill: var(--hs-chart-cost); stroke: #fff; stroke-width: 2; }
+.hs-chart .cross-line { stroke: var(--rf-ink-4); stroke-width: 1; }
+.hs-chart .end { font: 700 12.5px/1 var(--rf-sans); fill: var(--rf-ink); font-variant-numeric: tabular-nums; }
+.hs-chart .end-k { font: 500 10.5px/1 var(--rf-sans); fill: var(--rf-ink-3); }
+.hs-chart .hit { cursor: crosshair; outline: none; }
+.hs-chart .hit:focus-visible { stroke: var(--rf-navy); stroke-width: 1; }
+.hs-tip {
+  position: absolute; z-index: 2; pointer-events: none; min-width: 172px;
+  background: #fff; border: 1px solid var(--rf-line); border-radius: 12px;
+  box-shadow: var(--rf-shadow); padding: 10px 12px; font-size: 12.5px;
+}
+.hs-tip .d { font-weight: 700; color: var(--rf-ink); margin-bottom: 6px; }
+.hs-tip .r { display: grid; grid-template-columns: 16px auto 1fr; align-items: center; gap: 8px; padding: 2px 0; }
+.hs-tip .r b { color: var(--rf-ink); font-variant-numeric: tabular-nums; }
+.hs-tip .r span { color: var(--rf-ink-3); }
+.hs-chart-note { margin: 10px 0 0; }
+.hs-chart-table { margin-top: 10px; }
+.hs-chart-table summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--rf-navy); }
+.hs-chart-table .rf-table-wrap { margin-top: 10px; max-height: 320px; overflow: auto; }
+.hs-chart-empty {
+  height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center;
+  border: 1px dashed var(--rf-line); border-radius: var(--rf-radius); padding: 24px; color: var(--rf-ink-2);
+}
+.hs-chart-empty strong { color: var(--rf-ink); font-size: 16px; }
+
+/* Time to maturity: a meter per purchase. The track is a lighter step of the fill. */
+.hs-terms .t { flex: 1; min-width: 0; }
+.hs-meter { display: block; height: 8px; margin-top: 8px; border-radius: 999px; background: #dff1e9; overflow: hidden; }
+.hs-meter i { display: block; height: 100%; border-radius: 999px; background: var(--hs-chart-value); }
+.hs-term.is-matured .hs-meter i { background: var(--rf-navy-2); }
+.hs-term.is-matured strong::before { content: "\2713\00a0"; color: var(--rf-credit); }
+
+/* The Bitcoin page: one asset card, wider, with Sell beside it. */
+.hs-assets:has(> .hs-asset:only-of-type) { grid-template-columns: minmax(0, 380px) auto; align-items: center; }
+.hs-asset-sell { align-self: center; }
+@media (max-width: 620px) {
+  .hs-chart { height: 240px; }
+  .hs-assets:has(> .hs-asset:only-of-type) { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   Bitcoin-only messaging on the public pages.
+   ========================================================================== */
+/* The highlight: Bitcoin orange under the words that say what we do. */
+mark.hs-hl {
+  background: linear-gradient(transparent 58%, rgba(247, 147, 26, .38) 58%, rgba(247, 147, 26, .38) 92%, transparent 92%);
+  color: inherit; padding: 0 .08em; border-radius: 2px;
+}
+.hs-band mark.hs-hl, .hs-band-hero mark.hs-hl {
+  background: none; color: #ffb547;
+  text-decoration: underline; text-decoration-color: rgba(255, 181, 71, .55); text-decoration-thickness: .08em; text-underline-offset: .14em;
+}
+.hs-band-hero p strong { color: #fff; }
+.hs-trust-k mark.hs-hl { letter-spacing: inherit; }
+
+.hs-live-price {
+  display: inline-flex; align-items: center; gap: 12px; margin: 22px 0 0 !important;
+  padding: 9px 14px 9px 10px; border-radius: 999px; font-size: 14px !important;
+  background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .22);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.hs-live-price[hidden] { display: none; }
+.hs-live-price .hs-ticker-live { padding: 0; height: auto; color: #fff; background: none; }
+.hs-live-price b { color: #fff; font-variant-numeric: tabular-nums; }
+.hs-live-price em { font-style: normal; font-weight: 700; }
+.hs-live-price em.up { color: #8ff0c6; }
+.hs-live-price em.down { color: #ffb3a8; }
+
+.hs-steps .rf-card-body { padding: 24px; }
+.hs-step-n {
+  display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 14px;
+  border-radius: 50%; background: #e6f4ee; color: var(--rf-navy); font-weight: 800;
+}
+.hs-risk { font-size: 14px; line-height: 1.6; }
+.hs-live-card { text-align: left; }
+.hs-live-card-v { font-size: clamp(32px, 4vw, 42px); font-weight: 800; letter-spacing: -.03em; margin: 6px 0 4px; }
+.hs-live-card .up { color: var(--rf-credit); font-weight: 700; }
+.hs-live-card .down { color: var(--rf-debit); font-weight: 700; }
+.hs-terms-grid .v { font-size: 26px; }
+
+/* The phone in the dashboard illustration: the name in type, and a tiny chart. */
+.hs-app-brand [data-brand-name] b { display: block; font-size: 11px; letter-spacing: .06em; font-weight: 800; text-transform: uppercase; }
+.hs-app-brand [data-brand-name] small { display: block; font-size: 6.5px; letter-spacing: .26em; opacity: .85; text-transform: uppercase; }
+.hs-mini-chart { display: block; width: 100%; height: 56px; margin: 0 0 12px; }

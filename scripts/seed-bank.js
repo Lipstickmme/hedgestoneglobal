@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * Create the first administrator, a demonstration customer and six months of
- * plausible activity.
+ * Create the first administrator, a demonstration investor with dated Bitcoin
+ * purchases, and a second customer.
  *
- * Idempotent: it does nothing if the bank already has users, unless --force is
+ * Idempotent: it does nothing if the platform already has users, unless --force is
  * passed, which is meant for a scratch database and will happily create a
  * second set of everything on top of a real one.
  *
@@ -13,6 +13,7 @@
  */
 
 const seed = require('../src/bank/seed');
+const { BANK } = require('../src/bank/constants');
 
 (async () => {
   const force = process.argv.includes('--force');
@@ -24,7 +25,7 @@ const seed = require('../src/bank/seed');
   }
 
   console.log('');
-  console.log('  Hedgestone Global Bank is ready.');
+  console.log(`  ${BANK.name} is ready.`);
   console.log('');
   console.log(`  Administrator   ${result.admin.email}`);
   console.log(`                  ${result.admin.password}`);
@@ -33,8 +34,7 @@ const seed = require('../src/bank/seed');
   console.log(`  Second customer ${result.secondary.email}`);
   console.log(`                  ${result.secondary.password}`);
   console.log('');
-  console.log(`  Accounts        ${result.accounts.join(', ')}`);
-  console.log(`  Cards ending    ${result.cards.join(', ')}`);
+  console.log(`  Cash balances   ${result.accounts.join(', ')}`);
   console.log('');
   console.log('  Sign in at /signin, or the staff console at /console.');
   console.log('');

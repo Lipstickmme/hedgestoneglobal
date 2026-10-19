@@ -1,9 +1,11 @@
-/* Hedgestone Global - the live price strip under the nav.
+/* The live Bitcoin price strip under the nav.
 
-   Reads /api/bank/markets every 30 seconds while the tab is visible, scrolls
-   the prices past (or lets them be swiped, for visitors who ask for reduced
-   motion), and flashes a price green or red when it moves. Hidden entirely if
-   no price can be had, rather than showing a strip of dashes. */
+   Reads /api/bank/markets every 30 seconds while the tab is visible and
+   flashes the price green or red when it moves. Bitcoin is the only asset, so
+   the price stands still in the strip; should more than one ever be listed,
+   they scroll past (or can be swiped, for visitors who ask for reduced
+   motion). Hidden entirely if no price can be had, rather than showing a
+   strip of dashes. */
 (function () {
   'use strict';
 
@@ -19,7 +21,7 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   };
-  // Signed out, a price goes straight to sign-in and on to Invest afterwards,
+  // Signed out, a price goes straight to sign-in and on to Bitcoin afterwards,
   // rather than opening a page that would only send them there.
   var signedIn = /(?:^|;\s*)rf_csrf=/.test(document.cookie);
   var dest = function (path) { return signedIn ? path : '/signin?next=' + encodeURIComponent(path); };
@@ -68,8 +70,11 @@
     var shown = Array.prototype.map.call(track.querySelectorAll('[data-sym]:not([aria-hidden])'), function (el) { return el.getAttribute('data-sym'); }).join(',');
     if (shown && shown === priced.map(function (a) { return a.symbol; }).join(',')) { update(priced); return; }
     var once = priced.map(function (a) { return item(a, false); }).join('');
-    // Two copies side by side, so the scroll can loop without a gap.
-    track.innerHTML = once + priced.map(function (a) { return item(a, true); }).join('');
+    // One price stands still. Several scroll, two copies side by side so the
+    // loop has no gap.
+    var single = priced.length === 1;
+    host.classList.toggle('is-single', single);
+    track.innerHTML = single ? once : once + priced.map(function (a) { return item(a, true); }).join('');
     track.style.setProperty('--hs-ticker-duration', Math.max(30, priced.length * 6) + 's');
     priced.forEach(function (a) { last[a.symbol] = a.quote.price; });
     host.hidden = false;

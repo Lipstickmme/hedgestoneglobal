@@ -9,7 +9,7 @@
  * thing can exist, which is what the scripts look for.
  */
 
-const { appPage, authPage, icon, dateField } = require('./layout');
+const { appPage, authPage, icon, dateField, RISK } = require('./layout');
 const { BANK, US_STATES, CATEGORIES, SECURITY_QUESTIONS, DOCUMENT_KINDS } = require('../constants');
 
 const option = (value, label) => `<option value="${value}">${label || value}</option>`;
@@ -19,7 +19,7 @@ const stateOptions = US_STATES.map((s) => option(s)).join('');
 
 const signinContent = `
       <div class="rf-auth-box">
-        <h1>Sign in to online banking</h1>
+        <h1>Sign in to your investment</h1>
         <p class="lede">Your session ends after 30 minutes of inactivity.</p>
 
         <div class="rf-card">
@@ -69,7 +69,7 @@ const signinContent = `
 
         <div class="rf-auth-alt">
           <a href="/forgot">Forgotten your password?</a> &middot;
-          <a href="/open-account">Open an account</a>
+          <a href="/open-account">Start investing</a>
         </div>
 
         <div class="rf-card rf-mt rf-hide" data-demo-card>
@@ -128,7 +128,7 @@ const forgotContent = `
 const changePasswordContent = `
       <div class="rf-auth-box">
         <h1>Choose a new password</h1>
-        <p class="lede">Your password was set by ${BANK.shortName}. Pick your own before you carry on.</p>
+        <p class="lede">Your password was set by ${BANK.name}. Pick your own before you carry on.</p>
         <div class="rf-card">
           <div class="rf-card-body">
             <form id="rf-change-form" novalidate>
@@ -154,40 +154,83 @@ const changePasswordContent = `
 
 /* ============================================================== dashboard == */
 
+/*
+ * The dashboard is the investment: what the Bitcoin is worth, what went into
+ * it, how it has grown since the day it was bought, and how long each purchase
+ * has left to maturity. Cash comes second, as what is left to invest.
+ * public/js/bank/app.js fills every [data-*] below from /invest, /overview and
+ * /markets/history.
+ */
 const dashboardContent = `
-        <section class="hs-dash-hero rf-mb">
+        <section class="hs-dash-hero hs-btc-hero rf-mb">
           <div class="hs-dash-hero-main">
-            <span class="k">Total balance</span>
-            <strong class="v" data-hero="total">&mdash;</strong>
-            <span class="d"><span>Cash <b data-hero="cash">&mdash;</b></span><span class="hs-hero-inv"><span>Invested <b data-hero="invested">&mdash;</b></span><a class="hs-hero-assets" href="/invest" data-hero="assets" hidden></a></span></span>
+            <span class="k">${icon('bitcoin', 16)} Your Bitcoin investment</span>
+            <strong class="v" data-hero="value">&mdash;</strong>
+            <span class="d">
+              <span>Invested <b data-hero="cost">&mdash;</b></span>
+              <span>Growth <b data-hero="gain">&mdash;</b></span>
+              <span>Held <b data-hero="units">&mdash;</b></span>
+            </span>
           </div>
           <nav class="hs-qa" aria-label="Quick actions">
-            <a href="/transfers"><i>${icon('transfer', 20)}</i><span>Send</span></a>
-            <a href="/deposit"><i>${icon('deposit', 20)}</i><span>Deposit</span></a>
-            <a href="/bills"><i>${icon('bill', 20)}</i><span>Pay a bill</span></a>
-            <a href="/invest" class="is-primary"><i>${icon('chart', 20)}</i><span>Convert</span></a>
-            <a href="/cards"><i>${icon('card', 20)}</i><span>Cards</span></a>
+            <a href="/invest?buy=1" class="is-primary"><i>${icon('bitcoin', 20)}</i><span>Buy Bitcoin</span></a>
+            <a href="/invest?sell=1"><i>${icon('chart', 20)}</i><span>Sell</span></a>
+            <a href="/transfers"><i>${icon('withdraw', 20)}</i><span>Withdraw</span></a>
+            <a href="/transactions"><i>${icon('activity', 20)}</i><span>History</span></a>
           </nav>
         </section>
 
-        <div class="rf-grid cols-4 rf-mb" data-totals>
-          <div class="rf-card rf-stat"><div class="k">Total on deposit</div><div class="v" data-total="deposits">&mdash;</div><div class="d" data-total-sub="deposits">across your accounts</div></div>
-          <div class="rf-card rf-stat"><div class="k">Available now</div><div class="v" data-total="available">&mdash;</div><div class="d">after holds and pending items</div></div>
-          <div class="rf-card rf-stat"><div class="k">Card balance</div><div class="v" data-total="owed">&mdash;</div><div class="d" data-total-sub="owed">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Credit available</div><div class="v" data-total="creditAvailable">&mdash;</div><div class="d">to spend on your card</div></div>
+        <div class="rf-grid cols-4 rf-mb">
+          <div class="rf-card rf-stat"><div class="k">First bought</div><div class="v" data-stat="since">&mdash;</div><div class="d" data-stat="sinceSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Next maturity</div><div class="v" data-stat="maturity">&mdash;</div><div class="d" data-stat="maturitySub">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Bitcoin price now</div><div class="v" data-stat="price">&mdash;</div><div class="d" data-stat="priceSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Cash to invest</div><div class="v" data-stat="cash">&mdash;</div><div class="d" data-stat="cashSub">in your cash balance</div></div>
         </div>
 
+        <section class="rf-card rf-mb hs-growth">
+          <div class="rf-card-head">
+            <h3>Growth since you invested</h3>
+            <div class="rf-card-actions hs-growth-legend" aria-hidden="true">
+              <span><i class="k value"></i>Value</span>
+              <span><i class="k cost"></i>Amount invested</span>
+              <span><i class="k buy"></i>Purchase</span>
+            </div>
+          </div>
+          <div class="rf-card-body">
+            <div class="hs-chart" data-growth-chart role="img" aria-label="Your Bitcoin's value since your first purchase">
+              <div class="rf-skel" style="height:100%"></div>
+            </div>
+            <p class="rf-small rf-muted hs-chart-note" data-chart-note></p>
+            <details class="hs-chart-table">
+              <summary>Show the figures as a table</summary>
+              <div class="rf-table-wrap">
+                <table class="rf-table">
+                  <thead><tr><th>Date</th><th class="num">Bitcoin price</th><th class="num">Amount invested</th><th class="num">Value</th><th class="num">Growth</th></tr></thead>
+                  <tbody data-chart-rows></tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        </section>
+
         <div class="rf-grid side">
+          <section class="rf-card">
+            <div class="rf-card-head">
+              <h3>Your purchases</h3>
+              <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/invest">Buy or sell</a></div>
+            </div>
+            <div class="rf-table-wrap">
+              <table class="rf-table">
+                <thead><tr><th>Bought</th><th class="num opt">Invested</th><th class="num opt">Price paid</th><th class="num">Value now</th><th class="num">Growth</th></tr></thead>
+                <tbody data-positions><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
           <div class="rf-stack">
-            <section>
-              <div class="rf-spread rf-mb">
-                <h2 style="font-family:var(--rf-display);font-size:17px;margin:0">Your accounts</h2>
-                <a class="rf-btn ghost sm" href="/accounts">All accounts</a>
-              </div>
-              <div class="rf-grid cols-2" data-accounts>
-                <div class="rf-card rf-stat"><div class="rf-skel" style="width:60%"></div><div class="rf-skel rf-mt" style="width:40%;height:24px"></div></div>
-                <div class="rf-card rf-stat"><div class="rf-skel" style="width:60%"></div><div class="rf-skel rf-mt" style="width:40%;height:24px"></div></div>
-              </div>
+            <section class="rf-card">
+              <div class="rf-card-head"><h3>${icon('hourglass', 18)} Time to maturity</h3></div>
+              <ul class="rf-list hs-terms" data-terms><li class="rf-muted rf-small">Loading&hellip;</li></ul>
             </section>
 
             <section class="rf-card">
@@ -195,87 +238,12 @@ const dashboardContent = `
                 <h3>Recent activity</h3>
                 <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/transactions">See all</a></div>
               </div>
-              <div class="rf-table-wrap">
-                <table class="rf-table">
-                  <thead><tr><th>Date</th><th>Description</th><th class="opt">Account</th><th></th><th class="num">Amount</th><th class="num opt">Balance</th></tr></thead>
-                  <tbody data-recent><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Money in and out</h3><div class="rf-card-actions rf-small rf-muted">Last six months</div></div>
-              <div class="rf-card-body"><div class="rf-bars" data-months></div>
-                <div class="rf-inline rf-mt rf-small rf-muted">
-                  <span class="rf-inline"><i style="width:10px;height:10px;border-radius:3px;background:var(--rf-credit);display:inline-block"></i> In</span>
-                  <span class="rf-inline"><i style="width:10px;height:10px;border-radius:3px;background:var(--rf-navy-3);display:inline-block"></i> Out</span>
-                </div>
-              </div>
+              <ul class="rf-list" data-recent-list><li class="rf-muted rf-small">Loading&hellip;</li></ul>
             </section>
           </div>
+        </div>
 
-          <div class="rf-stack">
-            <section class="rf-card hs-dash-invest">
-              <div class="rf-card-head hs-dash-invest-head"><h3>${icon('chart', 18)} Investments</h3><div class="rf-card-actions"><a class="rf-btn sm hs-open-invest" href="/invest">Open Invest &rarr;</a></div></div>
-              <div class="hs-dash-invest-v" data-dash-invest><strong>&mdash;</strong><small>Turn part of your balance into listed assets.</small></div>
-              <div class="hs-chips" aria-label="Convert in one tap">
-                <a href="/invest?convert=SPY">S&amp;P 500</a><a href="/invest?convert=BTC">Bitcoin</a><a href="/invest?convert=XAU">Gold</a>
-                <a href="/invest?convert=AAPL">Apple</a><a href="/invest?convert=AMZN">Amazon</a><a href="/invest?convert=QQQ">Nasdaq ETF</a>
-              </div>
-            </section>
-
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Spending</h3><div class="rf-card-actions rf-small rf-muted">30 days</div></div>
-              <div class="rf-card-body"><div class="rf-ring" data-spending></div></div>
-            </section>
-
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Pending</h3></div>
-              <ul class="rf-list" data-pending><li class="rf-muted rf-small">Nothing pending.</li></ul>
-            </section>
-
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Coming up</h3></div>
-              <ul class="rf-list" data-upcoming><li class="rf-muted rf-small">No scheduled payments.</li></ul>
-            </section>
-          </div>
-        </div>`;
-
-/* =============================================================== accounts == */
-
-const accountsContent = `
-        <div class="rf-grid cols-2" data-accounts></div>
-
-        <section class="rf-card rf-mt" data-account-detail hidden>
-          <div class="rf-card-head">
-            <h3 data-detail-title>Account</h3>
-            <div class="rf-card-actions">
-              <button class="rf-btn ghost sm" data-rename>Rename</button>
-              <a class="rf-btn ghost sm" data-statements-link href="/statements">Statements</a>
-              <button class="rf-btn ghost sm" data-close-detail>Close</button>
-            </div>
-          </div>
-          <div class="rf-card-body">
-            <div class="rf-grid cols-2">
-              <div>
-                <dl class="rf-dl" data-detail-dl></dl>
-              </div>
-              <div>
-                <h4 class="rf-label">Direct deposit and wire details</h4>
-                <dl class="rf-dl" data-detail-wire></dl>
-                <button class="rf-btn ghost sm rf-mt" data-copy-details>Copy details</button>
-              </div>
-            </div>
-            <hr class="rf-divider" />
-            <h4 class="rf-label">Latest entries</h4>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Date</th><th>Description</th><th></th><th class="num">Amount</th><th class="num opt">Balance</th></tr></thead>
-                <tbody data-detail-transactions></tbody>
-              </table>
-            </div>
-          </div>
-        </section>`;
+        <p class="rf-small rf-muted rf-mt hs-inv-note">${RISK} A maturity date is the end of the term you chose; it does not lock your Bitcoin, and it does not promise a value on that day.</p>`;
 
 /* =========================================================== transactions == */
 
@@ -285,7 +253,7 @@ const transactionsContent = `
             <form class="rf-row four" data-filters style="align-items:end">
               <div class="rf-field" style="margin:0">
                 <label for="f-q">Search</label>
-                <input class="rf-input" id="f-q" name="q" placeholder="Merchant, description, reference" />
+                <input class="rf-input" id="f-q" name="q" placeholder="Description or reference" />
               </div>
               <div class="rf-field" style="margin:0">
                 <label for="f-account">Account</label>
@@ -293,7 +261,7 @@ const transactionsContent = `
               </div>
               <div class="rf-field" style="margin:0">
                 <label for="f-category">Category</label>
-                <select class="rf-select" id="f-category" name="category"><option value="">All categories</option>${CATEGORIES.map((c) => option(c)).join('')}</select>
+                <select class="rf-select" id="f-category" name="category"><option value="">All categories</option>${CATEGORIES.slice(0, CATEGORIES.indexOf('Other') + 1).map((c) => option(c)).join('')}</select>
               </div>
               <div class="rf-field" style="margin:0">
                 <label for="f-direction">Direction</label>
@@ -334,13 +302,14 @@ const transactionsContent = `
           </div>
         </section>`;
 
-/* ============================================================== transfers == */
+/* ============================================================ withdrawals == */
 
 const transfersContent = `
         <div class="rf-grid side">
           <section class="rf-card">
-            <div class="rf-card-head"><h3>Send money</h3></div>
+            <div class="rf-card-head"><h3>Withdraw cash</h3></div>
             <div class="rf-card-body">
+              <p class="rf-small rf-muted" style="margin-top:0">Money goes from your cash balance to a bank account in your own name. To withdraw what is in Bitcoin, <a href="/invest?sell=1">sell it to cash</a> first.</p>
               <div class="rf-segment rf-mb" data-type-picker></div>
 
               <form id="rf-transfer-form" novalidate>
@@ -350,31 +319,10 @@ const transfersContent = `
                   <div class="hint" data-available></div>
                 </div>
 
-                <div class="rf-field" data-to-internal hidden>
-                  <label for="t-to">To</label>
-                  <select class="rf-select" id="t-to" name="toAccountId"></select>
-                </div>
-
-                <div class="rf-field" data-to-member hidden>
-                  <label for="t-member">Send to</label>
-                  <div class="hs-member-find">
-                    <input class="rf-input" id="t-member" name="memberQuery" placeholder="Their email, phone or Hedgestone account number" autocomplete="off" />
-                    <button class="rf-btn ghost" type="button" data-member-find>Find</button>
-                  </div>
-                  <div class="hint">Instant and free between Hedgestone customers. You will see who it is before anything is sent.</div>
-                  <div class="hs-member-card" data-member-card hidden></div>
-                </div>
-
-                <div class="rf-field" data-to-beneficiary hidden>
-                  <label for="t-beneficiary">Recipient</label>
+                <div class="rf-field" data-to-beneficiary>
+                  <label for="t-beneficiary">To</label>
                   <select class="rf-select" id="t-beneficiary" name="beneficiaryId"></select>
-                  <div class="hint"><a href="/recipients">Add or manage recipients</a></div>
-                </div>
-
-                <div class="rf-field" data-to-payee hidden>
-                  <label for="t-payee">Payee</label>
-                  <select class="rf-select" id="t-payee" name="payeeId"></select>
-                  <div class="hint"><a href="/bills">Add or manage payees</a></div>
+                  <div class="hint"><a href="/recipients">Add or manage withdrawal accounts</a></div>
                 </div>
 
                 <div class="rf-row">
@@ -382,7 +330,7 @@ const transfersContent = `
                     <label for="t-amount">Amount</label>
                     <input class="rf-input money" id="t-amount" name="amount" inputmode="decimal" placeholder="0.00" required />
                   </div>
-                  ${dateField({ id: 't-date', name: 'scheduledFor', label: 'Send on', from: 0, to: 3, order: 'asc', hint: 'Leave blank to send now.' })}
+                  ${dateField({ id: 't-date', name: 'scheduledFor', label: 'Withdraw on', from: 0, to: 3, order: 'asc', hint: 'Leave blank to withdraw now.' })}
                 </div>
 
                 <div class="rf-row">
@@ -390,25 +338,23 @@ const transfersContent = `
                     <label for="t-recurrence">Repeat</label>
                     <select class="rf-select" id="t-recurrence" name="recurrence">
                       <option value="none">One time</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Every two weeks</option>
                       <option value="monthly">Monthly</option>
                     </select>
                   </div>
                   <div class="rf-field" data-pin-field hidden>
-                    <label for="t-pin">Transfer PIN</label>
+                    <label for="t-pin">Withdrawal PIN</label>
                     <input class="rf-input mono" id="t-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="off" />
                   </div>
                 </div>
 
                 <div class="rf-field">
-                  <label for="t-memo">Memo <span class="rf-muted">(optional)</span></label>
-                  <input class="rf-input" id="t-memo" name="memo" maxlength="140" placeholder="What is this for?" />
+                  <label for="t-memo">Note <span class="rf-muted">(optional)</span></label>
+                  <input class="rf-input" id="t-memo" name="memo" maxlength="140" placeholder="For your own records" />
                 </div>
 
                 <div class="rf-notice" data-summary></div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Review and send</button>
+                <button class="rf-btn block" type="submit" data-submit>Review and withdraw</button>
               </form>
             </div>
           </section>
@@ -427,7 +373,7 @@ const transfersContent = `
 
         <section class="rf-card rf-mt">
           <div class="rf-card-head">
-            <h3>Transfer history</h3>
+            <h3>Your withdrawals</h3>
             <div class="rf-card-actions">
               <select class="rf-select" data-status-filter style="width:auto">
                 <option value="">All statuses</option>
@@ -442,7 +388,7 @@ const transfersContent = `
           </div>
           <div class="rf-table-wrap">
             <table class="rf-table">
-              <thead><tr><th>Date</th><th>Recipient</th><th class="opt">Type</th><th class="opt">Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+              <thead><tr><th>Date</th><th>To</th><th class="opt">Type</th><th class="opt">Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
               <tbody data-transfers><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
             </table>
           </div>
@@ -454,27 +400,27 @@ const recipientsContent = `
         <div class="rf-grid side">
           <section class="rf-card">
             <div class="rf-card-head">
-              <h3>Saved recipients</h3>
+              <h3>Your withdrawal accounts</h3>
               <div class="rf-card-actions rf-small rf-muted" data-count></div>
             </div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Recipient</th><th class="opt">Bank</th><th>Account</th><th class="opt">Type</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Name on the account</th><th class="opt">Held at</th><th>Account</th><th class="opt">Type</th><th>Status</th><th></th></tr></thead>
                 <tbody data-rows><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
           </section>
 
           <section class="rf-card">
-            <div class="rf-card-head"><h3>Add a recipient</h3></div>
+            <div class="rf-card-head"><h3>Add a withdrawal account</h3></div>
             <div class="rf-card-body">
+              <p class="rf-small rf-muted" style="margin-top:0">An account in your own name at your bank, for us to pay withdrawals into. New accounts are checked by our team before the first withdrawal reaches them.</p>
               <form id="rf-beneficiary-form" novalidate>
                 <div class="rf-field">
-                  <label for="b-type">Payment type</label>
+                  <label for="b-type">Where it is</label>
                   <select class="rf-select" id="b-type" name="type">
-                    <option value="domestic_ach">ACH transfer (US)</option>
-                    <option value="domestic_wire">Domestic wire (US)</option>
-                    <option value="international_wire">International wire</option>
+                    <option value="domestic_ach">An account in the US</option>
+                    <option value="international_wire">An account outside the US</option>
                   </select>
                 </div>
                 <div class="rf-field">
@@ -483,10 +429,10 @@ const recipientsContent = `
                 </div>
                 <div class="rf-field">
                   <label for="b-nickname">Nickname <span class="rf-muted">(optional)</span></label>
-                  <input class="rf-input" id="b-nickname" name="nickname" placeholder="Mum, landlord, plumber" />
+                  <input class="rf-input" id="b-nickname" name="nickname" placeholder="My everyday account" />
                 </div>
                 <div class="rf-field">
-                  <label for="b-bank">Receiving bank</label>
+                  <label for="b-bank">Held at</label>
                   <input class="rf-input" id="b-bank" name="bankName" />
                 </div>
                 <div class="rf-field">
@@ -494,9 +440,9 @@ const recipientsContent = `
                   <input class="rf-input mono" id="b-account" name="accountNumber" required />
                 </div>
                 <div class="rf-field" data-routing-field>
-                  <label for="b-routing">Routing number (ABA)</label>
+                  <label for="b-routing">Routing number</label>
                   <input class="rf-input mono" id="b-routing" name="routingNumber" inputmode="numeric" maxlength="9" />
-                  <div class="hint">Nine digits. We check it before we save it.</div>
+                  <div class="hint">The nine digits your bank gives for payments in. We check it before we save it.</div>
                 </div>
                 <div class="rf-field rf-hide" data-swift-field>
                   <label for="b-swift">SWIFT / BIC</label>
@@ -510,182 +456,24 @@ const recipientsContent = `
                   <div class="rf-field">
                     <label for="b-account-type">Account type</label>
                     <select class="rf-select" id="b-account-type" name="accountType">
-                      <option value="checking">Checking</option>
+                      <option value="checking">Current or checking</option>
                       <option value="savings">Savings</option>
-                      <option value="business">Business</option>
                     </select>
                   </div>
                   <div class="rf-field">
-                    <label for="b-relationship">Relationship</label>
-                    <input class="rf-input" id="b-relationship" name="relationship" placeholder="Family, supplier" />
+                    <label for="b-relationship">Whose account</label>
+                    <select class="rf-select" id="b-relationship" name="relationship">
+                      <option value="Own account">Mine</option>
+                      <option value="Joint account">Joint, in my name</option>
+                    </select>
                   </div>
                 </div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Save recipient</button>
+                <button class="rf-btn block" type="submit" data-submit>Save withdrawal account</button>
               </form>
             </div>
           </section>
         </div>`;
-
-/* ================================================================== bills == */
-
-const billsContent = `
-        <div class="rf-grid side">
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Payees</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Payee</th><th class="opt">Category</th><th class="opt">Account</th><th>Due</th><th class="num">Amount</th><th class="opt-sm">Autopay</th><th></th></tr></thead>
-                <tbody data-rows><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Add a payee</h3></div>
-            <div class="rf-card-body">
-              <form id="rf-payee-form" novalidate>
-                <div class="rf-field">
-                  <label for="p-name">Company</label>
-                  <input class="rf-input" id="p-name" name="name" required />
-                </div>
-                <div class="rf-field">
-                  <label for="p-category">Category</label>
-                  <select class="rf-select" id="p-category" name="category">
-                    ${['Utilities', 'Insurance', 'Rent & Mortgage', 'Healthcare', 'Education', 'Subscriptions', 'Other'].map((c) => option(c)).join('')}
-                  </select>
-                </div>
-                <div class="rf-field">
-                  <label for="p-account">Account number with them</label>
-                  <input class="rf-input mono" id="p-account" name="accountNumber" />
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="p-amount">Usual amount</label>
-                    <input class="rf-input" id="p-amount" name="amount" inputmode="decimal" placeholder="0.00" />
-                  </div>
-                  <div class="rf-field">
-                    <label for="p-due">Due day</label>
-                    <input class="rf-input" id="p-due" name="dueDay" type="number" min="1" max="28" value="1" />
-                  </div>
-                </div>
-                <label class="rf-check"><input type="checkbox" name="autopay" /><span>Pay this automatically each month</span></label>
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Save payee</button>
-              </form>
-            </div>
-          </section>
-        </div>`;
-
-/* ================================================================ deposit == */
-
-const depositContent = `
-        <div class="rf-grid side">
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Deposit a check</h3></div>
-            <div class="rf-card-body">
-              <div class="rf-notice">
-                <span>${icon('check', 17)}</span>
-                <span><strong>Before you start</strong>Endorse the back of the check and write &ldquo;For mobile deposit at ${BANK.shortName} only&rdquo; under your signature. Keep the check for 14 days after it clears.</span>
-              </div>
-
-              <form id="rf-deposit-form" novalidate>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="d-account">Deposit into</label>
-                    <select class="rf-select" id="d-account" name="accountId" required></select>
-                  </div>
-                  <div class="rf-field">
-                    <label for="d-amount">Amount on the check</label>
-                    <input class="rf-input money" id="d-amount" name="amount" inputmode="decimal" placeholder="0.00" required />
-                  </div>
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="d-check-number">Check number</label>
-                    <input class="rf-input mono" id="d-check-number" name="checkNumber" maxlength="10" />
-                  </div>
-                  <div class="rf-field">
-                    <label for="d-memo">Memo <span class="rf-muted">(optional)</span></label>
-                    <input class="rf-input" id="d-memo" name="memo" maxlength="140" />
-                  </div>
-                </div>
-
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label>Front of the check</label>
-                    <label class="rf-card" style="display:block;padding:18px;text-align:center;cursor:pointer;border-style:dashed">
-                      <input type="file" accept="image/*" capture="environment" data-image="front" hidden />
-                      <span data-preview="front" class="rf-small rf-muted">Tap to photograph the front</span>
-                    </label>
-                  </div>
-                  <div class="rf-field">
-                    <label>Back of the check</label>
-                    <label class="rf-card" style="display:block;padding:18px;text-align:center;cursor:pointer;border-style:dashed">
-                      <input type="file" accept="image/*" capture="environment" data-image="back" hidden />
-                      <span data-preview="back" class="rf-small rf-muted">Tap to photograph the back</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Deposit check</button>
-              </form>
-            </div>
-          </section>
-
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Recent deposits</h3></div>
-            <ul class="rf-list" data-deposits><li class="rf-muted rf-small">No mobile deposits yet.</li></ul>
-          </section>
-        </div>`;
-
-/* ================================================================== cards == */
-
-const cardsContent = `
-        <div class="rf-grid cols-2" data-cards></div>
-        <p class="rf-small rf-muted rf-mt">Card numbers are never shown in full online. Call <span data-site="phone">us</span> if you need the full number, or report a card lost or stolen at any time - a replacement goes out the same day.</p>`;
-
-/* ============================================================= statements == */
-
-const statementsContent = `
-        <section class="rf-card rf-mb">
-          <div class="rf-card-body tight rf-inline">
-            <label class="rf-label" for="s-account" style="margin:0">Account</label>
-            <select class="rf-select" id="s-account" style="width:auto;min-width:260px"></select>
-            <span class="rf-muted rf-small">Statements are kept for seven years. Paper copies cost $2.00 each.</span>
-          </div>
-        </section>
-
-        <div class="rf-grid side">
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Statement periods</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Period</th><th class="num opt">Opening</th><th class="num opt">In</th><th class="num opt">Out</th><th class="num">Closing</th><th></th></tr></thead>
-                <tbody data-rows><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Paperless</h3></div>
-            <div class="rf-card-body rf-small rf-muted">
-              You are signed up for paperless statements. We email you when each one is ready and keep it here for seven years.
-              <a class="rf-btn ghost sm rf-mt" href="/profile">Change this</a>
-            </div>
-          </section>
-        </div>
-
-        <section class="rf-card rf-mt" data-statement hidden>
-          <div class="rf-card-head rf-no-print">
-            <h3 data-statement-title>Statement</h3>
-            <div class="rf-card-actions">
-              <button class="rf-btn ghost sm" onclick="window.print()">Print or save as PDF</button>
-              <button class="rf-btn ghost sm" data-close-statement>Close</button>
-            </div>
-          </div>
-          <div class="rf-card-body"><div data-statement-body></div></div>
-        </section>`;
 
 /* ================================================================ alerts == */
 
@@ -706,11 +494,11 @@ const alertsContent = `
               <hr class="rf-divider" />
               <div class="rf-row">
                 <div class="rf-field">
-                  <label for="a-threshold">Alert me over</label>
+                  <label for="a-threshold">Alert me about movements over</label>
                   <input class="rf-input" id="a-threshold" name="alertThreshold" inputmode="decimal" />
                 </div>
                 <div class="rf-field">
-                  <label for="a-low">Low balance below</label>
+                  <label for="a-low">Cash balance below</label>
                   <input class="rf-input" id="a-low" name="lowBalanceThreshold" inputmode="decimal" />
                 </div>
               </div>
@@ -734,7 +522,7 @@ const messagesContent = `
           <section class="rf-card">
             <div class="rf-card-head"><h3 data-thread-subject>Secure message</h3></div>
             <div class="rf-card-body" data-thread>
-              <p class="rf-muted rf-small">Choose a conversation, or start a new one. Messages here are inside your banking session, so it is safe to include account details.</p>
+              <p class="rf-muted rf-small">Choose a conversation, or start a new one. Messages here stay inside your signed-in session, so it is safe to include account details.</p>
             </div>
             <div class="rf-card-foot">
               <form id="rf-message-form">
@@ -788,7 +576,7 @@ const securityContent = `
                 <form id="rf-pin-form" novalidate>
                   <div class="rf-row">
                     <div class="rf-field">
-                      <label for="s-pin">Transfer PIN</label>
+                      <label for="s-pin">Withdrawal PIN</label>
                       <input class="rf-input mono" id="s-pin" name="transferPin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" />
                     </div>
                     <div class="rf-field">
@@ -831,8 +619,7 @@ const securityContent = `
             <section class="rf-card">
               <div class="rf-card-head"><h3>If something looks wrong</h3></div>
               <div class="rf-card-body rf-small">
-                <p>Call the fraud line<span data-site-row="fraudPhone" hidden> on <strong data-site="fraudPhone"></strong></span>, day or night. We will never call you and ask for your password, a one-time code or your full card number.</p>
-                <a class="rf-btn ghost sm" href="/cards">Freeze a card</a>
+                <p>Call us<span data-site-row="fraudPhone" hidden> on <strong data-site="fraudPhone"></strong></span>, day or night. We will never call you and ask for your password or a one-time code. If you think someone else has signed in, sign every device out from the list above.</p>
               </div>
             </section>
           </div>
@@ -918,124 +705,111 @@ const profileContent = `
                 <label class="rf-btn ghost sm" style="cursor:pointer">
                   <input type="file" accept="image/*" data-avatar hidden /> Upload a photo
                 </label>
-                <p class="rf-small rf-muted rf-mt">JPEG or PNG, up to 6MB. It appears here and in the console when we help you.</p>
+                <p class="rf-small rf-muted rf-mt">JPEG or PNG, up to 6MB. It appears here and to our team when we help you.</p>
               </div>
             </section>
 
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Your relationship</h3></div>
+              <div class="rf-card-head"><h3>Your account</h3></div>
               <div class="rf-card-body"><dl class="rf-dl" data-relationship></dl></div>
             </section>
 
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Statements and mail</h3></div>
-              <div class="rf-card-body">
-                <div class="rf-switch">
-                  <span class="t">Paperless statements<small>Email me instead of posting paper.</small></span>
-                  <input type="checkbox" data-toggle="paperless" />
-                </div>
-              </div>
-            </section>
           </div>
         </div>`;
 
+/*
+ * The Bitcoin screen: buy with cash, sell back to cash, and every purchase
+ * with its term. public/js/bank/invest.js fills it from /invest.
+ */
 const investContent = `
         <div class="rf-grid cols-4 rf-mb" data-inv-totals>
-          <div class="rf-card rf-stat hs-inv-hero"><div class="k">Portfolio value</div><div class="v" data-inv="value">&mdash;</div><div class="d" data-inv="gain">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Invested</div><div class="v" data-inv="cost">&mdash;</div><div class="d">what your holdings cost</div></div>
-          <div class="rf-card rf-stat"><div class="k">Cash you can convert</div><div class="v" data-inv="cash">&mdash;</div><div class="d">available across your accounts</div></div>
-          <div class="rf-card rf-stat"><div class="k">Assets held</div><div class="v" data-inv="count">&mdash;</div><div class="d" data-inv="asof">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-inv-hero"><div class="k">Your Bitcoin is worth</div><div class="v" data-inv="value">&mdash;</div><div class="d" data-inv="gain">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Invested</div><div class="v" data-inv="cost">&mdash;</div><div class="d">what your Bitcoin cost</div></div>
+          <div class="rf-card rf-stat"><div class="k">Cash to invest</div><div class="v" data-inv="cash">&mdash;</div><div class="d">available in your cash balance</div></div>
+          <div class="rf-card rf-stat"><div class="k">Bitcoin held</div><div class="v" data-inv="count">&mdash;</div><div class="d" data-inv="asof">&nbsp;</div></div>
         </div>
 
         <section class="rf-card rf-mb">
           <div class="rf-card-head">
-            <h3>Convert your balance</h3>
-            <div class="rf-card-actions rf-small rf-muted" data-inv-source>Live prices</div>
+            <h3>Buy Bitcoin</h3>
+            <div class="rf-card-actions rf-small rf-muted" data-inv-source>Live price</div>
           </div>
-          <p class="rf-small rf-muted hs-inv-lede">Tap an asset to turn part or all of your balance into it. You get a fraction of a share at the live price, booked the moment you confirm, and you can convert back to cash at any time.</p>
+          <p class="rf-small rf-muted hs-inv-lede">Bitcoin is the one asset we invest in. Choose an amount and how long you plan to hold it; you buy a fraction of a Bitcoin at the live price, booked the moment you confirm, and you can sell back to cash at any time.</p>
           <div class="hs-assets" data-inv-assets>
-            <div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div><div class="rf-skel" style="height:118px"></div>
+            <div class="rf-skel" style="height:118px"></div>
           </div>
         </section>
 
         <div class="rf-grid side">
           <section class="rf-card">
-            <div class="rf-card-head"><h3>Your holdings</h3></div>
+            <div class="rf-card-head"><h3>Your purchases</h3></div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Asset</th><th class="num">Units</th><th class="num opt">Avg. price</th><th class="num opt">Price</th><th class="num">Value</th><th class="num">Gain / loss</th><th></th></tr></thead>
-                <tbody data-inv-holdings><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                <thead><tr><th>Bought</th><th class="num">Bitcoin</th><th class="num opt">Price paid</th><th class="num">Value now</th><th class="num">Growth</th><th>Matures</th></tr></thead>
+                <tbody data-inv-positions><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
+            </div>
+            <div class="rf-card-foot" data-inv-holdings-wrap hidden>
+              <h4 class="rf-label" style="margin:0 0 8px">Assets no longer offered</h4>
+              <p class="rf-small rf-muted" style="margin:0 0 10px">You bought these before we became Bitcoin only. They are valued at the live price and you can sell them to cash at any time.</p>
+              <div class="rf-table-wrap">
+                <table class="rf-table">
+                  <thead><tr><th>Asset</th><th class="num">Units</th><th class="num">Value</th><th class="num">Gain / loss</th><th></th></tr></thead>
+                  <tbody data-inv-holdings></tbody>
+                </table>
+              </div>
             </div>
           </section>
           <section class="rf-card">
-            <div class="rf-card-head"><h3>Recent conversions</h3></div>
+            <div class="rf-card-head"><h3>Recent purchases and sales</h3></div>
             <ul class="hs-trades" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
           </section>
         </div>
 
-        <p class="rf-small rf-muted rf-mt hs-inv-note">Prices come from public market data and may be delayed by up to 15 minutes outside US market hours. Each conversion is booked at the price shown when you confirm; if the price has moved more than 2% since you opened the sheet, we show you the new price and ask again. Investments are not FDIC insured, are not bank guaranteed and may lose value.</p>
+        <p class="rf-small rf-muted rf-mt hs-inv-note">The price comes from public market data. Each purchase or sale is booked at the price shown when you confirm; if the price has moved more than 2% since you opened the sheet, we show you the new price and ask again. ${RISK}</p>
 `;
 
 module.exports = [
   {
     file: 'signin.html',
     build: authPage,
-    opts: { title: `Sign in | ${BANK.name}`, description: 'Sign in to Hedgestone Global Bank online banking.', content: signinContent, extraScripts: ['/js/bank/signin.js'] },
+    opts: { title: `Sign in | ${BANK.name}`, description: `Sign in to your ${BANK.name} Bitcoin investment.`, content: signinContent, extraScripts: ['/js/bank/signin.js'] },
   },
   {
     file: 'forgot.html',
     build: authPage,
-    opts: { title: `Reset your password | ${BANK.name}`, description: 'Reset your Hedgestone online banking password.', content: forgotContent, extraScripts: ['/js/bank/signin.js'] },
+    opts: { title: `Reset your password | ${BANK.name}`, description: `Reset your ${BANK.name} password.`, content: forgotContent, extraScripts: ['/js/bank/signin.js'] },
   },
   {
     file: 'change-password.html',
     build: authPage,
-    opts: { title: `Choose a new password | ${BANK.name}`, description: 'Set a new password for online banking.', content: changePasswordContent, extraScripts: ['/js/bank/signin.js'] },
+    opts: { title: `Choose a new password | ${BANK.name}`, description: 'Set a new password for your account.', content: changePasswordContent, extraScripts: ['/js/bank/signin.js'] },
   },
   {
     file: 'dashboard.html',
     build: appPage,
     opts: {
-      title: `Dashboard | ${BANK.name}`, description: 'Your accounts at a glance.',
-      heading: 'Good to see you', sub: 'Here is where your money stands today.',
+      title: `Dashboard | ${BANK.name}`, description: 'Your Bitcoin investment at a glance.',
+      heading: 'Good to see you', sub: 'Your Bitcoin, from the day you bought it.',
       active: 'dashboard', content: dashboardContent, extraScripts: ['/js/bank/app.js'],
-      actions: '<a class="rf-btn sm" href="/transfers">Send money</a>',
-    },
-  },
-  {
-    file: 'accounts.html',
-    build: appPage,
-    opts: {
-      title: `Accounts | ${BANK.name}`, description: 'Your accounts.',
-      heading: 'Accounts', sub: 'Balances, account numbers and wire details.',
-      active: 'accounts', content: accountsContent, extraScripts: ['/js/bank/app.js'],
+      actions: '<a class="rf-btn sm" href="/invest?buy=1">Buy Bitcoin</a>',
     },
   },
   {
     file: 'transactions.html',
     build: appPage,
     opts: {
-      title: `Transactions | ${BANK.name}`, description: 'Search and filter your transactions.',
-      heading: 'Transactions', sub: 'Everything in and out, across every account.',
+      title: `Transactions | ${BANK.name}`, description: 'Every deposit, purchase, sale and withdrawal.',
+      heading: 'Transactions', sub: 'Every deposit, purchase, sale and withdrawal.',
       active: 'transactions', content: transactionsContent, extraScripts: ['/js/bank/app.js'],
-    },
-  },
-  {
-    file: 'statements.html',
-    build: appPage,
-    opts: {
-      title: `Statements | ${BANK.name}`, description: 'Monthly statements.',
-      heading: 'Statements', sub: 'Twelve months, ready to print or save.',
-      active: 'statements', content: statementsContent, extraScripts: ['/js/bank/app.js'],
     },
   },
   {
     file: 'transfers.html',
     build: appPage,
     opts: {
-      title: `Transfers | ${BANK.name}`, description: 'Send money between accounts, by ACH or by wire.',
-      heading: 'Transfers', sub: 'Between your accounts, to someone else, or out by wire.',
+      title: `Withdraw | ${BANK.name}`, description: 'Withdraw cash to a bank account in your name.',
+      heading: 'Withdraw', sub: 'From your cash balance to a bank account in your name.',
       active: 'transfers', content: transfersContent, extraScripts: ['/js/bank/money.js'],
     },
   },
@@ -1043,46 +817,19 @@ module.exports = [
     file: 'recipients.html',
     build: appPage,
     opts: {
-      title: `Recipients | ${BANK.name}`, description: 'The people and companies you send money to.',
-      heading: 'Recipients', sub: 'Saved details for the people you pay.',
+      title: `Withdrawal accounts | ${BANK.name}`, description: 'The bank accounts your withdrawals are paid into.',
+      heading: 'Withdrawal accounts', sub: 'The accounts in your name that withdrawals are paid into.',
       active: 'recipients', content: recipientsContent, extraScripts: ['/js/bank/money.js'],
-    },
-  },
-  {
-    file: 'bills.html',
-    build: appPage,
-    opts: {
-      title: `Bill pay | ${BANK.name}`, description: 'Pay bills and manage payees.',
-      heading: 'Bill pay', sub: 'Payees, due dates and autopay.',
-      active: 'bills', content: billsContent, extraScripts: ['/js/bank/money.js'],
-    },
-  },
-  {
-    file: 'deposit.html',
-    build: appPage,
-    opts: {
-      title: `Deposit a check | ${BANK.name}`, description: 'Deposit a check with your phone.',
-      heading: 'Deposit a check', sub: 'Photograph both sides and we will do the rest.',
-      active: 'deposit', content: depositContent, extraScripts: ['/js/bank/money.js'],
     },
   },
   {
     file: 'invest.html',
     build: appPage,
     opts: {
-      title: `Invest | ${BANK.name}`, description: 'Convert your balance into listed assets at live prices.',
-      heading: 'Invest', sub: 'Turn cash into the S&amp;P 500, leading stocks, Bitcoin or gold - in one tap.',
+      title: `Bitcoin | ${BANK.name}`, description: 'Buy and sell Bitcoin at the live price.',
+      heading: 'Bitcoin', sub: 'Buy at the live price, choose your term, sell back to cash any time.',
       active: 'invest', content: investContent, extraScripts: ['/js/bank/invest.js'],
-      actions: '<button class="rf-btn sm" type="button" data-inv-quick>Convert balance</button>',
-    },
-  },
-  {
-    file: 'cards.html',
-    build: appPage,
-    opts: {
-      title: `Cards | ${BANK.name}`, description: 'Freeze a card, set limits, report one lost.',
-      heading: 'Cards', sub: 'Freeze, unfreeze, set limits or report a card lost.',
-      active: 'cards', content: cardsContent, extraScripts: ['/js/bank/app.js'],
+      actions: '<button class="rf-btn sm" type="button" data-inv-quick>Buy Bitcoin</button>',
     },
   },
   {
@@ -1098,7 +845,7 @@ module.exports = [
     file: 'messages.html',
     build: appPage,
     opts: {
-      title: `Messages | ${BANK.name}`, description: 'Secure messages with the bank.',
+      title: `Messages | ${BANK.name}`, description: 'Secure messages with our team.',
       heading: 'Secure messages', sub: 'Inside your session, so account details are safe to send.',
       active: 'messages', content: messagesContent, extraScripts: ['/js/bank/app.js'],
     },
@@ -1108,7 +855,7 @@ module.exports = [
     build: appPage,
     opts: {
       title: `Security | ${BANK.name}`, description: 'Password, verification and signed-in devices.',
-      heading: 'Security', sub: 'Password, two-step verification, transfer PIN and devices.',
+      heading: 'Security', sub: 'Password, two-step verification, withdrawal PIN and devices.',
       active: 'security', content: securityContent, extraScripts: ['/js/bank/profile.js'],
     },
   },
@@ -1131,3 +878,16 @@ module.exports = [
     },
   },
 ];
+
+/**
+ * Pages retired with the banking features, and where each now goes. Read by
+ * src/app.js, and written into vercel.json's redirects (checked by
+ * test/api.test.js), so an old bookmark lands somewhere useful.
+ */
+module.exports.RETIRED = {
+  '/accounts': '/dashboard',
+  '/statements': '/transactions',
+  '/bills': '/transfers',
+  '/deposit': '/dashboard',
+  '/cards': '/dashboard',
+};

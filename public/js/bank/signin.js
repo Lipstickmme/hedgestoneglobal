@@ -37,7 +37,7 @@
 
     // The demonstration credentials appear only where the bank is already
     // handing one-time codes back in its responses - a laptop, or a deployment
-    // that has deliberately asked for it. A live bank shows nobody its logins.
+    // that has deliberately asked for it. A live site shows nobody its logins.
     const demoCard = qs('[data-demo-card]');
     if (demoCard) {
       api.get('/config')

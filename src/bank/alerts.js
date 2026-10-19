@@ -8,9 +8,8 @@
  * Resend is configured, and an operator can see which ones failed to leave.
  *
  * Preference handling lives here too: a customer can silence most alerts, but
- * the ones marked `locked` in ALERT_TYPES - a password change, a rejected
- * transfer, an overdraft - go out regardless, which is what the regulation and
- * plain decency both want.
+ * the ones marked `locked` in ALERT_TYPES - a password change, a returned
+ * withdrawal - go out regardless, which is what plain decency wants.
  */
 
 const { db } = require('./db');
@@ -58,9 +57,8 @@ function wantsAlert(user, typeId) {
  */
 function renderEmail({ heading, intro, rows = [], body = '', cta, footNote, bankName }) {
   const name = bankName || BANK.name;
-  // Blank until an operator sets it at the console, in which case the whole
-  // postal line comes out of the footer rather than leaving a dangling
-  // separator before "Member FDIC".
+  // Blank until an operator sets it at the console, in which case the postal
+  // line comes out of the footer altogether.
   const postal = contact.addressLine();
   const rowsHtml = rows.length
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border-collapse:collapse">
@@ -77,7 +75,7 @@ function renderEmail({ heading, intro, rows = [], body = '', cta, footNote, bank
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e4e0d8;border-radius:14px;overflow:hidden">
         <tr><td style="background:#0d3b35;padding:20px 26px">
           <span style="color:#ffffff;font:700 17px/1.2 Georgia,'Times New Roman',serif;letter-spacing:.02em">${escapeHtml(name)}</span>
-          <span style="display:block;color:#9fb2cc;font:500 11px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">Member FDIC</span>
+          <span style="display:block;color:#9fb2cc;font:500 11px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">Bitcoin investing</span>
         </td></tr>
         <tr><td style="padding:26px">
           <h1 style="margin:0 0 10px;color:#0d3b35;font:600 21px/1.3 Georgia,'Times New Roman',serif">${escapeHtml(heading)}</h1>
@@ -88,9 +86,9 @@ function renderEmail({ heading, intro, rows = [], body = '', cta, footNote, bank
           ${footNote ? `<p style="margin:22px 0 0;color:#847f76;font:400 12px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">${escapeHtml(footNote)}</p>` : ''}
         </td></tr>
         <tr><td style="background:#faf8f4;border-top:1px solid #e8e5df;padding:18px 26px;color:#847f76;font:400 11px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
-          ${escapeHtml(name)} will never ask for your password, one-time code or full card number by email or phone.<br />
-          If you did not expect this message, ${escapeHtml(contact.callFraud())} straight away.<br />
-          ${postal ? `${escapeHtml(postal)} &middot; ` : ''}Member FDIC &middot; Equal Housing Lender
+          ${escapeHtml(name)} will never ask for your password or a one-time code by email or phone.<br />
+          If you did not expect this message, ${escapeHtml(contact.callFraud())} straight away.${postal ? `<br />
+          ${escapeHtml(postal)}` : ''}
         </td></tr>
       </table>
     </td></tr>
@@ -115,7 +113,7 @@ function renderText({ heading, intro, rows = [], body = '', cta, footNote, bankN
 }
 
 /**
- * The text version: one sentence, and the bank's name first.
+ * The text version: one sentence, and the platform's name first.
  *
  * A phone shows the opening words in the notification shade, so the name and
  * the amount have to be at the front. Callers can pass `sms` to write their
@@ -134,6 +132,21 @@ function smsText({ heading, intro, body, rows = [], bankName }) {
 /* ---------------------------------------------------------------- send --- */
 
 /**
+ * Every alert is written with the built-in name (`${BANK.name}`), and this
+ * puts the one staff set under Settings in its place - subject, heading,
+ * every line - so a renamed platform never emails under its old name.
+ */
+function renamed(content, name) {
+  if (!name || name === BANK.name) return content;
+  const swap = (v) => (typeof v === 'string' ? v.split(BANK.name).join(name) : v);
+  const out = { ...content };
+  ['subject', 'heading', 'intro', 'body', 'footNote', 'sms'].forEach((key) => { out[key] = swap(out[key]); });
+  if (Array.isArray(out.rows)) out.rows = out.rows.map((r) => ({ ...r, label: swap(r.label), value: swap(r.value) }));
+  if (out.cta) out.cta = { ...out.cta, label: swap(out.cta.label) };
+  return out;
+}
+
+/**
  * Raise an alert with a customer.
  *
  * @param {object} user      the customer row
@@ -147,6 +160,7 @@ async function notifyUser(user, typeId, content = {}) {
 
   const cfg = await settings.get();
   const bankName = cfg.bankName || BANK.name;
+  content = renamed(content, bankName);
   const subject = content.subject || content.heading || 'Account notification';
   const payload = { ...content, bankName };
 
@@ -176,7 +190,11 @@ async function notifyUser(user, typeId, content = {}) {
   // Delivery is best effort. The record above is what the app shows either way.
   try {
     const notify = require('../utils/notify');
-    const from = process.env.BANK_ALERT_FROM || process.env.FORM_FROM || `${bankName} <onboarding@resend.dev>`;
+    // The address from the environment, under the name set at the console.
+    const from = require('../utils/config').withPlatformName(
+      process.env.BANK_ALERT_FROM || process.env.FORM_FROM || 'onboarding@resend.dev',
+      bankName
+    );
     const result = await notify.send({
       to: user.email,
       from,
@@ -283,12 +301,13 @@ async function creditPosted(user, { account, transaction, amount, balance, avail
 
   if (cfg.availableBalanceAlert === false) return out.filter(Boolean);
 
-  // 2. What can actually be spent.
+  // 2. What can actually be used: to buy Bitcoin, or to withdraw.
   //
   // Both halves get said, because both are why this number differs from the
-  // balance: money on hold is not spendable yet, and an overdraft line is
-  // spendable but is not the customer's money. A figure larger than the
-  // balance with no explanation reads as a mistake.
+  // balance: money on hold is not usable yet, and an overdraft line (on an
+  // account opened before Bitcoin-only) is usable but is not the customer's
+  // money. A figure larger than the balance with no explanation reads as a
+  // mistake.
   const notes = [
     held > 0 ? `${money(held)} is on hold and will be released as it clears` : '',
     overdraft > 0 ? `this includes your ${money(overdraft)} overdraft line` : '',
@@ -298,14 +317,14 @@ async function creditPosted(user, { account, transaction, amount, balance, avail
     force: true,
     subject: `Available balance - ${money(available)}`,
     heading: 'Available balance',
-    intro: `${money(available)} is available to spend on ${label}${notes.length ? `. ${notes.join(', and ')}` : ''}.`,
+    intro: `${money(available)} is available to invest or withdraw from ${label}${notes.length ? `. ${notes.join(', and ')}` : ''}.`,
     rows: [
-      { label: 'Available to spend', value: money(available) },
+      { label: 'Available to invest or withdraw', value: money(available) },
       { label: 'Current balance', value: money(balance) },
       ...(held > 0 ? [{ label: 'On hold', value: money(held) }] : []),
       ...(overdraft > 0 ? [{ label: 'Overdraft line included', value: money(overdraft) }] : []),
     ],
-    sms: `${cfg.bankName || BANK.name}: Available to spend on ${label} is ${money(available)}${notes.length ? `. ${notes.join(', and ')}` : ''}.`,
+    sms: `${cfg.bankName || BANK.name}: Available to invest or withdraw from ${label} is ${money(available)}${notes.length ? `. ${notes.join(', and ')}` : ''}.`,
     meta: { transactionId: transaction.id, accountId: account.id, step: 'available' },
   }));
 

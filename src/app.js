@@ -12,6 +12,7 @@ const rateLimiter = require('./middleware/rateLimiter');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const apiRoutes = require('./routes');
+const RETIRED_PAGES = require('./site/retired');
 
 const app = express();
 
@@ -81,19 +82,14 @@ app.use(
 // Clean-URL page routes. Each maps to a pre-built static HTML page.
 const sendPage = (file) => (req, res) => res.sendFile(path.join(publicDir, file));
 
-// The public bank site.
+// The public site.
 app.get('/', sendPage('index.html'));
 // Each page is built under the name its URL uses, so a static host serves it
 // without a rewrite. Vercel's cleanUrls turns a rewrite whose destination ends
 // in .html into a redirect, which is what took /personal, /business and
 // /support off the deployment while they worked perfectly well locally.
-app.get('/personal', sendPage('personal.html'));
-app.get('/business', sendPage('business.html'));
+app.get('/bitcoin', sendPage('bitcoin.html'));
 app.get('/digital', sendPage('digital.html'));
-// The names these pages had before the site became a bank. Kept so existing
-// links and bookmarks still land.
-app.get('/services', sendPage('personal.html'));
-app.get('/projects', sendPage('business.html'));
 app.get('/rates', sendPage('rates.html'));
 app.get('/security-center', sendPage('security-center.html'));
 app.get('/open-account', sendPage('open-account.html'));
@@ -109,15 +105,20 @@ app.get('/login', sendPage('signin.html'));
 app.get('/forgot', sendPage('forgot.html'));
 app.get('/change-password', sendPage('change-password.html'));
 
-// Online banking. The pages themselves are public HTML shells: the session
-// check happens on the first API call each one makes, and an unauthenticated
-// visitor is sent to /signin before anything is rendered.
+// The signed-in pages. The pages themselves are public HTML shells: the
+// session check happens on the first API call each one makes, and an
+// unauthenticated visitor is sent to /signin before anything is rendered.
 [
-  'dashboard', 'accounts', 'transactions', 'statements', 'transfers', 'recipients',
-  'bills', 'deposit', 'cards', 'alerts', 'messages', 'security', 'activity', 'profile', 'invest',
+  'dashboard', 'transactions', 'transfers', 'recipients',
+  'alerts', 'messages', 'security', 'activity', 'profile', 'invest',
 ].forEach((name) => app.get(`/${name}`, sendPage(`${name}.html`)));
 
-// The banking console, and the older desk for website enquiries and chat.
+// Pages retired with the banking features, and the older names of the public
+// pages. Kept as redirects so existing links and bookmarks still land. The same
+// list is in vercel.json for the deployment.
+Object.entries(RETIRED_PAGES).forEach(([from, to]) => app.get(from, (req, res) => res.redirect(301, to)));
+
+// The staff console, and the older desk for website enquiries and chat.
 // Both decide access for themselves.
 app.get('/console', sendPage('console.html'));
 app.get('/admin', sendPage('admin.html'));

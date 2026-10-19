@@ -22,13 +22,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  *
  * Mail clients fall back to the local part of the address when there is none,
  * so a reply from support@hedgestonesfinance.com shows in the recipient's
- * inbox as "contact" rather than the bank's name.
+ * inbox as "contact" rather than the platform's name. A display name that
+ * is one we shipped as a default gives way to the name set at the console.
  */
 function senderIdentity() {
-  const configured = config.mailboxAddress() || config.formFrom();
-  const { name, email } = config.parseAddress(configured);
-  if (!email) return configured;
-  return name ? configured : `${config.senderName()} <${email}>`;
+  return config.withPlatformName(config.mailboxAddress() || config.formFrom());
 }
 
 /** Keep one "Re: " on the front, however the subject arrived. */

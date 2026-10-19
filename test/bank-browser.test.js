@@ -1,13 +1,14 @@
 'use strict';
 
 /**
- * The banking application driven through a real browser.
+ * The investment platform driven through a real browser.
  *
  * test/bank.test.js proves the API. This proves the part a customer actually
- * touches: that the dashboard renders the numbers the ledger holds, that a
- * transfer made through the form moves money, that the staff console can
- * register a customer and adjust a balance, and that none of it logs an error
- * on the way.
+ * touches: that the dashboard renders the investment the ledger holds and
+ * charts it, that a withdrawal made through the form holds the money, that
+ * buying Bitcoin through the sheet books a purchase with its term, that the
+ * staff console can register a customer and adjust a balance, and that none
+ * of it logs an error on the way.
  *
  * Skips itself, rather than failing, when playwright-core or a browser binary
  * is not present.
@@ -49,6 +50,9 @@ process.env.BANK_COOKIE_INSECURE = '1';
 process.env.BANK_RATE_LIMIT_MAX = '5000';
 process.env.BANK_LOGIN_RATE_LIMIT = '500';
 process.env.CHAT_NOTIFY = 'off';
+// Fixed prices and a fixed price history, so the seeded purchases, the chart
+// and every purchase made here are priced without the network.
+process.env.MARKET_DATA_FIXTURE = '1';
 delete process.env.RESEND_API_KEY;
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -105,18 +109,28 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
     {
       const context = await browser.newContext();
       const page = await newPage(context, 'public');
-      for (const route of ['/', '/personal', '/business', '/rates', '/security-center', '/support', '/contact', '/careers', '/legal', '/services', '/projects', '/open-account', '/apply']) {
+      for (const route of ['/', '/bitcoin', '/digital', '/rates', '/security-center', '/support', '/contact', '/careers', '/legal', '/open-account', '/apply']) {
         await page.goto(base + route, { waitUntil: 'domcontentloaded' });
         const heading = await page.textContent('h1');
         assert.ok(heading && heading.trim().length, `${route} has a heading`);
       }
-      ok('the public pages render, each with a heading');
+      // The banking pages' old addresses land on the Bitcoin page.
+      for (const route of ['/personal', '/business', '/services', '/projects']) {
+        await page.goto(base + route, { waitUntil: 'domcontentloaded' });
+        assert.ok(page.url().endsWith('/bitcoin'), `${route} now goes to /bitcoin`);
+      }
+      // The home page says what we do, and prices it live.
+      await page.goto(base, { waitUntil: 'domcontentloaded' });
+      assert.match(await page.textContent('.hs-band-hero mark.hs-hl'), /Bitcoin only/);
+      await page.waitForSelector('[data-btc-live]:not([hidden])', { timeout: 15000 });
+      assert.match(await page.textContent('[data-btc-price]'), /^\$63,250\.00$/, 'the live price is shown in the hero');
+      ok('the public pages render, each with a heading; old addresses redirect; the hero shows Bitcoin only, priced live');
 
       /* the enquiry form reaches the desk's store */
       await page.goto(`${base}/contact`, { waitUntil: 'domcontentloaded' });
       await page.fill('#contact-form-name', 'Dana Whitfield');
       await page.fill('#contact-form-email', 'dana@example.com');
-      await page.fill('#contact-form-message', 'I would like to open a business checking account for a courier company.');
+      await page.fill('#contact-form-message', 'I would like to start investing in Bitcoin. What do I need?');
       await page.click('#contact-form [data-submit]');
       await page.waitForFunction(
         () => /thank|sent|received|got/i.test(document.querySelector('#contact-form [data-form-status]').textContent),
@@ -158,51 +172,87 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       await page.waitForURL('**/dashboard', { timeout: 20000 });
       ok('sign-in: password, then the emailed code');
 
-      await page.waitForSelector('[data-accounts] .rf-acct', { timeout: 20000 });
-      const tiles = await page.$$eval('[data-accounts] .rf-acct .bal', (nodes) => nodes.map((n) => n.textContent));
-      assert.ok(tiles.length >= 3, 'the dashboard shows the accounts');
-      const total = money(await page.textContent('[data-total="deposits"]'));
-      const deposits = tiles.slice(0, 2).reduce((sum, t) => sum + money(t), 0);
-      assert.ok(Math.abs(total - deposits) < 0.02, `the headline total is the sum of the deposit tiles (${total} vs ${deposits})`);
-      const rows = await page.$$eval('[data-recent] tr', (n) => n.length);
-      assert.ok(rows > 5, 'recent activity is populated');
-      checkingBefore = money(tiles[0]);
-      ok(`dashboard: ${tiles.length} accounts, $${checkingBefore.toFixed(2)} on the first, ${rows} recent entries`);
+      // The headline is the Bitcoin, and it is the sum of the purchases.
+      await page.waitForFunction(() => /\$/.test((document.querySelector('[data-hero="value"]') || {}).textContent || ''), null, { timeout: 20000 });
+      await page.waitForSelector('[data-positions] tr td.num', { timeout: 20000 });
+      const hero = money(await page.textContent('[data-hero="value"]'));
+      const values = await page.$$eval('[data-positions] tr', (rows) => rows.map((r) => r.querySelectorAll('td.num')[2].textContent));
+      const sum = values.reduce((n, v) => n + money(v), 0);
+      assert.strictEqual(values.length, 3, 'the three seeded purchases are listed');
+      assert.ok(Math.abs(hero - sum) < 0.02, `the headline is the sum of the purchases (${hero} vs ${sum})`);
+      const terms = await page.$$eval('[data-terms] .hs-term', (n) => n.map((li) => li.textContent));
+      assert.strictEqual(terms.length, 3, 'each purchase has its time to maturity');
+      assert.ok(terms.some((t) => /Matured/.test(t)) && terms.some((t) => /to go/.test(t)), 'matured and running terms both read');
+      // The chart: drawn, with each purchase marked, and its figures as a table.
+      await page.waitForSelector('[data-growth-chart] svg path.value', { timeout: 20000 });
+      assert.strictEqual(await page.$$eval('[data-growth-chart] circle.buy', (n) => n.length), 3, 'every purchase is marked on the line');
+      assert.ok(await page.$$eval('[data-chart-rows] tr', (n) => n.length) > 10, 'the chart has a table view');
+      const box = await page.$eval('[data-growth-chart] .hit', (el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+      await page.mouse.move(box.x + box.w * 0.6, box.y + box.h / 2);
+      await page.waitForSelector('.hs-tip:not([hidden])', { timeout: 5000 });
+      assert.match(await page.textContent('.hs-tip'), /Value[\s\S]*Invested[\s\S]*Growth/, 'hovering reads out every series');
+      checkingBefore = money(await page.textContent('[data-stat="cash"]'));
+      ok(`dashboard: $${hero.toFixed(2)} of Bitcoin across ${values.length} purchases, charted since the first, $${checkingBefore.toFixed(2)} cash to invest`);
     }
 
-    /* ---- 3. a transfer made in the UI moves the money ---- */
+    /* ---- 3. a withdrawal made in the UI holds the money ---- */
     {
       await page.goto(`${base}/transfers`, { waitUntil: 'domcontentloaded' });
       // An <option> is never "visible" to Playwright, so wait on the count.
       await page.waitForFunction(
-        () => { const s = document.getElementById('t-from'); return s && s.options.length > 0; },
+        () => { const s = document.getElementById('t-beneficiary'); return s && s.options.length > 0 && s.value; },
         null,
         { timeout: 15000 }
       );
+      const kinds = await page.$$eval('[data-type-picker] button', (n) => n.map((b) => b.textContent));
+      assert.deepStrictEqual(kinds, ['Standard withdrawal', 'Same-day withdrawal', 'International withdrawal'], 'withdrawals are all there is');
       await page.fill('#t-amount', '125.00');
+      await page.fill('#t-pin', '4417');
       await page.fill('#t-memo', 'Browser test');
-      // The form asks for the recipient to be confirmed. A click that opens a
+      // The form asks for the account to be confirmed. A click that opens a
       // native dialog does not settle until the dialog is handled, so the
       // click is started rather than awaited.
       page.once('dialog', (dialog) => dialog.accept());
       const submitted = page.click('#rf-transfer-form [data-submit]').catch(() => {});
-      await page.waitForSelector('.rf-modal-backdrop', { timeout: 20000 });
+      await page.waitForSelector('.rf-modal-backdrop .rf-devcode code', { timeout: 20000 });
       await submitted;
+      const code = (await page.textContent('.rf-modal-backdrop .rf-devcode code')).trim();
+      await page.fill('.rf-modal-backdrop input[name="code"]', code);
+      await page.click('.rf-modal-backdrop [data-submit]');
+      await page.waitForFunction(() => /CNF-/.test((document.querySelector('.rf-modal-backdrop') || {}).textContent || ''), null, { timeout: 20000 });
       const receipt = await page.textContent('.rf-modal-backdrop');
-      assert.match(receipt, /CNF-/, 'the receipt carries a confirmation number');
+      assert.match(receipt, /With our team for review/, 'it waits for a person');
       await page.click('.rf-modal-backdrop [data-close]');
 
       await page.goto(`${base}/dashboard`, { waitUntil: 'domcontentloaded' });
-      await page.waitForSelector('[data-accounts] .rf-acct', { timeout: 20000 });
-      const after = money(await page.$eval('[data-accounts] .rf-acct .bal', (n) => n.textContent));
-      assert.ok(Math.abs((checkingBefore - 125) - after) < 0.02, `the balance fell by $125 (${checkingBefore} -> ${after})`);
-      ok('a transfer made in the form moves the balance');
+      await page.waitForFunction(() => /\$/.test((document.querySelector('[data-stat="cash"]') || {}).textContent || ''), null, { timeout: 20000 });
+      const after = money(await page.textContent('[data-stat="cash"]'));
+      assert.ok(Math.abs((checkingBefore - 125) - after) < 0.02, `the cash to invest fell by $125 while it is held (${checkingBefore} -> ${after})`);
+      ok('a withdrawal made in the form is verified by code and holds the money');
     }
 
-    /* ---- 4. every signed-in screen renders ---- */
+    /* ---- 3b. buying Bitcoin through the sheet, with a term ---- */
     {
-      const screens = ['/accounts', '/transactions', '/statements', '/recipients', '/bills',
-        '/deposit', '/cards', '/alerts', '/messages', '/security', '/activity', '/profile'];
+      await page.goto(`${base}/invest`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('[data-inv-positions] tr td.num', { timeout: 20000 });
+      await page.click('[data-inv-quick]');
+      await page.waitForSelector('.hs-sheet #inv-amount', { timeout: 10000 });
+      assert.deepStrictEqual(await page.$$eval('#inv-term option', (n) => n.map((o) => o.value)), ['3', '6', '12', '24'], 'the terms on offer');
+      await page.fill('#inv-amount', '632.50');
+      await page.selectOption('#inv-term', '6');
+      assert.match(await page.textContent('.hs-sheet [data-preview]'), /0\.01 BTC[\s\S]*Matures/, 'the preview shows the Bitcoin and the maturity');
+      await page.click('.hs-sheet [data-submit]');
+      await page.waitForSelector('.hs-receipt', { timeout: 20000 });
+      assert.match(await page.textContent('.hs-receipt'), /Bought[\s\S]*0\.01[\s\S]*6-month term/, 'the receipt names the term');
+      await page.click('.hs-receipt [data-close-modal]');
+      await page.goto(`${base}/dashboard`, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => document.querySelectorAll('[data-positions] tr td.num').length >= 16, null, { timeout: 20000 });
+      ok('Bitcoin bought through the sheet on a 6-month term appears on the dashboard');
+    }
+
+    /* ---- 4. every signed-in screen renders ---- */    /* ---- 4. every signed-in screen renders ---- */
+    {
+      const screens = ['/invest', '/transactions', '/transfers', '/recipients', '/alerts', '/messages', '/security', '/activity', '/profile'];
       for (const route of screens) {
         await page.goto(base + route, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(500);
@@ -211,6 +261,11 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
         assert.strictEqual(empty, 0, `${route} finished loading`);
       }
       ok(`all ${screens.length} account screens render their data`);
+      for (const route of ['/accounts', '/statements', '/bills', '/deposit', '/cards']) {
+        await page.goto(base + route, { waitUntil: 'domcontentloaded' });
+        assert.ok(!page.url().endsWith(route), `${route} is retired and redirects`);
+      }
+      ok('the retired banking screens redirect');
     }
 
     /* ---- 5. the staff console registers a customer and adjusts a balance ---- */
@@ -225,7 +280,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       ok('an administrator lands on the console');
 
       // Every tab loads.
-      for (const tab of ['customers', 'queue', 'deposits', 'cards', 'messages', 'alerts', 'disputes', 'activity', 'settings']) {
+      for (const tab of ['customers', 'queue', 'messages', 'alerts', 'activity', 'settings', 'investments', 'setup']) {
         await staff.click(`[data-tab="${tab}"]`);
         await staff.waitForTimeout(700);
         const stillLoading = await staff.$$eval(`[data-panel="${tab}"] td`, (nodes) =>
@@ -236,7 +291,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
 
       // Register a customer with an opening balance.
       await staff.click('[data-tab="register"]');
-      await staff.waitForSelector('#rf-register-form [data-account-row]', { timeout: 15000 });
+      await staff.waitForSelector('#rf-register-form #r-opening', { timeout: 15000 });
       await staff.fill('#r-first', 'Priya');
       await staff.fill('#r-last', 'Raman');
       await staff.fill('#r-email', `priya.${Date.now()}@example.com`);
@@ -257,7 +312,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       await staff.fill('#r-addr1', '88 Quarry Lane');
       await staff.fill('#r-city', 'Columbus');
       await staff.fill('#r-zip', '43201');
-      await staff.fill('[data-account-row] [data-field="openingBalance"]', '4200.00');
+      await staff.fill('#r-opening', '4200.00');
       const registered = staff.click('#rf-register-form [data-submit]').catch(() => {});
       await staff.waitForSelector('.rf-modal-backdrop:not(.rf-hide)', { timeout: 25000 });
       const summary = await staff.textContent('.rf-modal-backdrop:not(.rf-hide)');
@@ -280,7 +335,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       await staff.click('[data-modal-body] [data-adjust]');
       await staff.waitForSelector('[data-adjust-modal]:not(.rf-hide)', { timeout: 10000 });
       await staff.fill('#ad-amount', '1500.00');
-      await staff.fill('#ad-description', 'WIRE IN - SETTLEMENT PROCEEDS');
+      await staff.fill('#ad-description', 'DEPOSIT RECEIVED');
       await staff.click('#rf-adjust-form [data-submit]');
       // An earlier toast may still be on screen, so wait for the one this
       // action raises rather than for any toast at all.

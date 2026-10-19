@@ -1,4 +1,4 @@
-# Deploying Hedgestone Global Bank to Vercel
+# Deploying Hedgestone Finance to Vercel
 
 A step-by-step guide for the workflow: replace the images, fork to your GitHub,
 deploy on Vercel, then switch the backend on.
@@ -145,10 +145,11 @@ come next.
    | ---- | ------- |
    | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) | `admins`, `is_admin()`, `enquiries`, `applications`, `chat_sessions`, `chat_messages`, the activity trigger and the realtime publication |
    | [`supabase/migrations/0002_email.sql`](../supabase/migrations/0002_email.sql) | `email_threads`, `email_messages` (skip if you are not receiving mail) |
-   | [`supabase/migrations/0003_bank.sql`](../supabase/migrations/0003_bank.sql) | The banking application: customers, accounts, the ledger, transfers, cards, documents, alerts, the activity log, sessions and settings |
+   | [`supabase/migrations/0003_bank.sql`](../supabase/migrations/0003_bank.sql) | The application: customers, cash balances, the ledger, withdrawals, documents, alerts, the activity log, sessions and settings (and tables for features since retired) |
    | [`supabase/migrations/0004_bank_sms.sql`](../supabase/migrations/0004_bank_sms.sql) | Text-message delivery status on banking alerts |
    | [`supabase/migrations/0005_bank_invest.sql`](../supabase/migrations/0005_bank_invest.sql) | Investments: holdings, trades, and the last price seen for each asset |
-   | [`supabase/migrations/0006_bank_backposting.sql`](../supabase/migrations/0006_bank_backposting.sql) | Staff booking, re-timing and reversing conversions after the fact |
+   | [`supabase/migrations/0006_bank_backposting.sql`](../supabase/migrations/0006_bank_backposting.sql) | Staff booking, re-timing and reversing purchases after the fact |
+   | [`supabase/migrations/0007_invest_term.sql`](../supabase/migrations/0007_invest_term.sql) | The term and maturity date on every Bitcoin purchase |
 
    Everything is behind row level security. `enquiries` has no anon policy at all:
    writes arrive through the API using the service role.
@@ -274,7 +275,7 @@ While you are there, set the first administrator:
 | `BANK_ENCRYPTION_KEY` | the 64-character hex string from above |
 | `BANK_ADMIN_EMAIL` | the address you will sign in with |
 | `BANK_ADMIN_PASSWORD` | a strong password, changed after the first sign-in |
-| `BANK_ALERT_FROM` | `Hedgestone Global Bank <alerts@yourdomain.com>` |
+| `BANK_ALERT_FROM` | `alerts@yourdomain.com` (sent under the platform name from Settings) |
 | `PUBLIC_BASE_URL` | `https://yourdomain.com`, for links inside alert emails |
 
 **`PUBLIC_BASE_URL` has to be saved as plain text, not Sensitive.** Vercel reads
@@ -311,7 +312,7 @@ for anything real** - they have balances and history that are not yours.
    | ---- | ----- |
    | `RESEND_API_KEY` | the key you copied |
    | `FORM_TO` | where enquiries land (comma-separate for several) |
-   | `FORM_FROM` | `Hedgestone Global Bank <onboarding@resend.dev>` to start |
+   | `FORM_FROM` | `onboarding@resend.dev` to start |
 
 4. **Redeploy.**
 
@@ -321,7 +322,7 @@ directly. Set `CHAT_NOTIFY=off` to keep enquiry emails but stop chat emails.
 
 For production, verify your domain in Resend (**Domains, Add Domain**, then add the
 DNS records) and change `FORM_FROM` to something like
-`Hedgestone Global Bank <support@yourdomain.com>`. Mail from a verified domain is far less
+`support@yourdomain.com`. Mail from a verified domain is far less
 likely to be treated as spam.
 
 To text customers as well as email them, add `PINGRAM_API_KEY` and
@@ -443,63 +444,52 @@ prices. Each item that is not done says exactly what to set and where. Fix,
 redeploy, press **Check again**. Until everything required is done, the
 console's Overview shows a banner with the number left.
 
-## Live prices and converting balances (Invest)
+## Bitcoin: live price, history, terms and maturity
 
-Every page carries a live price strip under the nav, and online banking has an
-**Invest** screen (`/invest`) where a customer converts part or all of a
-checking or savings balance into one of ten listed assets: the S&P 500 (SPY),
-the Nasdaq-100 (QQQ), Apple, Amazon, Microsoft, NVIDIA, Alphabet, Tesla,
-Bitcoin and gold. They get a fraction of a share - to a millionth, or to the
-satoshi for Bitcoin - at the price of the moment they confirm, and can sell any
-part of a holding back into an account at any time.
+Every page carries a live Bitcoin price under the nav, and the signed-in
+**Bitcoin** screen (`/invest`) is where a customer buys Bitcoin with their cash
+balance and sells it back. Bitcoin is the only asset offered. They get a
+fraction of a Bitcoin, to the satoshi, at the price of the moment they confirm,
+and choose a **term** for each purchase (Settings, Bitcoin terms: 3, 6, 12 and
+24 months to start with). A purchase matures on its purchase date plus its
+term; the dashboard counts down to it and charts the value of what they hold
+since their first purchase.
 
 What it needs:
 
-1. Run `supabase/migrations/0005_bank_invest.sql` (Step 4). Without it the
-   holdings fall back to file storage, which does not survive on Vercel.
-2. Optional but recommended: a free API key from <https://finnhub.io> as
-   `FINNHUB_API_KEY`. The free sources used without it (Yahoo Finance, Stooq)
-   sometimes refuse requests from cloud hosts; Finnhub does not.
-3. Redeploy, then check `https://<your-app>/api/bank/markets`: every asset
-   should have a `quote` with a `price` and a `source`.
+1. Run `supabase/setup.sql` (Step 4). It includes `0005_bank_invest.sql`
+   (holdings and trades) and `0007_invest_term.sql` (the term and maturity on
+   each purchase). Until 0007 has run, purchases still book, on the default
+   term, and the setup checklist says so.
+2. Nothing else. The price comes from CoinGecko, Coinbase or Yahoo Finance,
+   and the daily history behind the chart from CoinGecko, Yahoo Finance or
+   Coinbase, whichever answers first; no key is needed.
+3. Check `https://<your-app>/api/bank/markets` (a price with its `source`) and
+   `https://<your-app>/api/bank/markets/history?days=365` (a list of points).
 
 How it behaves:
 
-- Each conversion is a normal ledger debit (category **Investments**, method
-  **Investment**), so it appears in transactions and statements and is left out
-  of the spending chart. A sale is a ledger credit.
+- Each purchase is a normal ledger debit of the cash balance (category
+  **Investments**), so it appears in transactions; a sale is a credit.
 - The price is fetched by the server at the moment of the trade, never taken
   from the browser. If it has moved more than 2% from the price the customer
   was shown, the trade is refused with the new price and they confirm again.
-- If no price fresher than two minutes can be had, buying and selling that
-  asset are refused with a message saying so; the ticker keeps showing the
-  last price with its time.
-- Every trade is written to the activity log and raises an
-  **Investments** alert, which customers can turn off under Alerts.
+- If no price fresher than two minutes can be had, buying and selling are
+  refused with a message saying so; the ticker keeps showing the last price
+  with its time.
+- A maturity date does not lock anything: Bitcoin can be sold at any time,
+  oldest purchase first.
+- Holdings of the assets offered before the platform became Bitcoin only (the
+  S&P 500, stocks, gold) stay valued at their live price and can be sold, but
+  nothing else can be bought.
 
-This is a demonstration of the flow. Holdings are recorded by the bank; no
-order is sent to an exchange or broker, and nothing is bought on a market.
-Offering this to real customers needs a brokerage or custody partner and the
-licences that go with it.
+**This is a demonstration of the flow.** Holdings are recorded in this
+application's ledger; no order is sent to an exchange or broker, and no Bitcoin
+is bought or held on anyone's behalf. Offering this to real customers needs a
+licensed exchange or custody partner, and the licences (and disclosures) that
+go with taking customers' money to invest.
 
-## Paying another Hedgestone customer
-
-On the Transfers screen, **Hedgestone customer** sends money to another person
-who banks here. The sender enters the recipient's email, phone number or
-Hedgestone account number and presses **Find**; the bank answers with a masked
-name ("Mara V.") and the last digits of the account, and nothing more, so the
-sender can confirm the right person without the lookup revealing who banks
-here. The lookup is rate limited.
-
-The payment clears the same code and transfer PIN as any outgoing transfer,
-counts against its own daily limit (**To other Hedgestone customers** under
-Settings, $10,000 by default), and then posts instantly to both accounts: the
-sender sees "Sent to Mara V.", the recipient "Received from Jordan E." and gets
-the usual money-in alert. Because the money never leaves the bank it is held
-for review only above the review threshold, not by the "hold every transfer"
-switch, which is for payments going out to other banks.
-
-## Back-posting: walk-ins and network outages (staff only)
+## Back-posting: instructions taken by phone (staff only)
 
 Some instructions reach the bank before they reach the system: a customer at
 the counter, or a call taken while the network was down. The staff console
@@ -509,15 +499,17 @@ customer (search in the console header), then:
 - **Adjust** on an account posts a credit or debit with a **value date and
   time** - leave both blank for now.
 - **Edit** on any entry changes its date and time, description, category, memo
-  and - for a posted entry that is not a conversion - its **amount**, moving the
+  and - for a posted entry that is not a Bitcoin purchase or sale - its **amount**, moving the
   balance by the difference. Every edit asks for an internal note.
-- **Investments, Book a conversion** converts cash to an asset, or sells an
-  asset to cash, at an **entered price** (prefilled with the live price) and an
-  optional earlier **time**. The receipt says "Entered by staff".
-- On each conversion, **Change time** moves it and its ledger entry to when it
-  really happened; **Reverse** undoes it completely - units off (or back on) the
-  holding and the cash back through a ledger reversal. The ordinary Reverse on a
-  conversion's entry does the same, so cash and units never disagree.
+- **Bitcoin, Book a purchase or sale** buys Bitcoin with cash, or sells it to
+  cash, at an **entered price** (prefilled with the live price), an optional
+  earlier **time** and, for a purchase, any whole number of months as its
+  **term**. The receipt says "Entered by staff".
+- On each purchase or sale, **Change date or term** moves it and its ledger
+  entry to when it really happened (a purchase's maturity moves with it, and its
+  term can be changed); **Reverse** undoes it completely - Bitcoin off (or back
+  on) the holding and the cash back through a ledger reversal. The ordinary
+  Reverse on its ledger entry does the same, so cash and Bitcoin never disagree.
 
 Whenever an entry is dated in the past, the running "balance after" figures of
 the entries after it are restated, so statements and the transaction list add
@@ -566,7 +558,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `FORWARD_TO` | for inbound | Where received mail is forwarded. No default: unset means nothing is forwarded |
 | `NOTIFY_WEBHOOK_URL` | no | Slack / Discord / desk webhook |
 | `RESEND_API_BASE` | no | Override for the Resend API base (default `https://api.resend.com`) |
-| `BANK_NAME` | no | Sender display name for replies and alerts (default `Hedgestone Global Bank`; `STUDIO_NAME` accepted) |
+| `BANK_NAME` | no | Best left unset: emails go out under the platform name set in Settings. Set it only for a different sender name (`STUDIO_NAME` accepted) |
 | `BANK_SHOW_DEV_CODES` | no | `1` returns one-time codes in responses and shows demo logins. Public demonstrations only |
 | `DATA_DIR` | no | Override local file storage path |
 | `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | no | API rate limiting (default 60000 / 30) |
@@ -582,7 +574,8 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `PINGRAM_SMS_URL` | no | Override for Pingram's send endpoint (default `https://api.pingram.io/sms`) |
 | `FINNHUB_API_KEY` | recommended | Free key from finnhub.io: real-time stock and ETF prices for the ticker and Invest. Without it, Yahoo Finance and Stooq are used |
 | `MARKET_CACHE_SECONDS` | no | How long one round of prices is reused (default 30) |
-| `MARKET_TRADE_MAX_AGE_SECONDS` | no | A conversion is refused if the freshest price is older than this (default 120) |
+| `MARKET_TRADE_MAX_AGE_SECONDS` | no | A purchase or sale is refused if the freshest price is older than this (default 120) |
+| `MARKET_HISTORY_CACHE_MINUTES` | no | How long the daily price history behind the dashboard chart is kept before it is fetched again (default 30) |
 | `MARKET_DATA_FIXTURE` | no | `1` uses fixed demonstration prices. Tests and offline only; never on a deployment |
 | `PUBLIC_BASE_URL` | for email | Absolute base for the links inside alert emails. `BANK_BASE_URL` and `APP_URL` are accepted too, for when Vercel refuses the `PUBLIC_` prefix |
 | `BANK_RATE_LIMIT_MAX` | no | Requests per minute per IP against `/api/bank` (default 300) |

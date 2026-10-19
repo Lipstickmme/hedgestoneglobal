@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The public bank site: everything a visitor can read without signing in.
+ * The public site: everything a visitor can read without signing in.
  *
  * Rendered to static HTML at build time by scripts/build-pages.js. The pages
  * use the bank's own shell (src/bank/site/layout.js) and its component CSS.
@@ -14,16 +14,12 @@
  * with the contact details held at the client services desk.
  */
 
-const services = require('../data/services.json');
-const stories = require('../data/projects.json');
-const leadership = require('../data/leadership.json');
 const site = require('../data/site.json');
 const images = require('./images');
 const { page } = require('./layout');
-const { marketingPage, icon, productCard } = require('../bank/site/layout');
-const { BANK, PRODUCTS } = require('../bank/constants');
+const { marketingPage, icon, brand, RISK } = require('../bank/site/layout');
+const { BANK, DEFAULT_SETTINGS } = require('../bank/constants');
 
-const YEAR = new Date().getFullYear();
 const money = (cents) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /* ------------------------------------------------------------- components -- */
@@ -70,22 +66,20 @@ function enquiryForm(id = 'contact-form', { heading, note } = {}) {
           <div class="rf-field field"><label for="${id}-service">What is this about?</label>
             <select class="rf-select" id="${id}-service" name="service">
               <option value="">Select</option>
-              <option>Opening an account</option>
-              <option>An existing account</option>
-              <option>A payment or transfer</option>
-              <option>Fraud or a disputed transaction</option>
-              <option>Borrowing</option>
-              <option>Business banking</option>
+              <option>Starting to invest in Bitcoin</option>
+              <option>My Bitcoin investment</option>
+              <option>A withdrawal</option>
+              <option>Something looks wrong</option>
               <option>Careers</option>
               <option>Something else</option>
             </select><div class="err" data-err="service"></div>
           </div>
         </div>
-        <div class="rf-field field"><label for="${id}-message">How can we help?</label><textarea class="rf-textarea" id="${id}-message" name="message" placeholder="Tell us what you need. Never include a password, a full card number or a one-time code." required></textarea><div class="err" data-err="message"></div></div>
+        <div class="rf-field field"><label for="${id}-message">How can we help?</label><textarea class="rf-textarea" id="${id}-message" name="message" placeholder="Tell us what you need. Never include a password or a one-time code." required></textarea><div class="err" data-err="message"></div></div>
         <div class="honeypot" aria-hidden="true" style="position:absolute;left:-9999px"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
         <div class="form-status rf-small" data-form-status role="status" aria-live="polite"></div>
         <button type="submit" class="rf-btn block" data-submit>Send message</button>
-        <p class="rf-small rf-muted" style="margin:12px 0 0">A banker replies the same business day. For anything urgent, call <strong data-site="phone">our client services desk</strong>.</p>
+        <p class="rf-small rf-muted" style="margin:12px 0 0">Someone from our team replies the same business day. For anything urgent, call <strong data-site="phone">our support team</strong>.</p>
       </form>`;
 }
 
@@ -113,25 +107,29 @@ const ui = {
   star: svg('<path d="m12 3 2.8 5.8 6.2.9-4.5 4.4 1.1 6.2L12 17.4l-5.6 2.9 1.1-6.2L3 9.7l6.2-.9L12 3z"/>', 30),
   leaf: svg('<path d="M20 4c-9 0-15 4.5-15 11 0 2 .8 3.6 2 5 6.5 0 13-4.5 13-16zM5 20c2.5-5 6-8 10-10"/>', 30),
 };
+ui.coin = svg('<circle cx="12" cy="12" r="9"/><path d="M9.5 7.5h3.6a2 2 0 0 1 0 4H9.5zM9.5 11.5h4.1a2.1 2.1 0 0 1 0 4.2H9.5zM9.5 7.5v8.2M11 6v1.5M13 6v1.5M11 15.7v1.5M13 15.7v1.5"/>', 22);
+ui.clock = svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', 22);
 ui.device = svg('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>', 30);
 ui.shield30 = svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>', 30);
 
 /* ===================================================================== home == */
-
-const ceo = leadership[0];
 
 const homeContent = `
   <section class="hs-band hs-band-hero">
     <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" fetchpriority="high" />
     <div class="wrap">
       <div class="hs-band-copy">
-        <span class="rf-eyebrow hs-in" style="--d:0ms">Online banking, on your phone</span>
-        <h1 class="hs-in" style="--d:90ms">Bank from anywhere. Feel at home everywhere.</h1>
-        <p class="hs-in" style="--d:180ms">Check balances, pay anyone, freeze a card and talk to a real person &mdash; from the browser on your phone, on the street corner or the other side of the world. Nothing to download.</p>
+        <span class="rf-eyebrow hs-in" style="--d:0ms">Bitcoin investing, on your phone</span>
+        <h1 class="hs-in" style="--d:90ms">One investment. <mark class="hs-hl">Bitcoin only.</mark></h1>
+        <p class="hs-in" style="--d:180ms">Buy Bitcoin at the live price from as little as $1, choose how long you plan to hold it, and follow it from the day you bought it to the day it matures. <strong>We invest in Bitcoin and nothing else</strong> &mdash; no cards, no current accounts, no other products to sell you.</p>
         <div class="hs-actions hs-in" style="--d:270ms">
-          <a class="rf-btn lg hs-cta" href="/open-account">Open an account ${ui.arrow}</a>
-          <a class="hs-textlink light" href="/digital">See online banking</a>
+          <a class="rf-btn lg hs-cta" href="/open-account">Start investing in Bitcoin ${ui.arrow}</a>
+          <a class="hs-textlink light" href="/bitcoin">How it works</a>
         </div>
+        <p class="hs-live-price hs-in" style="--d:340ms" data-btc-live hidden>
+          <span class="hs-ticker-live"><i></i>Live</span>
+          <span>Bitcoin now <b data-btc-price></b> <em data-btc-change></em></span>
+        </p>
       </div>
     </div>
   </section>
@@ -139,12 +137,12 @@ const homeContent = `
   <section class="hs-trust-band">
     <div class="hs-trust">
       <div class="wrap">
-        <p class="hs-trust-k">Trusted by families and businesses around the world</p>
+        <p class="hs-trust-k">One thing, done properly: <mark class="hs-hl">investment in Bitcoin only</mark></p>
         <div class="hs-trust-row">
-          <div><span class="hs-ic">${ui.users}</span><span><b><span data-hs-count="2">2</span>M+</b><small>Global customers</small></span></div>
-          <div><span class="hs-ic">${ui.shield30}</span><span><b>99.9%</b><small>Uptime</small></span></div>
-          <div><span class="hs-ic">${ui.device}</span><span><b class="sm">Any device</b><small>On phone, tablet or laptop</small></span></div>
-          <div><span class="hs-ic">${ui.leaf}</span><span><b class="sm">A greener tomorrow</b><small>Supporting sustainable finance</small></span></div>
+          <div><span class="hs-ic">${ui.coin}</span><span><b class="sm">Bitcoin only</b><small>The one asset we invest in</small></span></div>
+          <div><span class="hs-ic">${ui.bars}</span><span><b class="sm">From $1</b><small>Buy a fraction at the live price</small></span></div>
+          <div><span class="hs-ic">${ui.clock}</span><span><b class="sm">3 to 24 months</b><small>You choose the term</small></span></div>
+          <div><span class="hs-ic">${ui.shield30}</span><span><b class="sm">Sell any time</b><small>Back to cash, then withdraw</small></span></div>
         </div>
       </div>
     </div>
@@ -154,46 +152,47 @@ const homeContent = `
     <div class="wrap hs-split-grid">
       <figure class="hs-photo hs-photo-family">
         <img src="${images.hero}" alt="A family of four standing together outside, smiling" loading="lazy" width="1024" height="1024" />
-        <figcaption class="hs-float-note"><i>${ui.piggy}</i><span><strong>Family goal: Summer trip</strong><span class="hs-bar"><span style="--w:72%"></span></span><small>$3,600 of $5,000 saved</small></span></figcaption>
+        <figcaption class="hs-float-note"><i>${ui.coin}</i><span><strong>Bitcoin &middot; 12-month term</strong><span class="hs-bar"><span style="--w:72%"></span></span><small>72% of the way to maturity</small></span></figcaption>
       </figure>
       <div>
-        <span class="rf-eyebrow">For the whole family</span>
-        <h2>One home for everyone&rsquo;s money.</h2>
-        <p class="section-lede">Joint accounts for the grown-ups, savings pots the kids can watch grow, and shared goals the whole family can chip in to &mdash; with alerts that keep everyone in the loop.</p>
+        <span class="rf-eyebrow">Invest with a plan</span>
+        <h2>Every purchase has a start date and a maturity date.</h2>
+        <p class="section-lede">When you buy, you choose how long you mean to hold: 3, 6, 12 or 24 months. Your dashboard then shows each purchase from the day you bought it &mdash; what it cost, what it is worth today, and how long it has left to run.</p>
         <ul class="hs-checks">
-          <li>${tick}<span>Joint checking with a card for each of you</span></li>
-          <li>${tick}<span>Savings goals with automatic round-ups</span></li>
-          <li>${tick}<span>Send to family abroad in seconds, at a fee you see first</span></li>
+          <li>${tick}<span>A chart of your Bitcoin&rsquo;s value since the day you bought it</span></li>
+          <li>${tick}<span>Growth so far, in dollars and per cent, for every purchase</span></li>
+          <li>${tick}<span>A countdown to each maturity date &mdash; and you can still sell before it</span></li>
         </ul>
-        <p style="margin-top:26px"><a class="rf-btn" href="/personal">Explore personal banking</a></p>
+        <p style="margin-top:26px"><a class="rf-btn" href="/bitcoin">Invest in Bitcoin</a></p>
       </div>
     </div>
   </section>
 
-
   <section class="rf-section alt">
     <div class="wrap">
-      <span class="rf-eyebrow">Accounts</span>
-      <h2>Open in ten minutes. Useful from the first day.</h2>
-      <p class="section-lede">No monthly fee on Everyday Checking, no minimum on savings, and a rate that does not quietly expire after three months.</p>
-      <div class="rf-grid cols-3">
-        ${PRODUCTS.filter((p) => ['everyday_checking', 'high_yield_savings', 'hedgestone_signature_card'].includes(p.id)).map(productCard).join('')}
+      <span class="rf-eyebrow">How it works</span>
+      <h2>Three steps, and only one of them is a decision.</h2>
+      <p class="section-lede">There is no product menu to work through, because there is only one thing to buy.</p>
+      <div class="rf-grid cols-3 hs-steps">
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">1</span><h3 class="hs-card-h">Open your account</h3><p class="rf-muted">Tell us about yourself and someone from our team verifies your identity and opens your cash balance &mdash; usually the same business day.</p></div></article>
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">2</span><h3 class="hs-card-h">Buy Bitcoin, choose a term</h3><p class="rf-muted">Pick an amount from $1 upwards and how long to hold it. You see exactly how much Bitcoin it buys at the live price before you confirm.</p></div></article>
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">3</span><h3 class="hs-card-h">Follow it to maturity</h3><p class="rf-muted">Your dashboard charts its value since the day you bought it and counts down to the day it matures. Sell back to cash whenever you choose.</p></div></article>
       </div>
-      <p style="margin-top:26px"><a class="rf-btn ghost" href="/personal">All personal accounts</a></p>
+      <p style="margin-top:26px"><a class="rf-btn lg hs-cta" href="/open-account">Start investing in Bitcoin ${ui.arrow}</a></p>
     </div>
   </section>
 
   <section class="rf-section">
     <div class="wrap">
-      <span class="rf-eyebrow">Moving money</span>
-      <h2>Every payment leaves a receipt you can quote.</h2>
-      <p class="section-lede">ACH, wires, bill pay and instant sends, each with a confirmation number and, where the network gives one, a real ACH trace number or Fedwire IMAD. When something goes missing, that is the difference between a search and a shrug.</p>
+      <span class="rf-eyebrow">Why only Bitcoin</span>
+      <h2>We do <mark class="hs-hl">one thing</mark>, so you always know what you hold.</h2>
+      <p class="section-lede">Most investment apps want to sell you a dozen things. We decided to offer one, and to show it to you clearly: what you paid, what it is worth now, and where it stands against the term you chose.</p>
       <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">ACH transfer</div><div class="v">Free</div><div class="d">1 to 3 business days</div></div>
-        <div class="rf-card rf-stat"><div class="k">Domestic wire</div><div class="v">$25.00</div><div class="d">Same day before 4:00pm ET</div></div>
-        <div class="rf-card rf-stat"><div class="k">International wire</div><div class="v">$45.00</div><div class="d">2 to 5 business days</div></div>
+        <div class="rf-card rf-stat"><div class="k">Assets on offer</div><div class="v">1</div><div class="d">Bitcoin, and only Bitcoin</div></div>
+        <div class="rf-card rf-stat"><div class="k">Commission to buy or sell</div><div class="v">$0</div><div class="d">You pay the live price shown when you confirm</div></div>
+        <div class="rf-card rf-stat"><div class="k">Smallest purchase</div><div class="v">$1.00</div><div class="d">Bitcoin is held to the satoshi, a hundred-millionth</div></div>
       </div>
-      <p style="margin-top:26px"><a class="rf-btn ghost" href="/rates">The full fee schedule</a></p>
+      <p style="margin-top:26px"><a class="rf-btn ghost" href="/rates">Every fee we charge</a></p>
     </div>
   </section>
 
@@ -202,13 +201,13 @@ const homeContent = `
       <div class="rf-grid side" style="gap:44px;align-items:center">
         <div>
           <span class="rf-eyebrow">Security</span>
-          <h2>Held before it leaves, not chased afterwards.</h2>
-          <p class="section-lede">A one-time code on every sign-in and every outside payment. A transfer PIN of your own. New recipients read by a person before the first payment reaches them. Alerts within seconds, wherever the money went.</p>
+          <h2>Your account, guarded like it matters.</h2>
+          <p class="section-lede">A one-time code on every sign-in and every withdrawal. A withdrawal PIN of your own. New withdrawal accounts checked by a person before the first payment reaches them. Alerts within seconds, whatever moved.</p>
           <div class="rf-grid cols-2" style="gap:22px">
-            <div class="rf-feature"><span class="ic">${icon('lock', 18)}</span><div><h3>Two-step verification</h3><p>On every sign-in, and again before an outside transfer is accepted.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('bell', 18)}</span><div><h3>Instant alerts</h3><p>Sign-ins, payments, card activity and profile changes, as they happen.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('card', 18)}</span><div><h3>Freeze in a tap</h3><p>Lock a card, set daily limits, turn international use on or off.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Zero liability</h3><p>You are not liable for unauthorised card transactions reported promptly.</p></div></div>
+            <div class="rf-feature"><span class="ic">${icon('lock', 18)}</span><div><h3>Two-step verification</h3><p>On every sign-in, and again before a withdrawal is accepted.</p></div></div>
+            <div class="rf-feature"><span class="ic">${icon('bell', 18)}</span><div><h3>Instant alerts</h3><p>Sign-ins, purchases, sales and withdrawals, as they happen.</p></div></div>
+            <div class="rf-feature"><span class="ic">${icon('withdraw', 18)}</span><div><h3>Withdrawals to you only</h3><p>Money leaves only for a bank account in your own name.</p></div></div>
+            <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Every action logged</h3><p>Who did what, from which device, in your own activity history.</p></div></div>
           </div>
           <p style="margin-top:26px"><a class="rf-btn ghost" href="/security-center">Visit the security centre</a></p>
         </div>
@@ -220,79 +219,124 @@ const homeContent = `
   </section>
 
   <section class="rf-section">
-    <div class="wrap">
-      <span class="rf-eyebrow">Business banking</span>
-      <h2>For businesses with a cash cycle, not a hobby.</h2>
-      <p class="section-lede">Dual approval on outgoing payments, role-based access so a bookkeeper can reconcile without moving money, same-day ACH origination and next-business-day merchant settlement.</p>
-      <div class="rf-grid cols-2">
-        ${stories.slice(0, 2).map((story) => `
-        <article class="rf-card">
-          <img src="${images.story(story.image)}" alt="" loading="lazy" style="width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--rf-radius) var(--rf-radius) 0 0;display:block" />
-          <div class="rf-card-body">
-            <span class="rf-eyebrow">${story.sector} &middot; ${story.location}</span>
-            <h3 style="font-family:var(--rf-display);font-size:20px;margin:6px 0 8px">${story.name}</h3>
-            <p class="rf-muted" style="margin:0 0 14px">${story.blurb}</p>
-            <div class="rf-spread">
-              <span class="rf-inline"><strong class="rf-amt">${story.metric}</strong><span class="rf-small rf-muted">${story.metricLabel}</span></span>
-              <span class="rf-badge">${story.status}</span>
-            </div>
-          </div>
-        </article>`).join('')}
+    <div class="wrap" style="max-width:860px">
+      <div class="rf-notice warn hs-risk">
+        <div><strong>Before you invest</strong>${RISK} A maturity date marks the end of the term you chose; it is not a promise of any value on that day.</div>
       </div>
-      <p style="margin-top:26px"><a class="rf-btn ghost" href="/business">Business banking</a></p>
     </div>
   </section>
 
-  <section class="rf-section alt">
-    <div class="wrap" style="max-width:820px;text-align:center">
-      <blockquote style="font-family:var(--rf-headline);font-weight:500;font-style:italic;font-size:clamp(24px,3vw,36px);line-height:1.32;letter-spacing:0;margin:0 0 18px">
-        &ldquo;${ceo.quote}&rdquo;
-      </blockquote>
-      <div class="rf-small rf-muted"><strong>${ceo.name}</strong> &middot; ${ceo.role}</div>
-    </div>
-  </section>
-
-  <section class="rf-section" id="contact">
+  <section class="rf-section alt" id="contact">
     <div class="wrap">
       <div class="rf-grid side" style="gap:44px;align-items:start">
         <div>
           <span class="rf-eyebrow">Talk to us</span>
-          <h2>A person on the phone, not a menu.</h2>
+          <h2>A person, not a menu.</h2>
           <dl class="rf-dl" style="max-width:460px">
             <dt data-site-row="phone" hidden>Phone</dt><dd data-site-row="phone" data-site="phone" hidden></dd>
             <dt>Email</dt><dd><a href="mailto:${site.email}" data-site="email">${site.email}</a></dd>
             <dt data-site-row="hours" hidden>Hours</dt><dd data-site-row="hours" data-site="hours" hidden></dd>
-            <dt data-site-row="fraudPhone" hidden>Fraud, any hour</dt><dd data-site-row="fraudPhone" data-site="fraudPhone" hidden></dd>
+            <dt data-site-row="fraudPhone" hidden>Urgent, any hour</dt><dd data-site-row="fraudPhone" data-site="fraudPhone" hidden></dd>
             <dt data-site-row="address" hidden>Post</dt><dd data-site-row="address" data-site="address" hidden></dd>
           </dl>
           <div class="rf-notice warn" style="margin-top:22px">
-            <div><strong>We will never ask for a code.</strong>Not by phone, text or email. Signed-in customers can use secure messages for anything about a specific account.</div>
+            <div><strong>We will never ask for a code.</strong>Not by phone, text or email. Signed-in customers can use secure messages for anything about their account.</div>
           </div>
         </div>
-        ${enquiryForm('home-contact-form', { heading: 'Send us a message', note: 'A banker replies the same business day.' })}
+        ${enquiryForm('home-contact-form', { heading: 'Send us a message', note: 'Someone from our team replies the same business day.' })}
       </div>
     </div>
   </section>`;
 
-/* ================================================================= personal == */
+/* ================================================================== bitcoin == */
+
+const TERMS = DEFAULT_SETTINGS.investmentTerms;
+
+const bitcoinContent = `
+  ${header({
+    eyebrow: 'Invest in Bitcoin',
+    title: 'Bitcoin only. Bought simply, followed clearly.',
+    lede: 'What you are buying, how long you hold it, and what you will see every day until it matures.',
+    image: images.bitcoinHeader,
+  })}
+
+  <section class="rf-section">
+    <div class="wrap">
+      <div class="rf-grid side" style="gap:44px;align-items:start">
+        <div>
+          <span class="rf-eyebrow">What you are buying</span>
+          <h2>A share of a Bitcoin, at the live price.</h2>
+          <p class="section-lede">Bitcoin divides into a hundred million parts, so $1 buys a real amount of it. When you confirm, we book the purchase at the live price shown on your screen and the Bitcoin appears in your account straight away, to the satoshi.</p>
+          <ul class="hs-checks">
+            <li>${tick}<span>Bitcoin is the only asset we invest in. There is nothing else to choose between.</span></li>
+            <li>${tick}<span>No commission to buy or sell. The price you see is the price you pay.</span></li>
+            <li>${tick}<span>If the price moves more than 2% while you decide, we show you the new one and ask again.</span></li>
+          </ul>
+        </div>
+        <div class="rf-card hs-live-card">
+          <div class="rf-card-body">
+            <span class="rf-eyebrow">Bitcoin now</span>
+            <div class="hs-live-card-v" data-btc-price>&mdash;</div>
+            <div class="rf-small rf-muted"><span data-btc-change></span> <span data-btc-source></span></div>
+            <a class="rf-btn block rf-mt" href="/open-account">Start investing</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rf-section alt">
+    <div class="wrap">
+      <span class="rf-eyebrow">Choose your term</span>
+      <h2>How long do you mean to hold it?</h2>
+      <p class="section-lede">Every purchase carries a term you choose when you buy. It sets the maturity date your dashboard counts down to. Choosing one costs nothing, and you can still sell before it.</p>
+      <div class="rf-grid cols-${Math.min(4, TERMS.length)} hs-terms-grid">
+        ${TERMS.map((m) => `<div class="rf-card rf-stat"><div class="k">Term</div><div class="v">${m % 12 === 0 ? `${m / 12} year${m === 12 ? '' : 's'}` : `${m} months`}</div><div class="d">Matures ${m} months after the day you buy</div></div>`).join('')}
+      </div>
+    </div>
+  </section>
+
+  <section class="rf-section">
+    <div class="wrap">
+      <span class="rf-eyebrow">Your dashboard</span>
+      <h2>Everything about your investment, on the first screen.</h2>
+      <div class="rf-grid cols-2" style="gap:24px">
+        <div class="rf-feature"><span class="ic">${icon('chart', 18)}</span><div><h3>Value since you bought</h3><p>A chart of what your Bitcoin has been worth on every day since your first purchase, against what you paid.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('bitcoin', 18)}</span><div><h3>Growth so far</h3><p>For the whole investment and for each purchase, in dollars and per cent, at today&rsquo;s live price.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('hourglass', 18)}</span><div><h3>Time to maturity</h3><p>How many days each purchase has left to run, and how far through its term it is.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('withdraw', 18)}</span><div><h3>Sell and withdraw</h3><p>Sell any part of your Bitcoin back to cash at the live price, then withdraw it to a bank account in your name.</p></div></div>
+      </div>
+      <p style="margin-top:28px"><a class="rf-btn ghost" href="/digital">See the dashboard</a></p>
+    </div>
+  </section>
+
+  <section class="rf-section alt">
+    <div class="wrap" style="max-width:860px">
+      <div class="rf-notice warn hs-risk">
+        <div><strong>Know the risk</strong>${RISK} A maturity date marks the end of your chosen term; it does not lock your Bitcoin and it does not promise a value on that day.</div>
+      </div>
+    </div>
+  </section>`;
+
+/* ================================================================ dashboard == */
 
 const digitalContent = `
   <section class="hs-home">
     <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
     <div class="wrap hs-home-grid">
       <div class="hs-home-copy">
-        <span class="hs-kicker hs-in" style="--d:0ms">Online banking &middot; on your phone and computer</span>
-        <h1 class="hs-home-title hs-in" style="--d:80ms">More control.<br /><span class="hs-grad">More possibilities.</span></h1>
-        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} gives you the tools to manage your money, save smarter, and reach your global goals &mdash; all in one place.</p>
+        <span class="hs-kicker hs-in" style="--d:0ms">Your dashboard &middot; on your phone and computer</span>
+        <h1 class="hs-home-title hs-in" style="--d:80ms">Your Bitcoin,<br /><span class="hs-grad">from day one to maturity.</span></h1>
+        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} shows you one investment, clearly: <mark class="hs-hl">Bitcoin only</mark>, what you paid, what it is worth today, and how long each purchase has left to run.</p>
         <div class="hs-actions hs-in" style="--d:240ms">
-          <a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a>
-          <a class="hs-textlink" href="/signin">Log in to online banking</a>
+          <a class="rf-btn lg hs-cta" href="/open-account">Start investing ${ui.arrow}</a>
+          <a class="hs-textlink" href="/signin">Log in to your dashboard</a>
         </div>
         <ul class="hs-features">
-          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.card}</span><h3>Easy Payments</h3><p>Send and receive money in seconds, globally.</p></li>
-          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.piggy}</span><h3>Smart Savings</h3><p>Automate your savings and grow your wealth.</p></li>
-          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.bars}</span><h3>Spending Insights</h3><p>See where your money goes and budget better.</p></li>
-          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Bank-Grade Security</h3><p>Your data and funds are always protected.</p></li>
+          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.bars}</span><h3>Growth chart</h3><p>Value since the day you bought.</p></li>
+          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.clock}</span><h3>Time to maturity</h3><p>A countdown for every purchase.</p></li>
+          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.coin}</span><h3>Live price</h3><p>Buy and sell at the price you see.</p></li>
+          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Two-step security</h3><p>On every sign-in and withdrawal.</p></li>
         </ul>
       </div>
 
@@ -304,187 +348,76 @@ const digitalContent = `
           <div class="hs-screen">
             <div class="hs-screen-top">
               <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
-              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
-              <div class="hs-balance">$<span data-hs-count="4250">4,250</span>.00</div>
-              <div class="hs-delta"><span>${ui.up} +12%</span> vs. last month</div>
+              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span data-brand-name><b>${BANK.name.split(/\s+/)[0]}</b>${BANK.name.split(/\s+/).length > 1 ? `<small>${BANK.name.split(/\s+/).slice(1).join(' ')}</small>` : ''}</span></div>
+              <div class="hs-balance">$<span data-hs-count="16642">16,642</span>.60</div>
+              <div class="hs-delta"><span>${ui.up} +27.4%</span> since you bought</div>
             </div>
             <div class="hs-sheet">
+              <svg class="hs-mini-chart" viewBox="0 0 240 64" preserveAspectRatio="none"><path d="M0 56 L24 52 L48 54 L72 44 L96 46 L120 36 L144 38 L168 26 L192 30 L216 18 L240 12" fill="none" stroke="#0e8a62" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 56 L60 56 L60 42 L150 42 L150 34 L240 34" fill="none" stroke="#7a5cd6" stroke-width="2" stroke-dasharray="5 4"/></svg>
               <div class="hs-quick">
-                <span><i>${ui.send}</i>Send</span><span><i>${ui.request}</i>Request</span><span><i>${ui.topup}</i>Top up</span><span><i>${ui.more}</i>More</span>
+                <span><i>${ui.coin}</i>Buy</span><span><i>${ui.send}</i>Sell</span><span><i>${ui.request}</i>Withdraw</span><span><i>${ui.more}</i>More</span>
               </div>
-              <div class="hs-tx-head"><strong>Recent transactions</strong><em>See all</em></div>
+              <div class="hs-tx-head"><strong>Your purchases</strong><em>See all</em></div>
               <ul class="hs-tx">
-                <li><i>${ui.cup}</i><span>Coffee Shop<small>Today</small></span><b>- $4.50</b></li>
-                <li><i>${ui.home}</i><span>Salary Deposit<small>Yesterday</small></span><b class="in">+ $2,800.00</b></li>
-                <li><i>${ui.bag}</i><span>Online Shopping<small>2 days ago</small></span><b>- $89.99</b></li>
-                <li><i>${ui.send}</i><span>Transfer to Friend<small>3 days ago</small></span><b>- $120.00</b></li>
+                <li><i>${ui.coin}</i><span>$3,000.00 &middot; 24 months<small>636 days to maturity</small></span><b class="in">+15.4%</b></li>
+                <li><i>${ui.coin}</i><span>$6,000.00 &middot; 12 months<small>95 days to maturity</small></span><b class="in">+52.6%</b></li>
+                <li><i>${ui.coin}</i><span>$2,500.00 &middot; 12 months<small>Matured</small></span><b class="in">+60.5%</b></li>
               </ul>
-              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.card}Cards</span><span>${ui.bank}Wealth</span><span>${ui.more}More</span></div>
+              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.coin}Bitcoin</span><span>${ui.bars}History</span><span>${ui.more}More</span></div>
             </div>
           </div>
         </div>
-        <div class="hs-card3d">
-          <div class="hs-card-face">
-            <div class="hs-card-brand"><img src="/assets/bank/logomark-light.png" alt="" width="20" height="25" /><span><strong>HEDGESTONE</strong><small>GLOBAL BANK</small></span></div>
-            <span class="hs-chipset"></span>
-            <span class="hs-nfc">${ui.nfc}</span>
-            <span class="hs-card-type">DEBIT</span>
-          </div>
-        </div>
-        <div class="hs-toast"><i>${ui.check}</i><span><strong>Payment received</strong><small>+ $1,250.00 &middot; London</small></span></div>
+        <div class="hs-toast"><i>${ui.check}</i><span><strong>Bitcoin bought</strong><small>0.0158 BTC &middot; 12-month term</small></span></div>
       </div>
     </div>
-
+    <div class="wrap"><p class="rf-small rf-muted" style="margin:18px 0 0">Illustration with example figures. Your dashboard shows your own purchases at the live price.</p></div>
   </section>
 
   <section class="rf-section">
     <div class="wrap">
-      <span class="rf-eyebrow">Everything in online banking</span>
-      <h2>Your whole bank, on the device in your hand.</h2>
-      <p class="section-lede">There is no app to download. Sign in at hedgestonesfinance.com from the browser on your phone, tablet or laptop and you get the same accounts, the same protections and the same people behind them, wherever you are.</p>
+      <span class="rf-eyebrow">Everything on your dashboard</span>
+      <h2>Your investment, on the device in your hand.</h2>
+      <p class="section-lede">There is no app to download. Sign in from the browser on your phone, tablet or laptop and you get the same dashboard, the same protections and the same people behind them, wherever you are.</p>
       <div class="rf-grid cols-3">
-        <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Send and request</h3><p>Pay anyone by email or phone number, split a bill, or send a wire with the fee shown before you confirm.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.card}</span><h3 class="hs-card-h">Card controls</h3><p>Freeze and unfreeze in a tap, set daily limits and switch international use on or off.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Insights</h3><p>Thirty days of spending by category, upcoming bills, and money in and out for six months.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.request}</span><h3 class="hs-card-h">Check deposit from your phone</h3><p>Photograph both sides in your phone&rsquo;s browser and the funds availability is shown before you submit.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.shield}</span><h3 class="hs-card-h">Two-step security</h3><p>A one-time code on every sign-in and every outside payment, plus a transfer PIN of your own.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, payments and card activity, the moment they happen, by email and text.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Value since you bought</h3><p>A chart from your first purchase to today, with every purchase marked and what you paid drawn alongside.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.coin}</span><h3 class="hs-card-h">Growth, purchase by purchase</h3><p>What each purchase cost, the price you paid, what it is worth now and how much it has grown or fallen.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.clock}</span><h3 class="hs-card-h">Time to maturity</h3><p>The date each purchase matures, the days left, and how far through its term it is.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Buy and sell in a tap</h3><p>See how much Bitcoin an amount buys at the live price before you confirm, and sell back to cash any time.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.shield}</span><h3 class="hs-card-h">Two-step security</h3><p>A one-time code on every sign-in and every withdrawal, plus a withdrawal PIN of your own.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, purchases, sales and withdrawals, the moment they happen, by email and text.</p></div>
       </div>
-      <p style="margin-top:28px"><a class="rf-btn lg hs-cta" href="/open-account">Get started for free ${ui.arrow}</a></p>
+      <p style="margin-top:28px"><a class="rf-btn lg hs-cta" href="/open-account">Start investing ${ui.arrow}</a></p>
     </div>
   </section>
 `;
 
-const personalContent = `
-  ${header({
-    eyebrow: 'Personal banking',
-    title: 'Accounts that behave.',
-    lede: 'Checking, savings, certificates and a card, priced so the headline number is the one you actually get.',
-    image: images.personalHeader,
-  })}
+/* ===================================================================== fees == */
 
-  <section class="rf-section">
-    <div class="wrap">
-      <span class="rf-eyebrow">Open an account</span>
-      <h2>Everything we offer, side by side.</h2>
-      <div class="rf-grid cols-3">${PRODUCTS.map(productCard).join('')}</div>
-    </div>
-  </section>
-
-  <section class="rf-section alt">
-    <div class="wrap">
-      <span class="rf-eyebrow">What comes with all of it</span>
-      <h2>The parts that are not on the rate sheet.</h2>
-      <div class="rf-grid cols-2">
-        ${services.map((service) => `
-        <article class="rf-card">
-          <div class="rf-card-body">
-            <h3 style="font-family:var(--rf-display);font-size:18px;margin:0 0 8px">${service.title}</h3>
-            <p class="rf-muted" style="margin:0 0 14px">${service.summary}</p>
-            <ul style="list-style:none;padding:0;margin:0;display:grid;gap:8px">
-              ${service.points.map((point) => `<li class="rf-small" style="display:flex;gap:9px;align-items:flex-start"><span style="color:var(--rf-credit)">${tick}</span><span>${point}</span></li>`).join('')}
-            </ul>
-          </div>
-        </article>`).join('')}
-      </div>
-    </div>
-  </section>`;
-
-/* ================================================================= business == */
-
-const businessContent = `
-  ${header({
-    eyebrow: 'Business banking',
-    title: 'Banking that keeps up with the business.',
-    lede: 'Operating accounts, payroll, merchant settlement and credit, with dual approval and role-based access as standard.',
-    image: images.businessHeader,
-  })}
-
-  <section class="rf-section">
-    <div class="wrap">
-      <span class="rf-eyebrow">How it works</span>
-      <h2>Controls first, then convenience.</h2>
-      <p class="section-lede">Nobody moves money on their own unless you decide they can. Approvals, limits and read-only access are set when the account opens, not bolted on after an incident.</p>
-      <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">Dual approval</div><div class="v">Standard</div><div class="d">On every payment over your threshold</div></div>
-        <div class="rf-card rf-stat"><div class="k">Same-day ACH</div><div class="v">Included</div><div class="d">Origination cut-off 2:45pm ET</div></div>
-        <div class="rf-card rf-stat"><div class="k">Merchant settlement</div><div class="v">Next day</div><div class="d">With store-level references</div></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="rf-section alt">
-    <div class="wrap">
-      <span class="rf-eyebrow">Client stories</span>
-      <h2>What it looks like in practice.</h2>
-      <div class="rf-grid cols-2">
-        ${stories.map((story) => `
-        <article class="rf-card">
-          <img src="${images.story(story.image)}" alt="" loading="lazy" style="width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--rf-radius) var(--rf-radius) 0 0;display:block" />
-          <div class="rf-card-body">
-            <span class="rf-eyebrow">${story.sector} &middot; ${story.location}</span>
-            <h3 style="font-family:var(--rf-display);font-size:20px;margin:6px 0 8px">${story.name}</h3>
-            <p class="rf-muted" style="margin:0 0 14px">${story.overview}</p>
-            <div class="rf-spread">
-              <span class="rf-inline"><strong class="rf-amt">${story.metric}</strong><span class="rf-small rf-muted">${story.metricLabel}</span></span>
-              <span class="rf-badge">${story.status}</span>
-            </div>
-          </div>
-        </article>`).join('')}
-      </div>
-      <p style="margin-top:28px"><a class="rf-btn" href="/open-account?product=premier_checking">Open a business account</a></p>
-    </div>
-  </section>`;
-
-/* ==================================================================== rates == */
-
+const fee = (key) => DEFAULT_SETTINGS.fees[key] ? money(DEFAULT_SETTINGS.fees[key]) : 'None';
 const FEES = [
-  ['Monthly service fee, Everyday Checking', 'None'],
-  ['Monthly service fee, Premier Interest Checking', '$25.00, waived at $2,500 average balance'],
-  ['Outgoing ACH transfer', 'None'],
-  ['Outgoing domestic wire', '$25.00'],
-  ['Outgoing international wire', '$45.00'],
-  ['Incoming wire', 'None'],
-  ['Expedited transfer', '$10.00'],
-  ['Overdraft item', '$34.00, maximum three per day'],
-  ['Returned item', '$34.00'],
-  ['Stop payment', '$30.00'],
-  ['Out-of-network ATM', '$2.50 plus the operator&rsquo;s fee'],
-  ['Foreign transaction', 'None'],
-  ['Card replacement', 'None, or $25.00 expedited'],
-  ['Paper statement', '$2.00 each'],
-  ['Account research, per hour', '$25.00'],
+  ['Opening an account', 'None'],
+  ['Monthly or annual fee', 'None'],
+  ['Buying Bitcoin', 'No commission: you pay the live price shown when you confirm'],
+  ['Selling Bitcoin', 'No commission: you receive the live price shown when you confirm'],
+  ['Choosing or changing a term', 'None'],
+  ['Selling before a purchase matures', 'No penalty'],
+  ['Standard withdrawal (1 to 3 business days)', fee('achOutgoing')],
+  ['Same-day withdrawal', fee('wireDomestic')],
+  ['International withdrawal', fee('wireInternational')],
 ];
 
 const ratesContent = `
   ${header({
-    eyebrow: 'Rates and fees',
-    title: 'What it pays, and what it costs.',
-    lede: 'Everything on one page. Rates are variable and may change after account opening.',
+    eyebrow: 'Fees',
+    title: 'What it costs to invest in Bitcoin.',
+    lede: 'Everything we charge, on one page. Most of it is nothing.',
     image: images.ratesHeader,
   })}
 
   <section class="rf-section">
     <div class="wrap">
-      <span class="rf-eyebrow">Deposit rates</span>
-      <h2>Annual Percentage Yield.</h2>
-      <div class="rf-card">
-        <div class="rf-table-wrap">
-          <table class="rf-table">
-            <thead><tr><th>Account</th><th class="num">APY</th><th class="num">Minimum to open</th><th class="num">Monthly fee</th></tr></thead>
-            <tbody>
-              ${PRODUCTS.filter((p) => p.type !== 'credit').map((p) => `<tr>
-                <td><strong>${p.name}</strong><span class="sub">${p.blurb}</span></td>
-                <td class="num">${p.apy ? `${p.apy.toFixed(2)}%` : '&mdash;'}</td>
-                <td class="num">${money(p.minimumBalance || 0)}</td>
-                <td class="num">${money(p.monthlyFee || 0)}</td>
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <h2 style="margin-top:48px">Every fee we charge.</h2>
+      <span class="rf-eyebrow">Every fee we charge</span>
+      <h2>No commission. No account fee.</h2>
       <div class="rf-card">
         <div class="rf-table-wrap">
           <table class="rf-table">
@@ -494,10 +427,15 @@ const ratesContent = `
         </div>
       </div>
 
+      <h2 style="margin-top:48px">The limits.</h2>
+      <div class="rf-grid cols-3">
+        <div class="rf-card rf-stat"><div class="k">Smallest purchase</div><div class="v">$1.00</div><div class="d">Bitcoin is held to the satoshi</div></div>
+        <div class="rf-card rf-stat"><div class="k">Largest single purchase</div><div class="v">${money(DEFAULT_SETTINGS.limits.singleTransactionMax)}</div><div class="d">Contact us to invest more at once</div></div>
+        <div class="rf-card rf-stat"><div class="k">Terms</div><div class="v">${TERMS.join(', ')}</div><div class="d">months, chosen when you buy</div></div>
+      </div>
+
       <p class="rf-disclosure" style="margin-top:24px">
-        Annual Percentage Yields are accurate as of ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })} and are variable: they may change before or after an
-        account is opened. Fees may reduce earnings. A penalty may be imposed for early withdrawal from a certificate. Credit products are subject to credit
-        approval, and the APR shown is the rate available to applicants with the strongest credit profile.
+        Fees are accurate as of ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })} and may change; we will tell you before they do. ${RISK}
       </p>
     </div>
   </section>`;
@@ -507,7 +445,7 @@ const ratesContent = `
 const securityCentreContent = `
   ${header({
     eyebrow: 'Security centre',
-    title: 'How we protect the account, and how you can.',
+    title: 'How we protect your account, and how you can.',
     lede: 'What runs on our side, what to switch on for yours, and what to do the moment something looks wrong.',
     image: images.securityHeader,
   })}
@@ -516,12 +454,12 @@ const securityCentreContent = `
     <div class="wrap">
       <div class="rf-notice bad">
         <div><strong>We will never ask for a one-time code.</strong>
-        Not by phone, not by text, not by email. If anyone asks for a code, a password or your full card number, hang up and call <span data-site="fraudPhone">our fraud line</span>.</div>
+        Not by phone, not by text, not by email. If anyone asks for a code or your password, hang up and call <span data-site="fraudPhone">our security line</span>.</div>
       </div>
 
       <h2 style="margin-top:34px">What runs whether you think about it or not.</h2>
       <div class="rf-grid cols-2" style="gap:24px">
-        <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Held review on outgoing payments</h3><p>Transfers to somebody new are read by our payments team before the money leaves.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Withdrawals checked</h3><p>A withdrawal to an account that is new to us is read by our team before the money leaves.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('lock', 18)}</span><div><h3>Encrypted at rest</h3><p>Social Security numbers and identity documents are encrypted with keys the application cannot print.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('activity', 18)}</span><div><h3>Every action logged</h3><p>Who did what, from which device and address. You can read your own history under Activity.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('user', 18)}</span><div><h3>Sessions you control</h3><p>See every signed-in device and sign any of them out, from anywhere.</p></div></div>
@@ -531,15 +469,15 @@ const securityCentreContent = `
       <div class="rf-card"><div class="rf-card-body">
         <ol style="margin:0;padding-left:20px;line-height:2.1">
           <li>Turn on two-step verification, and leave it on.</li>
-          <li>Set a transfer PIN that is not your card PIN.</li>
+          <li>Set a withdrawal PIN that you use nowhere else.</li>
           <li>Set the alert threshold low enough to be slightly annoying.</li>
-          <li>Add the people you pay regularly as recipients, so a new one is genuinely unusual.</li>
+          <li>Add your own bank account as a withdrawal account before you need it.</li>
         </ol>
       </div></div>
 
       <h2 style="margin-top:48px">If something is wrong, call first.</h2>
       <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">Fraud line, 24/7</div><div class="v" style="font-size:20px" data-site="fraudPhone">Open around the clock</div><div class="d">Cards, transfers, anything urgent</div></div>
+        <div class="rf-card rf-stat"><div class="k">Security line, 24/7</div><div class="v" style="font-size:20px" data-site="fraudPhone">Open around the clock</div><div class="d">Anything urgent about your account</div></div>
         <div class="rf-card rf-stat"><div class="k">General support</div><div class="v" style="font-size:20px" data-site="phone">Six days a week</div><div class="d" data-site="hours">${site.hours}</div></div>
         <div class="rf-card rf-stat"><div class="k">Report a phishing email</div><div class="v" style="font-size:16px">${BANK.securityEmail}</div><div class="d">Forward it; do not click anything in it</div></div>
       </div>
@@ -550,9 +488,9 @@ const securityCentreContent = `
 
 const openAccountContent = `
   ${header({
-    eyebrow: 'Open an account',
-    title: 'Start the application.',
-    lede: 'Tell us what you need and a banker calls you back the same business day to finish it with you.',
+    eyebrow: 'Start investing',
+    title: 'Start investing in Bitcoin.',
+    lede: 'Tell us a little about yourself and someone from our team comes back to you the same business day to open your account.',
     image: images.openAccountHeader,
   })}
 
@@ -564,16 +502,16 @@ const openAccountContent = `
           <dl class="rf-dl" style="max-width:480px">
             <dt>Identity</dt><dd>A driver&rsquo;s licence, state ID or passport</dd>
             <dt>Tax</dt><dd>Your Social Security number or ITIN</dd>
-            <dt>Address</dt><dd>Somewhere we can post a card</dd>
-            <dt>Opening deposit</dt><dd>From $0 on Everyday Checking</dd>
+            <dt>Address</dt><dd>Where you live now</dd>
+            <dt>To invest</dt><dd>From $1, in Bitcoin only</dd>
           </dl>
           <div class="rf-notice" style="margin-top:22px">
             <div><strong>Why this is a message and not a form full of secrets.</strong>
-            Accounts at ${BANK.shortName} are opened by a banker who verifies your identity properly. Never send a Social Security number, a password or a card number through a web form.</div>
+            Accounts at ${BANK.name} are opened by our team, who verify your identity properly. Never send a Social Security number or a password through a web form.</div>
           </div>
-          <p style="margin-top:22px"><a class="rf-btn ghost" href="/rates">See rates and fees first</a></p>
+          <p style="margin-top:22px"><a class="rf-btn ghost" href="/rates">See the fees first</a></p>
         </div>
-        ${enquiryForm('open-account-form', { heading: 'Tell us what you need', note: 'A banker calls you back the same business day.' })}
+        ${enquiryForm('open-account-form', { heading: 'Tell us about yourself', note: 'We come back to you the same business day.' })}
       </div>
     </div>
   </section>`;
@@ -584,7 +522,7 @@ const careersContent = `
   ${header({
     eyebrow: 'Careers',
     title: 'Work somewhere the ledger has to balance.',
-    lede: 'Retail, payments, financial crime, compliance, lending and technology. On site, hybrid and remote.',
+    lede: 'Operations, risk, compliance, client support and technology. On site, hybrid and remote.',
     image: images.careersHeader,
   })}
 
@@ -592,14 +530,14 @@ const careersContent = `
     <div class="wrap">
       <div class="rf-grid side" style="gap:44px;align-items:start">
         <div>
-          <span class="rf-eyebrow">Life at ${BANK.shortName}</span>
+          <span class="rf-eyebrow">Life at ${BANK.name}</span>
           <h2>Small enough to know what you changed.</h2>
-          <p class="section-lede">We are a global bank of about 900 people. Nobody here is four layers from a customer: a payments analyst sees the transfer they released land, and whoever changes the ledger sits close enough to the branch to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
+          <p class="section-lede">We do one thing &mdash; Bitcoin investing &mdash; and nobody here is four layers from a customer. Whoever changes the ledger sits close enough to support to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
         </div>
         <div class="rf-card"><div class="rf-card-body">
           <h3 style="font-family:var(--rf-display);margin:0 0 10px">What we offer</h3>
           <ul style="list-style:none;padding:0;margin:0;display:grid;gap:9px">
-            ${['Health, dental and vision from day one', '6% 401(k) match, vested immediately', '20 days leave and a week at the holidays', 'Tuition support for banking qualifications', 'Hybrid by default, remote where the role allows']
+            ${['Health, dental and vision from day one', '6% 401(k) match, vested immediately', '20 days leave and a week at the holidays', 'Tuition support for finance qualifications', 'Hybrid by default, remote where the role allows']
     .map((point) => `<li class="rf-small" style="display:flex;gap:9px"><span style="color:var(--rf-credit)">${tick}</span><span>${point}</span></li>`).join('')}
           </ul>
         </div></div>
@@ -645,7 +583,7 @@ const applyContent = `
             <div class="rf-field field"><label for="apply-experience">Years in the industry</label>
               <select class="rf-select" id="apply-experience" name="experience">
                 <option value="">Select</option>
-                <option>New to banking</option>
+                <option>New to finance</option>
                 <option>1 to 3</option>
                 <option>4 to 8</option>
                 <option>9 to 15</option>
@@ -673,7 +611,7 @@ const contactContent = `
   ${header({
     eyebrow: 'Support',
     title: 'Talk to us.',
-    lede: 'Client services six days a week, with a fraud line that never closes.',
+    lede: 'Support six days a week, with a security line that never closes.',
     image: images.contactHeader,
   })}
 
@@ -685,17 +623,17 @@ const contactContent = `
             <dt data-site-row="phone" hidden>Phone</dt><dd data-site-row="phone" data-site="phone" hidden></dd>
             <dt>Email</dt><dd><a href="mailto:${site.email}" data-site="email">${site.email}</a></dd>
             <dt data-site-row="hours" hidden>Hours</dt><dd data-site-row="hours" data-site="hours" hidden></dd>
-            <dt data-site-row="fraudPhone" hidden>Fraud, any hour</dt><dd data-site-row="fraudPhone" data-site="fraudPhone" hidden></dd>
+            <dt data-site-row="fraudPhone" hidden>Urgent, any hour</dt><dd data-site-row="fraudPhone" data-site="fraudPhone" hidden></dd>
             <dt data-site-row="internationalPhone" hidden>International</dt><dd data-site-row="internationalPhone" data-site="internationalPhone" hidden></dd>
             <dt data-site-row="address" hidden>Post</dt><dd data-site-row="address" data-site="address" hidden></dd>
           </dl>
 
-          <h3 style="font-family:var(--rf-display);margin:30px 0 10px">Already banking with us?</h3>
-          <p class="rf-muted rf-small">Secure messages inside online banking are the safe place for anything about a specific account. They sit inside your session, so account numbers are fine to include.</p>
-          <p><a class="rf-btn ghost" href="/signin">Sign in to online banking</a></p>
+          <h3 style="font-family:var(--rf-display);margin:30px 0 10px">Already investing with us?</h3>
+          <p class="rf-muted rf-small">Secure messages inside your account are the safe place for anything about your investment. They sit inside your session, so account details are fine to include.</p>
+          <p><a class="rf-btn ghost" href="/signin">Sign in to your account</a></p>
 
           <div class="rf-notice warn" style="margin-top:22px">
-            <div><strong>Never send a secret here.</strong>No passwords, no full card numbers, no one-time codes. We will never ask for them.</div>
+            <div><strong>Never send a secret here.</strong>No passwords and no one-time codes. We will never ask for them.</div>
           </div>
         </div>
         ${enquiryForm('contact-form', { heading: 'Send us a message', note: 'We reply the same business day.' })}
@@ -706,29 +644,27 @@ const contactContent = `
 /* ===================================================================== legal == */
 
 const legalContent = `
-  ${header({ eyebrow: 'Legal', title: 'Disclosures.', lede: 'The agreements and notices that govern an account at Hedgestone.' })}
+  ${header({ eyebrow: 'Legal', title: 'Terms, privacy and risk.', lede: `The notices that govern an account at ${BANK.name}.` })}
 
   <section class="rf-section">
     <div class="wrap" style="max-width:820px">
       <article class="rf-card"><div class="rf-card-body">
         <h2 id="privacy" style="font-family:var(--rf-display);margin-top:0;font-size:21px">Privacy notice</h2>
-        <p class="rf-muted">${BANK.legalName} collects the information needed to open and run your accounts: your name, address, date of birth, Social Security number, identification documents, transaction history and the devices you use to reach us. We share it only with the service providers who help us run the bank, and with regulators and law enforcement where the law requires it. We do not sell it.</p>
-        <p class="rf-muted">You may limit marketing at any time under Alerts inside online banking, or by calling <span data-site="phone">client services</span>.</p>
+        <p class="rf-muted">${BANK.legalName} collects the information needed to open and run your account: your name, address, date of birth, Social Security number, identification documents, your purchases, sales and withdrawals, and the devices you use to reach us. We share it only with the service providers who help us run the platform, and with regulators and law enforcement where the law requires it. We do not sell it.</p>
+        <p class="rf-muted">You may limit marketing at any time under Alerts once you are signed in, or by calling <span data-site="phone">our support team</span>.</p>
 
-        <h2 id="terms" style="font-family:var(--rf-display);font-size:21px">Online banking agreement</h2>
-        <p class="rf-muted">Access to online banking is personal to you. Keep your password and one-time codes to yourself, tell us immediately if you think someone else has them, and review your statements. We may hold, delay or decline a payment where we reasonably suspect fraud, where it would breach a limit, or where sanctions screening requires a manual check. Where we decline one, the funds return to your available balance and you are told why.</p>
+        <h2 id="terms" style="font-family:var(--rf-display);font-size:21px">Terms of use</h2>
+        <p class="rf-muted">Access to your account is personal to you. Keep your password and one-time codes to yourself, tell us immediately if you think someone else has them, and review your activity. We may hold, delay or decline a withdrawal where we reasonably suspect fraud, where it would breach a limit, or where a manual check is required. Where we decline one, the funds return to your cash balance and you are told why.</p>
+        <p class="rf-muted">Purchases and sales of Bitcoin are booked at the live price shown when you confirm. Each purchase carries the term you chose and a maturity date; the maturity date does not lock your Bitcoin, and you may sell before it.</p>
 
-        <h2 id="disclosures" style="font-family:var(--rf-display);font-size:21px">Truth in Savings</h2>
-        <p class="rf-muted">Annual Percentage Yields are variable and may change at any time after an account is opened. Interest is compounded and credited monthly. Fees may reduce earnings. A penalty may be imposed for early withdrawal from a certificate. Minimum balance requirements, where they apply, are shown on the rates page and in your account agreement.</p>
-
-        <h2 id="funds" style="font-family:var(--rf-display);font-size:21px">Funds availability</h2>
-        <p class="rf-muted">For checks deposited through mobile deposit, the first $225 is generally available on the first business day after the day of deposit, and the remainder by the second business day. We may place a longer hold in the circumstances permitted by Regulation CC, and we will tell you when we do.</p>
+        <h2 id="risk" style="font-family:var(--rf-display);font-size:21px">Risk warning</h2>
+        <p class="rf-muted">${RISK} The growth shown on your dashboard is calculated from the market price and is not a forecast. Bitcoin held with us is not a bank deposit and is not covered by deposit insurance.</p>
 
         <h2 id="accessibility" style="font-family:var(--rf-display);font-size:21px">Accessibility</h2>
-        <p class="rf-muted">We aim to meet WCAG 2.2 AA across online banking. If any part of this site is difficult to use, tell us on <span data-site="phone">the client services line</span> or <a href="mailto:${site.email}" data-site="email">${site.email}</a> and we will help you complete what you were doing and fix the underlying problem.</p>
+        <p class="rf-muted">We aim to meet WCAG 2.2 AA across the site and your account. If any part of it is difficult to use, tell us on <span data-site="phone">our support line</span> or <a href="mailto:${site.email}" data-site="email">${site.email}</a> and we will help you complete what you were doing and fix the underlying problem.</p>
 
         <h2 id="demo" style="font-family:var(--rf-display);font-size:21px">About this application</h2>
-        <p class="rf-muted">${BANK.legalName} is a fictional institution. This site is a demonstration of a banking application: the routing number, account numbers, card numbers and customer records used throughout are synthetic, reach no real financial institution, and no real money can move through it.</p>
+        <p class="rf-muted">${BANK.legalName} is a fictional company. This site is a demonstration of an investment application: the accounts, balances and customer records used throughout are synthetic, and no real money moves through it.</p>
       </div></article>
     </div>
   </section>`;
@@ -759,7 +695,7 @@ const deskContent = `
 
     <section class="admin-gate" id="admin-unconfigured" hidden>
       <div class="admin-card">
-        <span class="eyebrow">Hedgestone / Client services desk</span>
+        <span class="eyebrow">${BANK.name} / Client services desk</span>
         <h1>Backend not connected.</h1>
         <div id="admin-missing"></div>
         <p class="admin-note">Set it in the deployment's environment variables and reload. Nothing needs rebuilding, but the change only reaches a running deployment after a redeploy.</p>
@@ -770,9 +706,9 @@ const deskContent = `
 
     <section class="admin-gate" id="admin-login" hidden>
       <form class="admin-card" id="login-form" novalidate>
-        <span class="eyebrow">Hedgestone / Client services desk</span>
+        <span class="eyebrow">${BANK.name} / Client services desk</span>
         <h1>Staff sign in.</h1>
-        <p class="admin-note" id="login-note">Website enquiries, live chat and the shared mailbox. Customer accounts are in the <a href="/console">banking console</a>.</p>
+        <p class="admin-note" id="login-note">Website enquiries, live chat and the shared mailbox. Customer accounts are in the <a href="/console">staff console</a>.</p>
         <div class="field"><label for="login-email">Email</label><input type="email" id="login-email" name="email" autocomplete="username" required /></div>
         <div class="field"><label for="login-password">Password</label><input type="password" id="login-password" name="password" autocomplete="current-password" required /></div>
         <div class="err" id="login-error" role="alert"></div>
@@ -784,11 +720,11 @@ const deskContent = `
     <div class="admin-shell" id="admin-shell" hidden>
       <header class="admin-bar">
         <a class="admin-brand" href="/">
-          <img src="/assets/bank/logo-dark.png" alt="Hedgestone Global Bank" width="240" height="54" />
+          ${brand()}
           <span>Client services desk</span>
         </a>
         <div class="admin-bar-end">
-          <a class="admin-signout" href="/console" style="text-decoration:none">Banking console</a>
+          <a class="admin-signout" href="/console" style="text-decoration:none">Staff console</a>
           <span class="admin-who" id="admin-who"></span>
           <button type="button" class="admin-signout" id="admin-signout">Sign out</button>
         </div>
@@ -845,58 +781,53 @@ const marketing = (file, opts) => ({ file, build: marketingPage, opts });
 
 module.exports = [
   marketing('index.html', {
-    title: `${BANK.name} | ${BANK.tagline}`,
-    description: 'Personal and business banking from Hedgestone Global Bank: no-fee checking, 4.35% APY savings, cards, wires and a 24/7 fraud line. Member FDIC.',
+    title: `${BANK.name} | Invest in Bitcoin, and only Bitcoin`,
+    description: `${BANK.name}: invest in Bitcoin only. Buy from $1 at the live price, choose a 3 to 24 month term, and follow your investment from purchase to maturity.`,
     active: '', content: homeContent,
   }),
+  marketing('bitcoin.html', {
+    title: `Invest in Bitcoin | ${BANK.name}`,
+    description: 'What you are buying, the terms you can choose, and what your dashboard shows until each purchase matures.',
+    active: 'bitcoin', content: bitcoinContent,
+  }),
   marketing('digital.html', {
-    title: `Digital banking | ${BANK.name}`,
-    description: 'Hedgestone Global Bank online banking, on your phone or computer with nothing to download: payments, savings, insights and card controls in one place.',
+    title: `Your dashboard | ${BANK.name}`,
+    description: `Your ${BANK.name} dashboard on your phone or computer, with nothing to download: value since you bought, growth so far and time to maturity.`,
     active: 'digital', content: digitalContent,
   }),
-  marketing('personal.html', {
-    title: `Personal banking | ${BANK.name}`,
-    description: 'Checking, savings, certificates and cards from Hedgestone Global Bank.',
-    active: 'personal', content: personalContent,
-  }),
-  marketing('business.html', {
-    title: `Business banking | ${BANK.name}`,
-    description: 'Operating accounts, payroll, merchant settlement and credit for businesses.',
-    active: 'business', content: businessContent,
-  }),
   marketing('rates.html', {
-    title: `Rates and fees | ${BANK.name}`,
-    description: 'Deposit rates and the full fee schedule at Hedgestone Global Bank.',
+    title: `Fees | ${BANK.name}`,
+    description: `Every fee ${BANK.name} charges for investing in Bitcoin.`,
     active: 'rates', content: ratesContent,
   }),
   marketing('security-center.html', {
     title: `Security centre | ${BANK.name}`,
-    description: 'How Hedgestone protects your account, and what to do if something looks wrong.',
+    description: `How ${BANK.name} protects your account, and what to do if something looks wrong.`,
     active: 'security-center', content: securityCentreContent,
   }),
   marketing('open-account.html', {
-    title: `Open an account | ${BANK.name}`,
-    description: 'Start an application for a Hedgestone checking, savings or business account.',
+    title: `Start investing | ${BANK.name}`,
+    description: `Start investing in Bitcoin with ${BANK.name}.`,
     active: '', content: openAccountContent,
   }),
   marketing('careers.html', {
     title: `Careers | ${BANK.name}`,
-    description: 'Open roles at Hedgestone Global Bank across retail, payments, financial crime, compliance, lending and technology.',
+    description: `Open roles at ${BANK.name} across operations, risk, compliance, client support and technology.`,
     active: '', content: careersContent, extraScripts: ['/js/careers.js'],
   }),
   marketing('apply.html', {
     title: `Apply | ${BANK.name}`,
-    description: 'Apply to Hedgestone Global Bank. One form, read by the people you would work with.',
+    description: `Apply to ${BANK.name}. One form, read by the people you would work with.`,
     active: '', content: applyContent, extraScripts: ['/js/apply.js'],
   }),
   marketing('support.html', {
     title: `Support | ${BANK.name}`,
-    description: 'Contact Hedgestone Global Bank. Client services six days a week and a 24/7 fraud line.',
+    description: `Contact ${BANK.name}. Support six days a week and a security line that never closes.`,
     active: 'support', content: contactContent,
   }),
   marketing('legal.html', {
-    title: `Legal and disclosures | ${BANK.name}`,
-    description: 'Privacy notice, online banking agreement, Truth in Savings and funds availability.',
+    title: `Terms, privacy and risk | ${BANK.name}`,
+    description: 'Privacy notice, terms of use, risk warning and accessibility.',
     active: '', content: legalContent,
   }),
   marketing('404.html', {
@@ -905,7 +836,7 @@ module.exports = [
     active: '', content: notFoundContent,
   }),
   // The client services desk keeps the template's bare shell and its own
-  // stylesheet: it is a staff tool, not a page of the bank's site.
+  // stylesheet: it is a staff tool, not a page of the public site.
   {
     file: 'admin.html',
     build: page,

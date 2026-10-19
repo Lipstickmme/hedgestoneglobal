@@ -42,14 +42,13 @@ const SELF_EDITABLE = {
 };
 
 const me = asyncHandler(async (req, res) => {
-  const [accounts, cards, sessions] = await Promise.all([
+  const [accounts, sessions] = await Promise.all([
     db.accounts.find({ user_id: req.bankUser.id }),
-    db.cards.find({ user_id: req.bankUser.id }),
     db.sessions.find({ user_id: req.bankUser.id, revoked_at: null }, { order: 'last_seen_at.desc', limit: 10 }),
   ]);
   res.json({
     user: users.publicUser(req.bankUser, 'self'),
-    counts: { accounts: accounts.length, cards: cards.length, sessions: sessions.length },
+    counts: { accounts: accounts.length, sessions: sessions.length },
     options: { states: US_STATES, securityQuestions: SECURITY_QUESTIONS, documentKinds: DOCUMENT_KINDS },
     bank: { name: (settings.snapshot().bankName || '').trim() || BANK.name, email: BANK.email, ...contact.current() },
   });
@@ -71,7 +70,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     meta: { fields: changed },
   });
   await alerts.notifyUser(after, 'profile_changed', {
-    subject: 'Your Hedgestone profile was updated',
+    subject: `Your ${BANK.name} profile was updated`,
     heading: 'Your details changed',
     intro: 'These contact details on your account were just updated.',
     rows: changed.map((field) => ({ label: field.replace(/_/g, ' '), value: String(after[field] || '-') })),
@@ -286,7 +285,7 @@ const updateSecurity = asyncHandler(async (req, res) => {
     detail: notes.join('; '),
   });
   await alerts.notifyUser(await db.users.findById(user.id), 'password_changed', {
-    subject: 'Your Hedgestone security settings changed',
+    subject: `Your ${BANK.name} security settings changed`,
     heading: 'Security settings updated',
     intro: notes.join('. ') + '.',
     footNote: `If this was not you, please ${contact.callFraud()}.`,
@@ -334,7 +333,7 @@ const activity = asyncHandler(async (req, res) => {
 const alertPreferences = asyncHandler(async (req, res) => {
   res.json({
     preferences: alerts.preferencesFor(req.bankUser),
-    types: alerts.ALERT_TYPES,
+    types: alerts.ALERT_TYPES.filter((t) => !t.retired),
     alertThreshold: req.bankUser.alert_threshold,
     lowBalanceThreshold: req.bankUser.low_balance_threshold,
     paperless: Boolean(req.bankUser.paperless),

@@ -4,13 +4,17 @@
  * The staff console: one page, a tab per job.
  *
  * Kept on a single page on purpose. The work here is interleaved - a held
- * transfer sends you to the customer, the customer sends you to their
- * documents, the documents send you back to the transfer - and a page load
+ * withdrawal sends you to the customer, the customer sends you to their
+ * documents, the documents send you back to the withdrawal - and a page load
  * between each step is what makes a console tiring to use.
  */
 
-const { appPage, icon, dateField } = require('./layout');
-const { BANK, PRODUCTS, US_STATES, CATEGORIES, TRANSACTION_METHODS, REJECTION_REASONS, DOCUMENT_KINDS } = require('../constants');
+const { appPage, dateField } = require('./layout');
+const { BANK, US_STATES, CATEGORIES, TRANSACTION_METHODS, REJECTION_REASONS, DOCUMENT_KINDS } = require('../constants');
+
+/** What staff post by hand: money in, money out, fees, and Bitcoin. */
+const STAFF_METHODS = ['adjustment', 'direct_deposit', 'ach', 'wire_domestic', 'wire_international', 'fee', 'refund', 'investment'];
+const STAFF_CATEGORIES = CATEGORIES.slice(0, CATEGORIES.indexOf('Other') + 1);
 
 const option = (value, label) => `<option value="${value}">${label || value}</option>`;
 
@@ -22,14 +26,14 @@ const content = `
           <div class="hs-attn rf-mb" data-attention>
             <div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div><div class="rf-skel" style="height:92px"></div>
           </div>
-          <h2 class="hs-section-title">The bank today</h2>
+          <h2 class="hs-section-title">The platform today</h2>
           <div class="rf-grid cols-4 rf-mb" data-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
               <div class="rf-card-head"><h3>Waiting for a decision</h3><div class="rf-card-actions"><button class="rf-btn ghost sm" data-goto="queue">Open the queue</button></div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
-                  <thead><tr><th>Customer</th><th>Type</th><th>Recipient</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
+                  <thead><tr><th>Customer</th><th>Type</th><th>To</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
                   <tbody data-queue-preview><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
                 </table>
               </div>
@@ -64,7 +68,7 @@ const content = `
             <div class="rf-card-head"><h3>Customers</h3><div class="rf-card-actions rf-small rf-muted" data-customer-count></div></div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Accounts</th><th class="num">Relationship</th><th>Joined</th></tr></thead>
+                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Accounts</th><th class="num">Cash</th><th>Joined</th></tr></thead>
                 <tbody data-customers><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
@@ -148,10 +152,10 @@ const content = `
 
               <div class="rf-stack">
                 <section class="rf-card">
-                  <div class="rf-card-head"><h3>Accounts to open</h3></div>
+                  <div class="rf-card-head"><h3>Cash balance</h3></div>
                   <div class="rf-card-body">
-                    <div data-account-rows></div>
-                    <button class="rf-btn ghost sm" type="button" data-add-account>${icon('plus', 14)} Add another account</button>
+                    <p class="rf-small rf-muted" style="margin-top:0">Every customer has one cash balance. It holds money waiting to buy Bitcoin, and it is where sales are paid. Post what they are starting with; add more later with Adjust on their record.</p>
+                    <div class="rf-field"><label for="r-opening">Opening deposit</label><input class="rf-input money" id="r-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
                   </div>
                 </section>
 
@@ -171,7 +175,7 @@ const content = `
                     <div class="rf-field"><label for="r-notes">Internal notes</label><textarea class="rf-textarea" id="r-notes" name="notes" style="min-height:70px"></textarea></div>
                     <div class="rf-notice bad rf-hide" data-form-error></div>
                     <button class="rf-btn block" type="submit" data-submit>Register customer</button>
-                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number, the accounts opened and the temporary password.</p>
+                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number, the cash balance and the temporary password.</p>
                   </div>
                 </section>
               </div>
@@ -183,7 +187,7 @@ const content = `
         <section data-panel="queue" hidden>
           <section class="rf-card">
             <div class="rf-card-head">
-              <h3>Transfers</h3>
+              <h3>Withdrawals</h3>
               <div class="rf-card-actions">
                 <select class="rf-select" data-queue-status style="width:auto">
                   <option value="pending_review">In review</option>
@@ -198,34 +202,8 @@ const content = `
             </div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Submitted</th><th>Customer</th><th>Type</th><th>Recipient</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+                <thead><tr><th>Submitted</th><th>Customer</th><th>Type</th><th>To</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
                 <tbody data-queue><tr><td colspan="8" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-        </section>
-
-        <!-- ---------------------------------------------------- deposits -- -->
-        <section data-panel="deposits" hidden>
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Mobile check deposits</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Received</th><th>Customer</th><th>Reference</th><th>Check</th><th class="num">Amount</th><th>Status</th><th>Images</th><th></th></tr></thead>
-                <tbody data-deposits><tr><td colspan="8" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-        </section>
-
-        <!-- ------------------------------------------------------- cards -- -->
-        <section data-panel="cards" hidden>
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Issued cards</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Card</th><th>Customer</th><th>Type</th><th>Expires</th><th class="num">Daily limit</th><th>Status</th><th></th></tr></thead>
-                <tbody data-cards><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
           </section>
@@ -307,19 +285,6 @@ const content = `
           </div>
         </section>
 
-        <!-- ---------------------------------------------------- disputes -- -->
-        <section data-panel="disputes" hidden>
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Claims and disputes</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Opened</th><th>Customer</th><th>Reference</th><th>Reason</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
-                <tbody data-disputes><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-        </section>
-
         <!-- ---------------------------------------------------- activity -- -->
         <section data-panel="activity" hidden>
           <section class="rf-card rf-mb">
@@ -358,7 +323,7 @@ const content = `
           <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Holdings</h3><div class="rf-card-actions rf-small rf-muted">valued at live prices</div></div>
+              <div class="rf-card-head"><h3>Who holds Bitcoin</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
                   <thead><tr><th>Customer</th><th>Asset</th><th class="num">Units</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
@@ -372,7 +337,7 @@ const content = `
                 <ul class="rf-list" data-inv-assets><li class="rf-muted rf-small">Loading&hellip;</li></ul>
               </section>
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Latest conversions</h3></div>
+                <div class="rf-card-head"><h3>Latest purchases and sales</h3></div>
                 <ul class="rf-list" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
               </section>
             </div>
@@ -397,10 +362,9 @@ const content = `
           <form id="rf-settings-form">
             <div class="rf-grid cols-2">
               <section class="rf-card">
-                <div class="rf-card-head"><h3>The institution</h3></div>
+                <div class="rf-card-head"><h3>The platform</h3></div>
                 <div class="rf-card-body">
-                  <div class="rf-field"><label for="st-name">Bank name</label><input class="rf-input" id="st-name" name="bankName" /></div>
-                  <div class="rf-field"><label for="st-routing">Routing number</label><input class="rf-input mono" id="st-routing" name="routingNumber" maxlength="9" /><div class="hint">Checked against the ABA checksum before it saves.</div></div>
+                  <div class="rf-field"><label for="st-name">Platform name</label><input class="rf-input" id="st-name" name="bankName" placeholder="${BANK.name}" /><div class="hint">Shown everywhere: beside the logo, in every heading and sentence, the tab title, emails and texts. Leave blank for ${BANK.name}.</div></div>
                   <div class="rf-field"><label for="st-email">Support email</label><input class="rf-input" id="st-email" name="supportEmail" /></div>
                   <div class="rf-field"><label for="st-announcement">Announcement banner</label><input class="rf-input" id="st-announcement" name="announcement" placeholder="Shown to everyone, signed in or not" /></div>
                   <div class="rf-row">
@@ -413,23 +377,34 @@ const content = `
               <section class="rf-card">
                 <div class="rf-card-head"><h3>How to reach us</h3></div>
                 <div class="rf-card-body">
-                  <p class="rf-small rf-muted" style="margin:0 0 16px">Printed on the public site, quoted in every alert email, and given out as the beneficiary bank on an incoming wire. Nothing here ships with a value and nothing is invented for you: anything left blank is left off the page rather than shown empty.</p>
+                  <p class="rf-small rf-muted" style="margin:0 0 16px">Printed on the public site and quoted in every alert email. Nothing here ships with a value and nothing is invented for you: anything left blank is left off the page rather than shown empty.</p>
                   <div class="rf-row">
-                    <div class="rf-field"><label for="st-phone">Client services</label><input class="rf-input" id="st-phone" name="supportPhone" type="tel" placeholder="1-800-000-0000" /></div>
-                    <div class="rf-field"><label for="st-fraud-phone">Fraud line</label><input class="rf-input" id="st-fraud-phone" name="fraudPhone" type="tel" placeholder="Open around the clock" /></div>
+                    <div class="rf-field"><label for="st-phone">Support</label><input class="rf-input" id="st-phone" name="supportPhone" type="tel" placeholder="1-800-000-0000" /></div>
+                    <div class="rf-field"><label for="st-fraud-phone">Urgent security line</label><input class="rf-input" id="st-fraud-phone" name="fraudPhone" type="tel" placeholder="Open around the clock" /></div>
                   </div>
                   <div class="rf-field"><label for="st-intl-phone">From outside the US</label><input class="rf-input" id="st-intl-phone" name="internationalPhone" type="tel" placeholder="+1 000 000 0000" /></div>
                   <div class="rf-field"><label for="st-hours">Opening hours</label><input class="rf-input" id="st-hours" name="supportHours" placeholder="Monday to Friday, 8:00am to 9:00pm ET" /></div>
-                  <div class="rf-field"><label for="st-address">Mailing address</label><input class="rf-input" id="st-address" name="mailingAddress" placeholder="One line, as it would be written on an envelope" /><div class="hint">Also the beneficiary bank address on an incoming wire.</div></div>
+                  <div class="rf-field"><label for="st-address">Mailing address</label><input class="rf-input" id="st-address" name="mailingAddress" placeholder="One line, as it would be written on an envelope" /></div>
+                </div>
+              </section>
+
+              <section class="rf-card">
+                <div class="rf-card-head"><h3>Bitcoin terms</h3></div>
+                <div class="rf-card-body">
+                  <p class="rf-small rf-muted" style="margin:0 0 16px">The terms a customer chooses from when they buy, and the one chosen for them. Each purchase matures on its purchase date plus its term; the dashboard counts down to it. A maturity date does not lock anything.</p>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-terms">Terms offered (months)</label><input class="rf-input" id="st-terms" name="investmentTerms" placeholder="3, 6, 12, 24" /></div>
+                    <div class="rf-field"><label for="st-term">Default term (months)</label><input class="rf-input" id="st-term" name="investmentTermMonths" inputmode="numeric" /></div>
+                  </div>
                 </div>
               </section>
 
               <section class="rf-card">
                 <div class="rf-card-head"><h3>Verification and review</h3></div>
                 <div class="rf-card-body">
-                  <div class="rf-switch"><span class="t">One-time code on every outside transfer<small>Emailed before the transfer is accepted.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Transfer PIN required<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Hold outside transfers for review<small>Nothing leaves until someone here releases it.</small></span><input type="checkbox" name="holdTransfersForReview" /></div>
+                  <div class="rf-switch"><span class="t">One-time code on every withdrawal<small>Emailed before the withdrawal is accepted.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">Withdrawal PIN required<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">Hold withdrawals for review<small>Nothing leaves until someone here releases it.</small></span><input type="checkbox" name="holdTransfersForReview" /></div>
                   <div class="rf-switch"><span class="t">Maintenance mode<small>Shows a banner across the site.</small></span><input type="checkbox" name="maintenanceMode" /></div>
                   <div class="rf-field rf-mt"><label for="st-hold">Always review above</label><input class="rf-input" id="st-hold" name="holdThresholdCents" inputmode="decimal" /></div>
                 </div>
@@ -484,22 +459,19 @@ const content = `
                   </div>
                   <div class="rf-field"><label for="ad-amount">Amount</label><input class="rf-input money" id="ad-amount" name="amount" inputmode="decimal" placeholder="0.00" required /></div>
                 </div>
-                <div class="rf-field"><label for="ad-description">Description on the statement</label><input class="rf-input" id="ad-description" name="description" placeholder="WIRE IN - ACME CORP PAYROLL" required /></div>
+                <div class="rf-field"><label for="ad-description">Description the customer sees</label><input class="rf-input" id="ad-description" name="description" placeholder="DEPOSIT RECEIVED" required /></div>
                 <div class="rf-row three">
-                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method">${Object.entries(TRANSACTION_METHODS).map(([id, m]) => option(id, m.label)).join('')}</select></div>
-                  <div class="rf-field"><label for="ad-category">Category</label><select class="rf-select" id="ad-category" name="category">${CATEGORIES.map((c) => option(c)).join('')}</select></div>
+                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method">${STAFF_METHODS.map((id) => option(id, TRANSACTION_METHODS[id].label)).join('')}</select></div>
+                  <div class="rf-field"><label for="ad-category">Category</label><select class="rf-select" id="ad-category" name="category">${STAFF_CATEGORIES.map((c) => option(c)).join('')}</select></div>
                   <div class="rf-field"><label for="ad-status">Status</label><select class="rf-select" id="ad-status" name="status"><option value="posted">Posted</option><option value="pending">Pending</option></select></div>
                 </div>
                 <div class="rf-row">
                   ${dateField({ id: 'ad-date', name: 'date', label: 'Value date', from: -10, to: 1 })}
-                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to back-post a walk-in or an instruction taken while the network was down.</div></div>
+                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to date a deposit to when it actually arrived.</div></div>
                 </div>
                 <div class="rf-row">
-                  <div class="rf-field"><label for="ad-merchant">Merchant or counterparty</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field"><label for="ad-bank">Counterparty bank</label><input class="rf-input" id="ad-bank" name="counterpartyBank" /></div>
-                  <div class="rf-field"><label for="ad-check">Check number</label><input class="rf-input mono" id="ad-check" name="checkNumber" maxlength="10" /></div>
+                  <div class="rf-field"><label for="ad-merchant">Paid by or to</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
+                  <div class="rf-field"><label for="ad-bank">Their bank</label><input class="rf-input" id="ad-bank" name="counterpartyBank" /></div>
                 </div>
                 <div class="rf-field"><label for="ad-memo">Memo shown to the customer</label><input class="rf-input" id="ad-memo" name="memo" /></div>
                 <div class="rf-field"><label for="ad-note">Internal note</label><input class="rf-input" id="ad-note" name="note" /></div>
@@ -517,7 +489,7 @@ const content = `
         <!-- ------------------------------------------------ reject modal -- -->
         <div class="rf-modal-backdrop rf-hide" data-reject-modal>
           <div class="rf-modal narrow">
-            <div class="rf-modal-head"><h3>Return this transfer</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
+            <div class="rf-modal-head"><h3>Return this withdrawal</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
             <form id="rf-reject-form">
               <div class="rf-modal-body">
                 <p class="rf-small rf-muted" data-reject-summary></p>
@@ -539,27 +511,18 @@ const content = `
         <!-- ------------------------------------------------ account modal -- -->
         <div class="rf-modal-backdrop rf-hide" data-account-modal>
           <div class="rf-modal">
-            <div class="rf-modal-head"><h3>Open an account</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
+            <div class="rf-modal-head"><h3>Open a cash balance</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
             <form id="rf-open-account-form">
               <div class="rf-modal-body">
-                <div class="rf-field">
-                  <label for="oa-product">Product</label>
-                  <select class="rf-select" id="oa-product" name="productId">${PRODUCTS.map((p) => option(p.id, p.name)).join('')}</select>
-                </div>
                 <div class="rf-row">
                   <div class="rf-field"><label for="oa-nickname">Nickname</label><input class="rf-input" id="oa-nickname" name="nickname" /></div>
-                  <div class="rf-field"><label for="oa-opening">Opening balance</label><input class="rf-input money" id="oa-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
+                  <div class="rf-field"><label for="oa-opening">Opening deposit</label><input class="rf-input money" id="oa-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
                 </div>
-                <div class="rf-row">
-                  <div class="rf-field"><label for="oa-credit">Credit limit (credit cards)</label><input class="rf-input" id="oa-credit" name="creditLimit" inputmode="decimal" /></div>
-                  <div class="rf-field"><label for="oa-overdraft">Overdraft limit</label><input class="rf-input" id="oa-overdraft" name="overdraftLimit" inputmode="decimal" /></div>
-                </div>
-                <label class="rf-check"><input type="checkbox" name="issueCard" checked /><span>Issue a card on this account</span></label>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
               </div>
               <div class="rf-modal-foot">
                 <button class="rf-btn ghost" type="button" data-close-modal>Cancel</button>
-                <button class="rf-btn" type="submit" data-submit>Open the account</button>
+                <button class="rf-btn" type="submit" data-submit>Open it</button>
               </div>
             </form>
           </div>
@@ -571,9 +534,9 @@ module.exports = [
     build: appPage,
     opts: {
       title: `Staff console | ${BANK.name}`,
-      description: 'Hedgestone staff console.',
+      description: `${BANK.name} staff console.`,
       heading: 'Staff console',
-      sub: 'Customers, money movement and everything that has been done today.',
+      sub: 'Customers, withdrawals and everything that has been done today.',
       active: 'console',
       staff: true,
       content,

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Hedgestone Global Bank server entry point.
+ * Hedgestone Finance server entry point.
  * Boots the HTTP server and wires graceful shutdown.
  */
 

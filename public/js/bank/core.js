@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The shared front end for Hedgestone online banking.
+ * The shared front end for the signed-in pages.
  *
  * Everything here is plain browser JavaScript: one global, no build step, no
  * framework. It gives the page scripts an API client that carries the CSRF
@@ -84,6 +84,17 @@
     }
   }
 
+  /*
+   * Once the page is being left, the browser abandons whatever is still in
+   * flight, and an abandoned request is not a failure: the customer asked to
+   * go somewhere else. Such a request never settles, rather than surfacing as
+   * "could not reach our servers" on a page that is about to disappear.
+   */
+  let leaving = false;
+  window.addEventListener('beforeunload', () => { leaving = true; });
+  window.addEventListener('pagehide', () => { leaving = true; });
+  window.addEventListener('pageshow', () => { leaving = false; });
+
   async function request(method, path, body) {
     const headers = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -105,10 +116,17 @@
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (err) {
-      throw new ApiError('We could not reach the bank. Check your connection and try again.', 0, 'offline');
+      if (leaving) return new Promise(() => {});
+      throw new ApiError('We could not reach our servers. Check your connection and try again.', 0, 'offline');
     }
 
-    const text = await res.text();
+    let text;
+    try {
+      text = await res.text();
+    } catch (err) {
+      if (leaving) return new Promise(() => {});
+      throw new ApiError('The answer from our servers was cut off. Try again.', 0, 'offline');
+    }
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (err) { data = null; }
 
@@ -133,7 +151,7 @@
       // wrong (404)" on a sign-in page sends people looking at their password.
       const fallback = data && data.message
         ? data.message
-        : `${method} ${url} did not reach the bank (${res.status}). The request was answered before it got here.`;
+        : `${method} ${url} did not reach our servers (${res.status}). The request was answered before it got here.`;
       throw new ApiError(fallback, res.status, data && data.error, data);
     }
     return data;
@@ -463,7 +481,7 @@
   }
 
   /**
-   * Fill in the bank's contact details, wherever the page asks for them.
+   * Fill in the platform's contact details, wherever the page asks for them.
    *
    * The telephone numbers and the postal address are set by an operator at the
    * console, not built into the page, so the markup ships with a standing
@@ -473,7 +491,7 @@
   async function hydrateContact() {
     const fields = qsa('[data-site]');
     const rows = qsa('[data-site-row]');
-    // Signed in, the session has already said what the bank is called.
+    // Signed in, the session has already said what the platform is called.
     if (!fields.length && !rows.length && state.session && state.session.bankName) return;
     let bank;
     try {
@@ -501,7 +519,7 @@
     }
     state.session = session;
     state.user = session.user || null;
-    // The name staff have given the bank, over the one the page was built with.
+    // The name staff have given the platform, over the one the page was built with.
     if (window.HSName && session.bankName) window.HSName.apply(session.bankName);
 
     if (isApp) {

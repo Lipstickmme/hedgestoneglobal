@@ -2,6 +2,11 @@
 
 const chatStore = require('../utils/chatStore');
 const notify = require('../utils/notify');
+const settings = require('../bank/settings');
+const { BANK } = require('../bank/constants');
+
+/** The platform's name as staff have set it, for the canned replies. */
+const platform = () => (settings.snapshot().bankName || '').trim() || BANK.name;
 
 function clean(str, max) {
   return String(str == null ? '' : str).trim().slice(0, max);
@@ -14,33 +19,36 @@ function autoReply(text) {
   const has = (...words) => words.some((w) => t.includes(w));
 
   if (has('hello', 'hi ', 'hey', 'good morning', 'good afternoon') || t === 'hi') {
-    return "Hi, you're through to Hedgestone client services. How can we help? Please never send a password, a card number or a one-time code in chat.";
+    return `Hi, you're through to ${platform()} support. How can we help? Please never send a password or a one-time code in chat.`;
   }
   if (has('career', 'job', 'hiring', 'vacancy', 'apply', 'position', 'role')) {
-    return 'We hire across branch, operations, risk and technology. Open roles are on our Careers page, or tell me which area interests you.';
+    return 'We hire across operations, risk and technology. Open roles are on our Careers page, or tell me which area interests you.';
   }
-  if (has('fee', 'charge', 'cost', 'price', 'rate', 'apy', 'interest', 'minimum')) {
-    return 'Every rate and fee we charge is on the Rates and fees page, including the overdraft and wire schedules. If you tell me which account you are asking about, I can point you at the right line.';
+  if (has('bitcoin', 'btc', 'crypto', 'invest')) {
+    return `${platform()} invests in Bitcoin only. You buy at the live price from $1, choose how long you plan to hold, and your dashboard shows the value since the day you bought and the time left to maturity. Bitcoin's price can fall as well as rise, so only invest what you can leave invested.`;
   }
-  if (has('open an account', 'open account', 'sign up', 'new account', 'apply for')) {
-    return 'You can open an account online in about ten minutes. You will need a government ID and your Social Security number. Start at Open an account, or tell me whether it is personal or business and I will point you at the right product.';
+  if (has('fee', 'charge', 'cost', 'price', 'rate', 'minimum')) {
+    return 'Every fee we charge is on the Fees page. Buying and selling Bitcoin has no commission; you pay the live price shown when you confirm.';
+  }
+  if (has('open an account', 'open account', 'sign up', 'new account', 'apply for', 'get started', 'start investing')) {
+    return 'Start at Start investing and tell us a little about yourself. Someone from our team verifies your identity, opens your account and comes back to you the same business day. You will need a government ID.';
   }
   if (has('lost', 'stolen', 'fraud', 'unauthorised', 'unauthorized', 'scam', 'dispute', 'suspicious')) {
-    return 'If you think a card or an account has been compromised, do not wait on chat: call our fraud line, which is listed on the Security centre page and answered around the clock. You can also freeze a card yourself under Cards in online banking.';
+    return 'If you think your account has been compromised, do not wait on chat: use the details on the Security centre page. You can also sign every device out yourself under Security once you are signed in.';
   }
   if (has('password', 'locked', 'log in', 'login', 'sign in', 'signin', 'code', 'access')) {
-    return 'You can reset a password from the sign-in page under "Forgotten your password?". We will email a one-time code. Never share that code with anyone, including anyone claiming to be from the bank.';
+    return `You can reset a password from the sign-in page under "Forgotten your password?". We will email a one-time code. Never share that code with anyone, including anyone claiming to be from ${platform()}.`;
   }
-  if (has('transfer', 'wire', 'ach', 'payment', 'deposit', 'statement', 'balance', 'card', 'account')) {
-    return 'A customer service representative can go through that with you. Leave your email here and the account it concerns - never the full number - and one will come back to you the same business day.';
+  if (has('withdraw', 'transfer', 'payment', 'deposit', 'balance', 'account', 'maturity', 'matures')) {
+    return 'Someone from our team can go through that with you. Leave your email here and what it is about - never a password or a full account number - and we will come back to you the same business day.';
   }
-  if (has('contact', 'call', 'phone', 'email', 'meet', 'speak', 'branch', 'hours')) {
-    return 'The fastest route is the contact page, where our client services number and hours are listed. Leave your email here and a customer service representative will come back to you the same business day.';
+  if (has('contact', 'call', 'phone', 'email', 'meet', 'speak', 'hours')) {
+    return 'The fastest route is the Support page, where our number and hours are listed. Leave your email here and someone from our team will come back to you the same business day.';
   }
   if (has('thanks', 'thank you', 'cheers', 'great')) {
     return 'Any time. Anything else I can help with?';
   }
-  return "Thanks for the message. A customer service representative will follow up. If you leave your email and a line about what you need, we'll route it to the right person.";
+  return "Thanks for the message. Someone from our team will follow up. If you leave your email and a line about what you need, we'll route it to the right person.";
 }
 
 /**

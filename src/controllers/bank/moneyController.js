@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * Everything that moves money on the customer's side: transfers and their
- * verification, the people and companies they send to, bill payments and
- * mobile check deposits.
+ * Money out, on the customer's side: withdrawals to an account of their own
+ * elsewhere, their verification, and the withdrawal accounts they are paid
+ * into. Money comes in by staff crediting the cash balance at the console.
  */
 
 const { db } = require('../../bank/db');
@@ -15,33 +15,31 @@ const settings = require('../../bank/settings');
 const alerts = require('../../bank/alerts');
 const contact = require('../../bank/contact');
 const audit = require('../../bank/audit');
-const profile = require('./profileController');
-const { asyncHandler, fail, toCents, trimmed, money, page } = require('../../bank/http');
-const { BANK, REJECTION_REASONS, US_STATES } = require('../../bank/constants');
+const { asyncHandler, fail, toCents, trimmed, page } = require('../../bank/http');
+const { US_STATES } = require('../../bank/constants');
 
 const nowIso = () => new Date().toISOString();
 
-/* ------------------------------------------------------------ transfers --- */
+/* ---------------------------------------------------------- withdrawals --- */
 
-/** Everything the transfer form needs to render itself. */
+/** Everything the withdrawal form needs to render itself. */
 const transferOptions = asyncHandler(async (req, res) => {
   const cfg = await settings.get();
-  const [accounts, beneficiaries, payees] = await Promise.all([
+  const [accounts, beneficiaries] = await Promise.all([
     accountsLib.spendableAccounts(req.bankUser.id),
     db.beneficiaries.find({ user_id: req.bankUser.id }, { order: 'created_at.desc' }),
-    db.payees.find({ user_id: req.bankUser.id }, { order: 'name.asc' }),
   ]);
+  const offered = transfersLib.WITHDRAWAL_TYPES.map((id) => [id, transfersLib.TYPE_RULES[id]]);
 
   const spent = {};
-  for (const [type, rule] of Object.entries(transfersLib.TYPE_RULES)) {
+  for (const [type, rule] of offered) {
     spent[type] = await ledger.dailyTotal(req.bankUser.id, [rule.method]);
   }
 
   res.json({
-    accounts: accounts.map(accountsLib.publicAccount),
+    accounts: accounts.map(accountsLib.publicAccount).filter((a) => !a.isCredit),
     beneficiaries: beneficiaries.map(publicBeneficiary),
-    payees: payees.map(publicPayee),
-    types: Object.entries(transfersLib.TYPE_RULES).map(([id, rule]) => ({
+    types: offered.map(([id, rule]) => ({
       id,
       label: rule.label,
       clearing: rule.clearing,
@@ -57,24 +55,6 @@ const transferOptions = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * POST /transfers/member-lookup - who is behind this email, phone or account
- * number? Answers with a masked name and account so the sender can confirm
- * the right person, and nothing else. Rate limited in the router.
- */
-const memberLookup = asyncHandler(async (req, res) => {
-  const found = await transfersLib.findMember(trimmed(req.body && req.body.query, 120), req.bankUser);
-  if (!found) {
-    // A normal answer, not an error: "nobody by that name" is what a search
-    // says, and a 404 here would show up as a failure in the browser console.
-    return res.json({ member: null, message: 'No Hedgestone customer matches that. Check the email, phone or account number.' });
-  }
-  if (found.self) {
-    return res.status(400).json({ error: 'own_account', message: 'That is your own account. Use Transfer between accounts instead.' });
-  }
-  return res.json({ member: transfersLib.publicMember(found) });
-});
-
 const listTransfers = asyncHandler(async (req, res) => {
   const { limit, offset } = page(req.query);
   const rows = await db.transfers.find({ user_id: req.bankUser.id }, { order: 'created_at.desc' });
@@ -87,18 +67,15 @@ const listTransfers = asyncHandler(async (req, res) => {
 
 const getTransfer = asyncHandler(async (req, res) => {
   const transfer = await db.transfers.findById(req.params.id);
-  if (!transfer || transfer.user_id !== req.bankUser.id) throw fail(404, 'Transfer not found.');
+  if (!transfer || transfer.user_id !== req.bankUser.id) throw fail(404, 'Withdrawal not found.');
   res.json({ transfer: transfersLib.publicTransfer(transfer) });
 });
 
 const createTransfer = asyncHandler(async (req, res) => {
   const input = {
-    type: trimmed(req.body.type, 32) || 'internal',
+    type: trimmed(req.body.type, 32) || 'ach',
     fromAccountId: req.body.fromAccountId,
-    toAccountId: req.body.toAccountId,
     beneficiaryId: req.body.beneficiaryId,
-    payeeId: req.body.payeeId,
-    memberQuery: req.body.memberQuery,
     amount: toCents(req.body.amount),
     memo: req.body.memo,
     purpose: req.body.purpose,
@@ -107,6 +84,9 @@ const createTransfer = asyncHandler(async (req, res) => {
     recurrence: req.body.recurrence,
     recurrenceEnd: req.body.recurrenceEnd,
   };
+  if (!transfersLib.WITHDRAWAL_TYPES.includes(input.type)) {
+    throw fail(400, 'Money can only be withdrawn to an account of your own. Choose a withdrawal type.', 'withdrawals_only');
+  }
   if (!Number.isFinite(input.amount)) throw fail(400, 'Enter an amount.');
 
   const result = await transfersLib.submit(req.bankUser, input, req);
@@ -124,7 +104,7 @@ const verifyTransfer = asyncHandler(async (req, res) => {
 
 const resendTransferCode = asyncHandler(async (req, res) => {
   const transfer = await db.transfers.findById(req.params.id);
-  if (!transfer || transfer.user_id !== req.bankUser.id) throw fail(404, 'Transfer not found.');
+  if (!transfer || transfer.user_id !== req.bankUser.id) throw fail(404, 'Withdrawal not found.');
   if (transfer.status !== 'pending_verification') throw fail(409, 'That transfer is not waiting for a code.');
   const otp = await transfersLib.issueTransferOtp(req.bankUser, transfer);
   res.json({ status: 'sent', expiresAt: otp.expiresAt, devCode: otp.devCode });
@@ -176,14 +156,14 @@ const createBeneficiary = asyncHandler(async (req, res) => {
   const swift = trimmed(req.body.swift, 20).toUpperCase();
 
   if (type === 'international_wire') {
-    if (!swift) throw fail(400, 'An international wire needs a SWIFT/BIC code.');
+    if (!swift) throw fail(400, 'An international withdrawal needs the receiving bank’s SWIFT/BIC code.');
   } else if (!ids.validateRouting(routing)) {
-    throw fail(400, 'That routing number is not a valid ABA number. Check the nine digits on the check.');
+    throw fail(400, 'That routing number is not valid. Check the nine digits your bank gives for payments in.');
   }
 
   const duplicate = (await db.beneficiaries.find({ user_id: req.bankUser.id }))
     .find((b) => b.account_number === accountNumber && b.routing_number === routing);
-  if (duplicate) throw fail(409, 'You already have that account saved as a recipient.');
+  if (duplicate) throw fail(409, 'You already have that account saved for withdrawals.');
 
   const row = {
     id: ids.uuid(),
@@ -213,20 +193,20 @@ const createBeneficiary = asyncHandler(async (req, res) => {
   await audit.log({
     action: 'beneficiary.added', category: 'money', userId: req.bankUser.id, req, severity: 'notice',
     actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },
-    detail: `Added recipient ${name} (${ids.maskAccount(accountNumber)})`,
+    detail: `Added withdrawal account ${name} (${ids.maskAccount(accountNumber)})`,
     meta: { beneficiaryId: row.id },
   });
   await alerts.notifyUser(req.bankUser, 'profile_changed', {
-    subject: 'A new recipient was added to your account',
-    heading: 'New recipient added',
-    intro: `${name} was added to your saved recipients.`,
+    subject: 'A new withdrawal account was added',
+    heading: 'New withdrawal account added',
+    intro: `${name} was added to the accounts you can withdraw to.`,
     rows: [
-      { label: 'Recipient', value: name },
-      { label: 'Bank', value: row.bank_name || '-' },
+      { label: 'Name on the account', value: name },
+      { label: 'Held at', value: row.bank_name || '-' },
       { label: 'Account', value: ids.maskAccount(accountNumber) },
       { label: 'Type', value: type.replace(/_/g, ' ') },
     ],
-    footNote: `If you did not add this recipient, ${contact.callFraud()} before making any payment.`,
+    footNote: `If you did not add this account, ${contact.callFraud()} before making any withdrawal.`,
   });
 
   res.status(201).json({ beneficiary: publicBeneficiary(row) });
@@ -234,7 +214,7 @@ const createBeneficiary = asyncHandler(async (req, res) => {
 
 const updateBeneficiary = asyncHandler(async (req, res) => {
   const row = await db.beneficiaries.findById(req.params.id);
-  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Recipient not found.');
+  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Withdrawal account not found.');
   const patch = {};
   ['nickname', 'relationship', 'memo', 'bankName', 'address', 'bankAddress'].forEach((key) => {
     const column = { nickname: 'nickname', relationship: 'relationship', memo: 'memo', bankName: 'bank_name', address: 'address', bankAddress: 'bank_address' }[key];
@@ -252,254 +232,17 @@ const updateBeneficiary = asyncHandler(async (req, res) => {
 
 const deleteBeneficiary = asyncHandler(async (req, res) => {
   const row = await db.beneficiaries.findById(req.params.id);
-  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Recipient not found.');
+  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Withdrawal account not found.');
   await db.beneficiaries.remove(row.id);
   await audit.log({
     action: 'beneficiary.removed', category: 'money', userId: req.bankUser.id, req,
     actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },
-    detail: `Removed recipient ${row.name}`,
+    detail: `Removed withdrawal account ${row.name}`,
   });
   res.json({ status: 'ok' });
-});
-
-/* --------------------------------------------------------------- payees --- */
-
-const publicPayee = (row) => ({
-  id: row.id,
-  name: row.name,
-  category: row.category,
-  accountNumber: row.account_number,
-  accountMask: ids.maskAccount(row.account_number),
-  amount: row.amount,
-  dueDay: row.due_day,
-  autopay: Boolean(row.autopay),
-  status: row.status,
-  phone: row.phone,
-  address: row.address,
-  lastPaidAt: row.last_paid_at,
-  createdAt: row.created_at,
-});
-
-const listPayees = asyncHandler(async (req, res) => {
-  const rows = await db.payees.find({ user_id: req.bankUser.id }, { order: 'name.asc' });
-  res.json({ payees: rows.map(publicPayee) });
-});
-
-const createPayee = asyncHandler(async (req, res) => {
-  const name = trimmed(req.body.name, 120);
-  if (!name) throw fail(400, 'Enter the company name.');
-  const row = {
-    id: ids.uuid(),
-    created_at: nowIso(),
-    user_id: req.bankUser.id,
-    name,
-    category: trimmed(req.body.category, 40) || 'Utilities',
-    account_number: trimmed(req.body.accountNumber, 40),
-    amount: Number.isFinite(toCents(req.body.amount)) ? toCents(req.body.amount) : 0,
-    due_day: Math.min(Math.max(Number(req.body.dueDay) || 1, 1), 28),
-    autopay: Boolean(req.body.autopay),
-    phone: trimmed(req.body.phone, 40),
-    address: trimmed(req.body.address, 200),
-    status: 'active',
-    last_paid_at: null,
-  };
-  await db.payees.insert(row);
-  await audit.log({
-    action: 'payee.added', category: 'money', userId: req.bankUser.id, req,
-    actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },
-    detail: `Added payee ${name}`,
-  });
-  res.status(201).json({ payee: publicPayee(row) });
-});
-
-const updatePayee = asyncHandler(async (req, res) => {
-  const row = await db.payees.findById(req.params.id);
-  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Payee not found.');
-  const patch = {};
-  if (req.body.amount !== undefined) patch.amount = toCents(req.body.amount) || 0;
-  if (req.body.dueDay !== undefined) patch.due_day = Math.min(Math.max(Number(req.body.dueDay) || 1, 1), 28);
-  if (req.body.autopay !== undefined) patch.autopay = Boolean(req.body.autopay);
-  if (req.body.category !== undefined) patch.category = trimmed(req.body.category, 40);
-  if (req.body.status !== undefined) patch.status = trimmed(req.body.status, 20);
-  if (!Object.keys(patch).length) throw fail(400, 'Nothing to change.');
-  await db.payees.update(row.id, patch);
-  res.json({ payee: publicPayee({ ...row, ...patch }) });
-});
-
-const deletePayee = asyncHandler(async (req, res) => {
-  const row = await db.payees.findById(req.params.id);
-  if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Payee not found.');
-  await db.payees.remove(row.id);
-  res.json({ status: 'ok' });
-});
-
-/* ------------------------------------------------------------- deposits --- */
-
-/**
- * Mobile check deposit. Both sides of the check are stored as documents, the
- * money is credited as a pending entry, and the first $225 is made available
- * next business day the way Regulation CC requires.
- */
-const createDeposit = asyncHandler(async (req, res) => {
-  const cfg = await settings.get();
-  const amount = toCents(req.body.amount);
-  if (!Number.isFinite(amount) || amount <= 0) throw fail(400, 'Enter the amount written on the check.');
-  if (amount > cfg.limits.mobileDepositDaily) {
-    throw fail(400, `Mobile deposits are limited to ${money(cfg.limits.mobileDepositDaily)} a day. Visit a branch for larger checks.`);
-  }
-
-  const account = await db.accounts.findById(req.body.accountId);
-  if (!account || account.user_id !== req.bankUser.id) throw fail(404, 'Account not found.');
-  if (!req.body.front || !req.body.back) throw fail(400, 'Photograph the front and the back of the check.');
-
-  const front = await profile.storeDocument({ user: req.bankUser, kind: 'check_front', filename: 'check-front.jpg', dataUrl: req.body.front });
-  const back = await profile.storeDocument({ user: req.bankUser, kind: 'check_back', filename: 'check-back.jpg', dataUrl: req.body.back });
-
-  const holdUntil = ledger.addBusinessDays(new Date(), 2).toISOString();
-  const { transaction } = await ledger.post({
-    accountId: account.id,
-    direction: 'credit',
-    amount,
-    description: `MOBILE CHECK DEPOSIT${req.body.checkNumber ? ` #${trimmed(req.body.checkNumber, 10)}` : ''}`,
-    method: 'mobile_deposit',
-    category: 'Income',
-    status: 'pending',
-    memo: trimmed(req.body.memo, 140),
-    checkNumber: trimmed(req.body.checkNumber, 10) || ids.checkNumber(),
-    createdBy: 'customer',
-    createdById: req.bankUser.id,
-  });
-
-  const deposit = {
-    id: ids.uuid(),
-    created_at: nowIso(),
-    user_id: req.bankUser.id,
-    account_id: account.id,
-    amount,
-    check_number: trimmed(req.body.checkNumber, 10),
-    front_document_id: front.id,
-    back_document_id: back.id,
-    transaction_id: transaction.id,
-    status: 'review',
-    hold_until: holdUntil,
-    available_now: Math.min(amount, 22500),
-    reason_note: '',
-    reviewed_by: null,
-    reviewed_at: null,
-    reference: ids.reference('DEP'),
-  };
-  await db.deposits.insert(deposit);
-
-  await audit.log({
-    action: 'deposit.submitted', category: 'money', userId: req.bankUser.id, req,
-    actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },
-    detail: `Mobile deposit of ${money(amount)} into ${ids.maskAccount(account.account_number)}`,
-    meta: { depositId: deposit.id },
-  });
-  await alerts.notifyUser(req.bankUser, 'deposit_posted', {
-    subject: `Check deposit received - ${money(amount)}`,
-    heading: 'We have your check',
-    intro: `${money(amount)} is being deposited into ${account.nickname || account.name} ${ids.maskAccount(account.account_number)}.`,
-    rows: [
-      { label: 'Amount', value: money(amount) },
-      { label: 'Available now', value: money(deposit.available_now) },
-      { label: 'Remainder available', value: new Date(holdUntil).toLocaleDateString('en-US', { dateStyle: 'long' }) },
-      { label: 'Reference', value: deposit.reference },
-    ],
-    footNote: cfg.clearing.mobileDeposit,
-  });
-
-  res.status(201).json({ deposit: publicDeposit(deposit), transactionId: transaction.id });
-});
-
-const publicDeposit = (row) => ({
-  id: row.id,
-  accountId: row.account_id,
-  amount: row.amount,
-  checkNumber: row.check_number,
-  status: row.status,
-  holdUntil: row.hold_until,
-  availableNow: row.available_now,
-  reference: row.reference,
-  reasonNote: row.reason_note,
-  createdAt: row.created_at,
-  frontUrl: `/api/bank/documents/${row.front_document_id}/file`,
-  backUrl: `/api/bank/documents/${row.back_document_id}/file`,
-});
-
-const listDeposits = asyncHandler(async (req, res) => {
-  const rows = await db.deposits.find({ user_id: req.bankUser.id }, { order: 'created_at.desc', limit: 50 });
-  res.json({ deposits: rows.map(publicDeposit) });
-});
-
-/* ------------------------------------------------------------- disputes --- */
-
-const createDispute = asyncHandler(async (req, res) => {
-  const tx = await db.transactions.findById(req.body.transactionId);
-  if (!tx || tx.user_id !== req.bankUser.id) throw fail(404, 'Transaction not found.');
-  const existing = (await db.disputes.find({ transaction_id: tx.id }))[0];
-  if (existing) throw fail(409, 'A claim is already open on that transaction.');
-
-  const row = {
-    id: ids.uuid(),
-    created_at: nowIso(),
-    user_id: req.bankUser.id,
-    transaction_id: tx.id,
-    account_id: tx.account_id,
-    amount: tx.amount,
-    reason: trimmed(req.body.reason, 60) || 'unauthorized',
-    detail: trimmed(req.body.detail, 1000),
-    status: 'open',
-    reference: ids.reference('CLM'),
-    provisional_credit: false,
-    resolution: '',
-    resolved_at: null,
-    handled_by: null,
-  };
-  await db.disputes.insert(row);
-
-  await audit.log({
-    action: 'dispute.opened', category: 'money', userId: req.bankUser.id, req, severity: 'notice',
-    actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },
-    detail: `Disputed ${money(tx.amount)} - ${tx.description}`,
-    meta: { disputeId: row.id, transactionId: tx.id },
-  });
-  await alerts.notifyUser(req.bankUser, 'card_activity', {
-    force: true,
-    subject: `Claim opened - ${row.reference}`,
-    heading: 'We have opened your claim',
-    intro: 'Our disputes team will look at this and write to you within 10 business days.',
-    rows: [
-      { label: 'Transaction', value: tx.description },
-      { label: 'Amount', value: money(tx.amount) },
-      { label: 'Reason', value: row.reason },
-      { label: 'Claim reference', value: row.reference },
-    ],
-  });
-  res.status(201).json({ dispute: publicDispute(row) });
-});
-
-const publicDispute = (row) => ({
-  id: row.id,
-  transactionId: row.transaction_id,
-  amount: row.amount,
-  reason: row.reason,
-  detail: row.detail,
-  status: row.status,
-  reference: row.reference,
-  provisionalCredit: Boolean(row.provisional_credit),
-  resolution: row.resolution,
-  createdAt: row.created_at,
-  resolvedAt: row.resolved_at,
-});
-
-const listDisputes = asyncHandler(async (req, res) => {
-  const rows = await db.disputes.find({ user_id: req.bankUser.id }, { order: 'created_at.desc' });
-  res.json({ disputes: rows.map(publicDispute), reasons: REJECTION_REASONS });
 });
 
 module.exports = {
-  memberLookup,
   transferOptions,
   listTransfers,
   getTransfer,
@@ -511,16 +254,5 @@ module.exports = {
   createBeneficiary,
   updateBeneficiary,
   deleteBeneficiary,
-  listPayees,
-  createPayee,
-  updatePayee,
-  deletePayee,
-  createDeposit,
-  listDeposits,
-  createDispute,
-  listDisputes,
   publicBeneficiary,
-  publicPayee,
-  publicDeposit,
-  publicDispute,
 };

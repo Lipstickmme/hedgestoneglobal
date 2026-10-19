@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * The banking API.
+ * The platform's API (mounted at /api/bank, the path it has always had).
  *
  * Ordering matters here in three places and nowhere else:
  *   1. the JSON parser is mounted with a larger ceiling than the rest of the
@@ -50,10 +50,8 @@ router.get('/config', asyncHandler(async (req, res) => {
   res.json({
     bank: {
       name: cfg.bankName || BANK.name,
-      shortName: BANK.shortName,
+      shortName: cfg.bankName || BANK.shortName,
       tagline: BANK.tagline,
-      routingNumber: cfg.routingNumber || BANK.routingNumber,
-      swift: BANK.swift,
       // The contact block is operator-supplied and blank until it is set, so
       // the app can tell "not configured" from "configured as this" and leave
       // the row out rather than print an empty one.
@@ -63,9 +61,6 @@ router.get('/config', asyncHandler(async (req, res) => {
       email: cfg.supportEmail || BANK.email,
       address: cfg.mailingAddress || '',
       hours: cfg.supportHours || '',
-      fdicCert: BANK.fdicCert,
-      nmls: BANK.nmls,
-      established: BANK.established,
     },
     products: PRODUCTS,
     accountTypes: ACCOUNT_TYPES,
@@ -81,6 +76,8 @@ router.get('/config', asyncHandler(async (req, res) => {
 
 /** Live prices for the ticker under the nav. Public, and cached at the edge. */
 router.get('/markets', invest.quotes);
+/** Daily Bitcoin prices for the dashboard chart. Public, and cached at the edge. */
+router.get('/markets/history', invest.history);
 
 /* ------------------------------------------------------------------ auth --- */
 
@@ -127,22 +124,13 @@ router.get('/me/alert-preferences', profile.alertPreferences);
 router.put('/me/alert-preferences', profile.updateAlertPreferences);
 
 router.get('/accounts', accounts.list);
-router.get('/accounts/:id', accounts.detail);
-router.patch('/accounts/:id', accounts.rename);
-router.get('/accounts/:id/statements', accounts.statements);
-router.get('/accounts/:id/statements/:period', accounts.statementDetail);
 
 router.get('/transactions', accounts.transactions);
 router.get('/transactions/export', accounts.exportTransactions);
 router.get('/transactions/:id', accounts.transactionDetail);
 
-router.get('/cards', accounts.cards);
-router.post('/cards/:id', accounts.updateCard);
-
+// Withdrawals. The paths keep their old name; only withdrawals are accepted.
 router.get('/transfers/options', money.transferOptions);
-// Finding another customer to pay: a tight bucket, so the lookup cannot be
-// used to walk the customer list.
-router.post('/transfers/member-lookup', limiter.create({ windowMs: 10 * 60_000, max: 40, name: 'bank-member-lookup' }), money.memberLookup);
 router.get('/transfers', money.listTransfers);
 router.post('/transfers', money.createTransfer);
 router.get('/transfers/:id', money.getTransfer);
@@ -155,20 +143,9 @@ router.post('/beneficiaries', money.createBeneficiary);
 router.patch('/beneficiaries/:id', money.updateBeneficiary);
 router.delete('/beneficiaries/:id', money.deleteBeneficiary);
 
-router.get('/payees', money.listPayees);
-router.post('/payees', money.createPayee);
-router.patch('/payees/:id', money.updatePayee);
-router.delete('/payees/:id', money.deletePayee);
-
-router.get('/deposits', money.listDeposits);
-router.post('/deposits', money.createDeposit);
-
 router.get('/invest', invest.portfolio);
 router.post('/invest/convert', invest.convert);
 router.post('/invest/sell', invest.sell);
-
-router.get('/disputes', money.listDisputes);
-router.post('/disputes', money.createDispute);
 
 router.get('/alerts', messaging.listAlerts);
 router.post('/alerts/read-all', messaging.readAllAlerts);
@@ -216,13 +193,6 @@ staff.get('/transfers', admin.listTransfers);
 staff.post('/transfers/:id/approve', admin.approveTransfer);
 staff.post('/transfers/:id/reject', admin.rejectTransfer);
 
-staff.get('/deposits', admin.listDeposits);
-staff.post('/deposits/:id/review', admin.reviewDeposit);
-
-staff.get('/cards', admin.listCards);
-staff.post('/cards', admin.issueCard);
-staff.patch('/cards/:id', admin.updateCard);
-
 staff.post('/beneficiaries/:id/review', admin.reviewBeneficiary);
 
 staff.get('/activity', admin.listActivity);
@@ -233,9 +203,6 @@ staff.post('/alerts', admin.sendAlert);
 
 staff.get('/messages', admin.listMessages);
 staff.post('/messages/:id/reply', admin.replyToMessage);
-
-staff.get('/disputes', admin.listDisputes);
-staff.post('/disputes/:id/resolve', admin.resolveDispute);
 
 router.use('/admin', staff);
 

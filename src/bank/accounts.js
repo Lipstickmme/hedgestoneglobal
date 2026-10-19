@@ -1,11 +1,11 @@
 'use strict';
 
 /**
- * Opening accounts and issuing the plastic that goes with them.
+ * Opening a customer's cash balance, the account their Bitcoin is bought
+ * from and sold back into.
  *
- * An account number, a card number and a statement cycle all have to be
- * generated together and consistently, so the console, the seeder and the
- * product pages all come through here.
+ * The account number and the opening deposit have to be created together and
+ * consistently, so the console and the seeder both come through here.
  */
 
 const { db } = require('./db');
@@ -90,68 +90,6 @@ async function openAccount(user, input = {}) {
   return db.accounts.findById(account.id);
 }
 
-/** A debit or credit card attached to an account. */
-async function issueCard(user, account, input = {}) {
-  const brand = input.brand || 'visa';
-  const kind = input.kind || (account.type === 'credit' ? 'credit' : 'debit');
-  const number = ids.cardNumber(brand, kind);
-  const expires = new Date();
-  expires.setUTCFullYear(expires.getUTCFullYear() + (input.years || 4));
-
-  const card = {
-    id: ids.uuid(),
-    created_at: nowIso(),
-    user_id: user.id,
-    account_id: account.id,
-    brand,
-    kind,
-    number_encrypted: require('./security').encrypt(number),
-    last4: number.slice(-4),
-    bin: number.slice(0, 6),
-    name_on_card: input.nameOnCard || `${user.first_name} ${user.last_name}`.toUpperCase().trim(),
-    exp_month: expires.getUTCMonth() + 1,
-    exp_year: expires.getUTCFullYear(),
-    cvv_encrypted: require('./security').encrypt(ids.cvv()),
-    status: input.status || 'active',
-    design: input.design || 'bedrock',
-    daily_purchase_limit: Number(input.dailyPurchaseLimit || 750000),
-    daily_atm_limit: Number(input.dailyAtmLimit || 100000),
-    contactless: input.contactless !== false,
-    international_allowed: Boolean(input.internationalAllowed),
-    online_allowed: input.onlineAllowed !== false,
-    pin_set: true,
-    activated_at: input.activated === false ? null : nowIso(),
-    replaced_card_id: input.replacedCardId || null,
-    notes: input.notes || '',
-  };
-  await db.cards.insert(card);
-  return card;
-}
-
-/** What a browser may see about a card. Never the PAN, never the CVV. */
-function publicCard(card) {
-  if (!card) return null;
-  return {
-    id: card.id,
-    accountId: card.account_id,
-    brand: card.brand,
-    kind: card.kind,
-    last4: card.last4,
-    masked: `•••• •••• •••• ${card.last4}`,
-    nameOnCard: card.name_on_card,
-    expires: `${String(card.exp_month).padStart(2, '0')}/${String(card.exp_year).slice(-2)}`,
-    status: card.status,
-    design: card.design,
-    dailyPurchaseLimit: card.daily_purchase_limit,
-    dailyAtmLimit: card.daily_atm_limit,
-    contactless: card.contactless,
-    internationalAllowed: card.international_allowed,
-    onlineAllowed: card.online_allowed,
-    activatedAt: card.activated_at,
-    createdAt: card.created_at,
-  };
-}
-
 /** What a browser may see about an account. */
 function publicAccount(account) {
   if (!account) return null;
@@ -197,4 +135,4 @@ async function spendableAccounts(userId) {
   return rows.filter((a) => a.type !== 'cd' && a.type !== 'loan' && a.type !== 'mortgage');
 }
 
-module.exports = { openAccount, issueCard, publicAccount, publicCard, productById, spendableAccounts };
+module.exports = { openAccount, publicAccount, productById, spendableAccounts };

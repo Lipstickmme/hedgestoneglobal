@@ -1,18 +1,22 @@
 'use strict';
 
 /**
- * Moving money out of an account: validation, verification, review and
+ * Moving money out of a cash balance: validation, verification, review and
  * settlement.
  *
- * The shape of a transfer follows what actually happens at a bank rather than
- * what is convenient to code:
+ * Customers can only withdraw to an account of their own elsewhere
+ * (WITHDRAWAL_TYPES). The engine still knows the other types so that history
+ * recorded before the platform became Bitcoin-only reads and settles.
+ *
+ * The shape of a withdrawal follows what actually happens rather than what is
+ * convenient to code:
  *
  *   submitted -> pending_verification (one-time code / transfer PIN)
  *             -> pending_review       (operator queue, above the threshold)
  *             -> processing           (funds held, instruction sent)
  *             -> completed | rejected | returned
  *
- * A transfer between two Hedgestone accounts skips the middle: both legs post
+ * A transfer between two accounts on our own books skips the middle: both legs post
  * immediately, because both sides of it are on our own books. Everything else
  * puts a hold on the money the moment it is accepted, so the customer cannot
  * spend it twice while it clears.
@@ -32,14 +36,17 @@ const money = alerts.money;
 
 /** Which daily limit and which fee a transfer type is subject to. */
 const TYPE_RULES = {
-  internal: { limitKey: 'internalDaily', feeKey: null, method: 'internal', label: 'Transfer between accounts', clearing: 'Immediate' },
-  member: { limitKey: 'memberDaily', feeKey: null, method: 'member', label: 'Hedgestone customer', clearing: 'Instant' },
-  ach: { limitKey: 'achDaily', feeKey: 'achOutgoing', method: 'ach', label: 'ACH transfer', clearing: '1-3 business days' },
-  wire_domestic: { limitKey: 'wireDaily', feeKey: 'wireDomestic', method: 'wire_domestic', label: 'Domestic wire', clearing: 'Same business day' },
-  wire_international: { limitKey: 'wireDaily', feeKey: 'wireInternational', method: 'wire_international', label: 'International wire', clearing: '2-5 business days' },
-  instant: { limitKey: 'instantDaily', feeKey: null, method: 'instant', label: 'Instant send', clearing: 'Seconds' },
+  internal: { limitKey: 'internalDaily', feeKey: null, method: 'internal', label: 'Between your balances', clearing: 'Immediate' },
+  member: { limitKey: 'memberDaily', feeKey: null, method: 'member', label: 'Another customer', clearing: 'Instant' },
+  ach: { limitKey: 'achDaily', feeKey: 'achOutgoing', method: 'ach', label: 'Standard withdrawal', clearing: '1-3 business days' },
+  wire_domestic: { limitKey: 'wireDaily', feeKey: 'wireDomestic', method: 'wire_domestic', label: 'Same-day withdrawal', clearing: 'Same business day' },
+  wire_international: { limitKey: 'wireDaily', feeKey: 'wireInternational', method: 'wire_international', label: 'International withdrawal', clearing: '2-5 business days' },
+  instant: { limitKey: 'instantDaily', feeKey: null, method: 'instant', label: 'Instant transfer', clearing: 'Seconds' },
   bill_pay: { limitKey: 'billPayDaily', feeKey: null, method: 'bill_pay', label: 'Bill payment', clearing: '1-3 business days' },
 };
+
+/** What a customer can ask for: money out to an account of their own elsewhere. */
+const WITHDRAWAL_TYPES = ['ach', 'wire_domestic', 'wire_international'];
 
 function ruleFor(type) {
   return TYPE_RULES[type] || TYPE_RULES.ach;
@@ -50,13 +57,13 @@ function reasonLabel(code) {
   return found ? found.label : 'Transfer could not be completed';
 }
 
-/* ------------------------------------------------- Hedgestone members --- */
+/* ---------------------------------------------- payments between members --- */
 
 /** "Mara Velez" -> "Mara V." - enough to confirm the right person, no more. */
 function maskedName(user) {
   const first = String(user.first_name || user.preferred_name || '').trim();
   const last = String(user.last_name || '').trim();
-  return `${first || 'Hedgestone'}${last ? ` ${last.charAt(0).toUpperCase()}.` : ' customer'}`;
+  return `${first || 'A'}${last ? ` ${last.charAt(0).toUpperCase()}.` : ' customer'}`;
 }
 
 /**
@@ -130,17 +137,17 @@ async function validate(user, input) {
   }
   if (amount > cfg.limits.singleTransactionMax) {
     throw Object.assign(
-      new Error(`The most you can send in one transfer is ${money(cfg.limits.singleTransactionMax)}. Call us to arrange a larger payment.`),
+      new Error(`The most you can withdraw at once is ${money(cfg.limits.singleTransactionMax)}. Contact us to arrange a larger withdrawal.`),
       { status: 400 }
     );
   }
 
   const from = await db.accounts.findById(input.fromAccountId);
   if (!from || from.user_id !== user.id) {
-    throw Object.assign(new Error('Choose an account to send from.'), { status: 400 });
+    throw Object.assign(new Error('Choose the balance to withdraw from.'), { status: 400 });
   }
   if (from.status !== 'active') {
-    throw Object.assign(new Error(`That account is ${from.status}. Transfers are not available on it.`), { status: 409 });
+    throw Object.assign(new Error(`That account is ${from.status}. Withdrawals are not available on it.`), { status: 409 });
   }
 
   const fee = rule.feeKey ? Number(cfg.fees[rule.feeKey] || 0) : 0;
@@ -148,7 +155,7 @@ async function validate(user, input) {
   const available = ledger.availableFor(from);
   if (total > available) {
     throw Object.assign(
-      new Error(`Not enough available funds. ${money(available)} is available, and this transfer needs ${money(total)}.`),
+      new Error(`Not enough available funds. ${money(available)} is available, and this withdrawal needs ${money(total)}.`),
       { status: 400, code: 'insufficient_funds' }
     );
   }
@@ -178,7 +185,7 @@ async function validate(user, input) {
   } else if (input.type === 'member') {
     const found = await findMember(input.memberQuery, user);
     if (!found) {
-      throw Object.assign(new Error('We could not find a Hedgestone customer with those details. Check the email, phone or account number.'), { status: 400, code: 'member_not_found' });
+      throw Object.assign(new Error('We could not find a customer with those details. Check the email, phone or account number.'), { status: 400, code: 'member_not_found' });
     }
     if (found.self) {
       throw Object.assign(new Error('That is your own account. Use Transfer between accounts instead.'), { status: 400 });
@@ -193,13 +200,13 @@ async function validate(user, input) {
   } else {
     beneficiary = await db.beneficiaries.findById(input.beneficiaryId);
     if (!beneficiary || beneficiary.user_id !== user.id) {
-      throw Object.assign(new Error('Choose a recipient.'), { status: 400 });
+      throw Object.assign(new Error('Choose the account to withdraw to.'), { status: 400 });
     }
     if (beneficiary.status === 'blocked') {
-      throw Object.assign(new Error('That recipient is blocked. Contact us to release it.'), { status: 409 });
+      throw Object.assign(new Error('That withdrawal account is blocked. Contact us to release it.'), { status: 409 });
     }
     if (input.type !== 'international_wire' && beneficiary.routing_number && !ids.validateRouting(beneficiary.routing_number)) {
-      throw Object.assign(new Error('That recipient’s routing number is not valid.'), { status: 400, code: 'invalid_routing' });
+      throw Object.assign(new Error('That withdrawal account’s details are not valid.'), { status: 400, code: 'invalid_routing' });
     }
   }
 
@@ -281,7 +288,7 @@ async function submit(user, input, req) {
     const security = require('./security');
     const ok = input.pin ? await security.verifySecret(String(input.pin), user.transfer_pin_hash) : false;
     if (!ok) {
-      throw Object.assign(new Error('That transfer PIN is not correct.'), { status: 403, code: 'pin_required' });
+      throw Object.assign(new Error('That withdrawal PIN is not correct.'), { status: 403, code: 'pin_required' });
     }
     transfer.pin_verified = true;
   }
@@ -296,11 +303,11 @@ async function submit(user, input, req) {
       meta: { transferId: transfer.id },
     });
     await alerts.notifyUser(user, 'transfer_submitted', {
-      subject: `Transfer scheduled - ${money(amount)}`,
-      heading: 'Your transfer is scheduled',
+      subject: `Withdrawal scheduled - ${money(amount)}`,
+      heading: 'Your withdrawal is scheduled',
       intro: `We will send ${money(amount)} on ${new Date(scheduledFor).toLocaleDateString('en-US', { dateStyle: 'long' })}.`,
       rows: receiptRows(transfer),
-      cta: { label: 'View transfers', href: `${appUrl()}/transfers` },
+      cta: { label: 'View withdrawals', href: `${appUrl()}/transfers` },
     });
     return { transfer, next: 'scheduled' };
   }
@@ -322,11 +329,11 @@ async function issueTransferOtp(user, transfer) {
   const { code, expiresAt } = await auth.issueOtp(user, `transfer:${transfer.id}`, { transferId: transfer.id });
   await alerts.notifyUser(user, 'transfer_submitted', {
     force: true,
-    subject: `Your Hedgestone verification code: ${code}`,
-    heading: 'Verify this transfer',
-    intro: `Use code ${code} to release the transfer below. It expires in 10 minutes.`,
+    subject: `Your ${BANK.name} verification code: ${code}`,
+    heading: 'Verify this withdrawal',
+    intro: `Use code ${code} to release the withdrawal below. It expires in 10 minutes.`,
     rows: receiptRows(transfer),
-    footNote: `If you did not start this transfer, do not enter the code - ${contact.callFraud()}.`,
+    footNote: `If you did not ask for this withdrawal, do not enter the code - ${contact.callFraud()}.`,
   });
   const exposeCode = require('../utils/config').showDevCodes();
   if (exposeCode) {
@@ -342,10 +349,10 @@ async function issueTransferOtp(user, transfer) {
 async function verify(user, transferId, code, req) {
   const transfer = await db.transfers.findById(transferId);
   if (!transfer || transfer.user_id !== user.id) {
-    throw Object.assign(new Error('Transfer not found.'), { status: 404 });
+    throw Object.assign(new Error('Withdrawal not found.'), { status: 404 });
   }
   if (transfer.status !== 'pending_verification') {
-    throw Object.assign(new Error('That transfer is no longer waiting for a code.'), { status: 409 });
+    throw Object.assign(new Error('That withdrawal is no longer waiting for a code.'), { status: 409 });
   }
   const auth = require('./auth');
   const result = await auth.verifyOtp(user, `transfer:${transfer.id}`, code);
@@ -372,7 +379,7 @@ async function verify(user, transferId, code, req) {
  */
 async function finalise(user, transfer, req) {
   const cfg = await settings.get();
-  // Money between two Hedgestone customers never leaves the bank, and the
+  // Money between two customers never leaves our own books, and the
   // sender has already cleared the code and PIN, so it is held only above the
   // review threshold - not by the blanket "review everything outgoing" switch,
   // which exists for payments that go out to the world.
@@ -415,11 +422,11 @@ async function finalise(user, transfer, req) {
       meta: { transferId: transfer.id, confirmation: transfer.confirmation },
     });
     await alerts.notifyUser(user, 'transfer_submitted', {
-      subject: `Transfer submitted - ${money(transfer.amount)}`,
-      heading: 'We have your transfer',
-      intro: 'It is with our payments team for review. You will get another email the moment it is released.',
+      subject: `Withdrawal requested - ${money(transfer.amount)}`,
+      heading: 'We have your withdrawal request',
+      intro: 'It is with our team for review. You will get another email the moment it is released.',
       rows: receiptRows({ ...transfer, ...patch }),
-      cta: { label: 'Track this transfer', href: `${appUrl()}/transfers` },
+      cta: { label: 'Track this withdrawal', href: `${appUrl()}/transfers` },
     });
     return { transfer: { ...transfer, ...patch }, next: 'review' };
   }
@@ -470,7 +477,7 @@ async function complete(user, transfer, { actor = 'system', actorId = null, req,
       amount: fresh.amount,
       description: describeIncoming(fresh),
       category: fresh.type === 'member' ? 'Income' : 'Transfers',
-      counterparty: fresh.type === 'member' ? { name: (fresh.snapshot && fresh.snapshot.senderName) || 'Hedgestone customer', bank: 'Hedgestone Global Bank' } : null,
+      counterparty: fresh.type === 'member' ? { name: (fresh.snapshot && fresh.snapshot.senderName) || 'Another customer', bank: settings.snapshot().bankName || BANK.name } : null,
       method: fresh.method,
       status: 'posted',
       memo: fresh.memo,
@@ -526,9 +533,9 @@ async function complete(user, transfer, { actor = 'system', actorId = null, req,
   });
   if (user) {
     await alerts.notifyUser(user, 'transfer_completed', {
-      subject: `Transfer sent - ${money(fresh.amount)}`,
-      heading: 'Your transfer is on its way',
-      intro: `${money(fresh.amount)} has left your account.`,
+      subject: `Withdrawal sent - ${money(fresh.amount)}`,
+      heading: 'Your withdrawal is on its way',
+      intro: `${money(fresh.amount)} has left your cash balance.`,
       rows: receiptRows(done),
       cta: { label: 'View receipt', href: `${appUrl()}/transfers` },
     });
@@ -540,7 +547,7 @@ async function complete(user, transfer, { actor = 'system', actorId = null, req,
 async function reject(transfer, { reasonCode = 'other', note = '', actorId = null, actorEmail = '', req } = {}) {
   const fresh = await db.transfers.findById(transfer.id) || transfer;
   if (['completed', 'rejected', 'cancelled'].includes(fresh.status)) {
-    throw Object.assign(new Error(`That transfer is already ${fresh.status}.`), { status: 409 });
+    throw Object.assign(new Error(`That withdrawal is already ${fresh.status}.`), { status: 409 });
   }
   if (fresh.debit_transaction_id) {
     await ledger.settle(fresh.debit_transaction_id, { status: 'failed', note: note || reasonLabel(reasonCode) });
@@ -563,8 +570,8 @@ async function reject(transfer, { reasonCode = 'other', note = '', actorId = nul
   });
   if (user) {
     await alerts.notifyUser(user, 'transfer_rejected', {
-      subject: `Transfer returned - ${money(fresh.amount)}`,
-      heading: 'We could not complete this transfer',
+      subject: `Withdrawal returned - ${money(fresh.amount)}`,
+      heading: 'We could not complete this withdrawal',
       intro: patch.reason_note,
       rows: receiptRows({ ...fresh, ...patch }),
       body: `The funds are back in your available balance. Please ${contact.callSupport()} if you would like us to look at it with you.`,
@@ -578,10 +585,10 @@ async function reject(transfer, { reasonCode = 'other', note = '', actorId = nul
 async function cancel(user, transferId, req) {
   const transfer = await db.transfers.findById(transferId);
   if (!transfer || transfer.user_id !== user.id) {
-    throw Object.assign(new Error('Transfer not found.'), { status: 404 });
+    throw Object.assign(new Error('Withdrawal not found.'), { status: 404 });
   }
   if (!['pending_verification', 'pending_review', 'scheduled'].includes(transfer.status)) {
-    throw Object.assign(new Error('This transfer can no longer be cancelled.'), { status: 409 });
+    throw Object.assign(new Error('This withdrawal can no longer be cancelled.'), { status: 409 });
   }
   if (transfer.debit_transaction_id) {
     await ledger.settle(transfer.debit_transaction_id, { status: 'failed', note: 'Cancelled by customer' });
@@ -663,7 +670,7 @@ function describeOutgoing(transfer) {
 }
 
 function describeIncoming(transfer) {
-  if (transfer.type === 'member') return `Received from ${(transfer.snapshot && transfer.snapshot.senderName) || 'a Hedgestone customer'}`;
+  if (transfer.type === 'member') return `Received from ${(transfer.snapshot && transfer.snapshot.senderName) || 'another customer'}`;
   return transfer.type === 'internal' ? 'Transfer from account' : 'Incoming transfer';
 }
 
@@ -678,10 +685,10 @@ function receiptRows(transfer) {
   if (transfer.snapshot && transfer.snapshot.name) {
     rows.push({ label: 'To', value: `${transfer.snapshot.name}${transfer.snapshot.accountMasked ? ` (${transfer.snapshot.accountMasked})` : ''}` });
   }
-  if (transfer.snapshot && transfer.snapshot.bank) rows.push({ label: 'Receiving bank', value: transfer.snapshot.bank });
+  if (transfer.snapshot && transfer.snapshot.bank) rows.push({ label: 'Paid into', value: transfer.snapshot.bank });
   rows.push({ label: 'Confirmation', value: transfer.confirmation });
-  if (transfer.trace_number) rows.push({ label: 'ACH trace', value: transfer.trace_number });
-  if (transfer.imad) rows.push({ label: 'IMAD', value: transfer.imad });
+  if (transfer.trace_number) rows.push({ label: 'Trace reference', value: transfer.trace_number });
+  if (transfer.imad) rows.push({ label: 'Payment reference', value: transfer.imad });
   if (transfer.memo) rows.push({ label: 'Memo', value: transfer.memo });
   rows.push({ label: 'Status', value: statusLabel(transfer.status) });
   return rows;
@@ -759,4 +766,5 @@ module.exports = {
   ruleFor,
   reasonLabel,
   TYPE_RULES,
+  WITHDRAWAL_TYPES,
 };

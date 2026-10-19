@@ -30,8 +30,6 @@
       ['Identity check', badge(user.kycStatus)],
       ['With us since', date(user.createdAt)],
       ['Last signed in', user.lastLoginAt ? datetime(user.lastLoginAt) : 'First visit'],
-      ['Accounts', String(data.counts.accounts)],
-      ['Cards', String(data.counts.cards)],
     ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
 
     onSubmit(form, async (values) => {
@@ -42,6 +40,8 @@
     });
 
     // Paperless switch.
+    // Paper statements went with the banking features; the switch is only
+    // drawn on an older page, and still works there.
     const paperless = qs('[data-toggle="paperless"]');
     if (paperless) {
       paperless.checked = Boolean(user.paperless);
@@ -63,7 +63,7 @@
         <li>
           <span class="t">
             <strong>${esc(doc.kindLabel)}</strong>
-            <span>${esc(doc.filename)} &middot; ${Math.round(doc.size / 1024)}KB &middot; ${date(doc.createdAt)}${doc.uploadedBy === 'admin' ? ' &middot; filed by the bank' : ''}</span>
+            <span>${esc(doc.filename)} &middot; ${Math.round(doc.size / 1024)}KB &middot; ${date(doc.createdAt)}${doc.uploadedBy === 'admin' ? ' &middot; filed by our team' : ''}</span>
           </span>
           <a class="rf-btn ghost sm" href="${esc(doc.url)}" target="_blank" rel="noopener">View</a>
           <button class="rf-btn link sm" data-remove="${esc(doc.id)}">Remove</button>
@@ -156,7 +156,7 @@
     onSubmit(qs('#rf-pin-form'), async (values) => {
       await api.patch('/me/security', values);
       qs('#rf-pin-form').reset();
-      toast('Transfer PIN saved.', 'ok');
+      toast('Withdrawal PIN saved.', 'ok');
     });
 
     onSubmit(qs('#rf-question-form'), async (values) => {

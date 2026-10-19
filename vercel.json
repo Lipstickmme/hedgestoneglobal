@@ -5,15 +5,54 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
+  "redirects": [
+    {
+      "source": "/accounts",
+      "destination": "/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/statements",
+      "destination": "/transactions",
+      "permanent": true
+    },
+    {
+      "source": "/bills",
+      "destination": "/transfers",
+      "permanent": true
+    },
+    {
+      "source": "/deposit",
+      "destination": "/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/cards",
+      "destination": "/dashboard",
+      "permanent": true
+    },
+    {
+      "source": "/personal",
+      "destination": "/bitcoin",
+      "permanent": true
+    },
+    {
+      "source": "/business",
+      "destination": "/bitcoin",
+      "permanent": true
+    },
     {
       "source": "/services",
-      "destination": "/personal"
+      "destination": "/bitcoin",
+      "permanent": true
     },
     {
       "source": "/projects",
-      "destination": "/business"
-    },
+      "destination": "/bitcoin",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
     {
       "source": "/contact",
       "destination": "/support"

@@ -50,7 +50,7 @@ const login = asyncHandler(async (req, res) => {
       if (result.locked) {
         await alerts.notifyUser(result.user, 'login_new_device', {
           force: true,
-          subject: 'Your Hedgestone account is temporarily locked',
+          subject: `Your ${BANK.name} account is temporarily locked`,
           heading: 'Too many sign-in attempts',
           intro: 'We locked online banking for 15 minutes after several incorrect passwords.',
           body: `If this was not you, ${contact.callFraud()} straight away.`,
@@ -88,7 +88,7 @@ const login = asyncHandler(async (req, res) => {
     const device = audit.describeDevice(req.headers['user-agent'] || '');
     await alerts.notifyUser(user, 'login_new_device', {
       force: true,
-      subject: `Your Hedgestone sign-in code: ${code}`,
+      subject: `Your ${BANK.name} sign-in code: ${code}`,
       heading: 'Your sign-in code',
       intro: `Enter ${code} to finish signing in. It expires in ${(await settings.get()).otpMinutes} minutes.`,
       rows: [
@@ -139,7 +139,7 @@ async function finishLogin(req, res, user, { remember = false } = {}) {
   // A new IP is the signal customers actually care about.
   if (previousIp && previousIp !== audit.clientIp(req)) {
     await alerts.notifyUser(user, 'login_new_device', {
-      subject: 'New sign-in to your Hedgestone account',
+      subject: `New sign-in to your ${BANK.name} account`,
       heading: 'New sign-in',
       intro: 'Your online banking was opened from a device we have not seen at this address before.',
       rows: [
@@ -189,7 +189,7 @@ const resend = asyncHandler(async (req, res) => {
   const { code, expiresAt } = await auth.issueOtp(user, 'login', {});
   await alerts.notifyUser(user, 'login_new_device', {
     force: true,
-    subject: `Your Hedgestone sign-in code: ${code}`,
+    subject: `Your ${BANK.name} sign-in code: ${code}`,
     heading: 'Your sign-in code',
     intro: `Enter ${code} to finish signing in.`,
   });
@@ -271,7 +271,7 @@ const changePassword = asyncHandler(async (req, res) => {
     detail: `Password changed; ${revoked} other session(s) signed out`,
   });
   await alerts.notifyUser(user, 'password_changed', {
-    subject: 'Your Hedgestone password was changed',
+    subject: `Your ${BANK.name} password was changed`,
     heading: 'Your password was changed',
     intro: 'This is confirmation that the password for your online banking has just been changed.',
     rows: [
@@ -296,7 +296,7 @@ const forgot = asyncHandler(async (req, res) => {
     const { code } = await auth.issueOtp(user, 'reset', { ip: audit.clientIp(req) });
     await alerts.notifyUser(user, 'password_changed', {
       force: true,
-      subject: 'Reset your Hedgestone password',
+      subject: `Reset your ${BANK.name} password`,
       heading: 'Reset your password',
       intro: `Use code ${code} to set a new password. It expires shortly.`,
       footNote: `If you did not ask for this, ignore this email and ${contact.callFraud()} if you are concerned.`,
@@ -343,7 +343,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     actor: { id: user.id, email, role: user.role }, detail: 'Password reset with an emailed code',
   });
   await alerts.notifyUser(user, 'password_changed', {
-    subject: 'Your Hedgestone password was reset',
+    subject: `Your ${BANK.name} password was reset`,
     heading: 'Your password was reset',
     intro: 'Your online banking password has just been reset and every other session was signed out.',
     footNote: `If this was not you, ${contact.callFraud()} immediately.`,
