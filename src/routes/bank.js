@@ -154,6 +154,7 @@ staff.use(auth.requireAdmin);
 
 staff.get('/overview', admin.overview);
 staff.get('/setup', setupController.setup);
+staff.post('/setup/apply', setupController.apply);
 staff.get('/investments', invest.staffOverview);
 staff.get('/vault/requests', vaultController.staffQueue);
 staff.post('/vault/requests/:id/confirm', vaultController.staffConfirm);

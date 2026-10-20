@@ -16,7 +16,8 @@ const config = require('../../utils/config');
 const system = require('../systemController');
 const markets = require('../../bank/markets');
 const { db } = require('../../bank/db');
-const { asyncHandler } = require('../../bank/http');
+const { asyncHandler, fail } = require('../../bank/http');
+const audit = require('../../bank/audit');
 const migrationsSql = require('../../data/migrations.json');
 
 const MIGRATIONS = [
@@ -30,15 +31,6 @@ const MIGRATIONS = [
   { file: '0008_vault.sql', what: 'Requests to receive Bitcoin into the vault and send it out' },
 ];
 
-/** The Supabase project the server is connected to, from its URL: "abcd1234". */
-function projectOf(url) {
-  try {
-    const host = new URL(url).hostname;
-    return { host, ref: /\.supabase\.(co|in)$/i.test(host) ? host.split('.')[0] : '' };
-  } catch (err) {
-    return { host: '', ref: '' };
-  }
-}
 
 /** One probe's failure, in words: which table or column is missing, or why it could not be read. */
 function explain(probe, message) {
@@ -50,7 +42,8 @@ function explain(probe, message) {
   return `${probe.table}: ${m.slice(0, 160)}`;
 }
 
-const setup = asyncHandler(async (req, res) => {
+/** Every item of the checklist, and the SQL the database is missing. */
+async function checklist() {
   const supabase = Boolean(config.supabaseUrl() && config.supabaseServiceKey());
   const items = [];
   const add = (group, id, title, status, detail, fix) => items.push({ group, id, title, status, detail, fix: fix || '' });
@@ -60,7 +53,7 @@ const setup = asyncHandler(async (req, res) => {
     supabase ? 'Every record is stored in Supabase.' : 'The platform is running on temporary files. On Vercel they are lost between requests, so customers, balances and chats will not stay saved.',
     'Create a Supabase project, then in Vercel set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (Project Settings, API) and redeploy. Connecting Supabase from Vercel\'s Storage tab sets them for you.');
 
-  const project = projectOf(config.supabaseUrl());
+  const project = config.supabaseProject();
   if (supabase) {
     add('Database', 'project', 'The Supabase project this site uses', 'done',
       project.ref
@@ -108,6 +101,9 @@ const setup = asyncHandler(async (req, res) => {
       text,
       editorUrl: project.ref ? `https://supabase.com/dashboard/project/${project.ref}/sql/new` : 'https://supabase.com/dashboard',
       project: project.ref || project.host,
+      // The console can run it itself, on this project, given an access token.
+      canApply: Boolean(project.ref && config.supabaseAccessToken()),
+      tokenUrl: 'https://supabase.com/dashboard/account/tokens',
     };
   }
 
@@ -174,8 +170,76 @@ const setup = asyncHandler(async (req, res) => {
     'Before taking real customers, close the demonstration customer from Customers, or keep it for training.');
 
   const counts = items.reduce((acc, i) => { acc[i.status] = (acc[i.status] || 0) + 1; return acc; }, {});
+  return { items, counts, customers, sql, project: project.ref || project.host || '', storage: supabase ? 'supabase' : 'filesystem', checkedAt: new Date().toISOString() };
+}
+
+const setup = asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ items, counts, customers, sql, project: project.ref || project.host || '', storage: supabase ? 'supabase' : 'filesystem', checkedAt: new Date().toISOString() });
+  res.json(await checklist());
 });
 
-module.exports = { setup };
+/*
+ * Supabase's Management API runs SQL on a project as its owner - the same as
+ * the SQL Editor does - given a personal access token. The project is the
+ * one SUPABASE_URL names, so the SQL cannot land anywhere else.
+ */
+const MANAGEMENT_API = 'https://api.supabase.com';
+
+async function runOnProject(ref, token, query) {
+  let res;
+  try {
+    res = await fetch(`${MANAGEMENT_API}/v1/projects/${encodeURIComponent(ref)}/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch (err) {
+    throw fail(502, `Supabase could not be reached: ${err.message}. Try again, or copy the SQL and run it in the SQL Editor.`, 'supabase_unreachable');
+  }
+  const text = await res.text();
+  if (res.ok) return text;
+  let message = text;
+  try { message = JSON.parse(text).message || text; } catch (err) { /* plain text */ }
+  message = String(message || '').slice(0, 400);
+  if (res.status === 401) throw fail(400, 'Supabase refused the access token. Create a new one, set it as SUPABASE_ACCESS_TOKEN in Vercel, redeploy and try again.', 'token_refused');
+  if (res.status === 403 || res.status === 404) {
+    throw fail(400, `The access token cannot reach project ${ref}. Create the token while signed in to the Supabase account that owns that project.`, 'token_wrong_account');
+  }
+  // Most often Postgres's own error, word for word.
+  throw fail(400, `Supabase did not run it: ${message}`, 'sql_failed');
+}
+
+/**
+ * POST /admin/setup/apply - run exactly the SQL the checklist says is
+ * missing, on the project the site uses, then check again. Only bundled
+ * migrations are ever run; nothing from the request reaches the SQL.
+ */
+const apply = asyncHandler(async (req, res) => {
+  const before = await checklist();
+  if (!before.sql) {
+    res.json({ applied: [], result: before });
+    return;
+  }
+  const { ref } = config.supabaseProject();
+  const token = config.supabaseAccessToken();
+  if (!ref) throw fail(400, 'The Supabase address is not a supabase.co project, so the SQL cannot be run from here. Copy it and run it in the SQL Editor.', 'no_project');
+  if (!token) throw fail(400, 'Set SUPABASE_ACCESS_TOKEN in Vercel first (a token from Supabase, Account, Access Tokens), redeploy, and try again.', 'no_token');
+  await runOnProject(ref, token, before.sql.text);
+  await audit.log({
+    action: 'admin.schema_applied', category: 'admin', req, severity: 'notice',
+    actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'admin' },
+    detail: `Ran ${before.sql.files.join(', ')} on Supabase project ${ref}`,
+  });
+  // The API may take a moment to see new tables even after the reload.
+  let after = await checklist();
+  for (let i = 0; i < 3 && after.sql; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((r) => setTimeout(r, 1000));
+    // eslint-disable-next-line no-await-in-loop
+    after = await checklist();
+  }
+  res.json({ applied: before.sql.files, result: after });
+});
+
+module.exports = { setup, apply, MANAGEMENT_API };

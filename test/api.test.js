@@ -199,6 +199,74 @@ async function withApp(env, fn) {
     );
     behind.close();
 
+    // And with an access token the console runs that SQL itself, through
+    // Supabase's Management API, on the project SUPABASE_URL names - so it
+    // cannot be run in the wrong one. The API is stubbed: it answers as
+    // Supabase does, and applying the SQL brings the stand-in up to date.
+    const owed = await mock.start({ drop: ['bank_trades.term_months', 'bank_trades.matures_at'] });
+    delete owed.db.bank_vault_requests;
+    const mockBase = `http://127.0.0.1:${owed.address().port}`;
+    const realFetch = global.fetch;
+    const ran = [];
+    let answer = 'ok';
+    global.fetch = async (url, opts) => {
+      const u = String(url);
+      if (u.startsWith('https://testref1234.supabase.co')) return realFetch(u.replace('https://testref1234.supabase.co', mockBase), opts);
+      if (u.startsWith('https://api.supabase.com/')) {
+        ran.push({ url: u, auth: opts.headers.Authorization, query: JSON.parse(opts.body).query });
+        if (answer === 'refused') return new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 });
+        if (answer === 'sql') return new Response(JSON.stringify({ message: 'ERROR: 42501: must be owner of table bank_trades' }), { status: 400 });
+        owed.db.bank_trades.columns.push('term_months', 'matures_at');
+        owed.db.bank_vault_requests = mock.schema().bank_vault_requests;
+        return new Response('[]', { status: 201 });
+      }
+      return realFetch(url, opts);
+    };
+    try {
+      await withApp(
+        { SUPABASE_URL: 'https://testref1234.supabase.co', SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY, SUPABASE_ANON_KEY: mock.ANON_KEY, SUPABASE_ACCESS_TOKEN: 'sbp_test_token' },
+        async (base) => {
+          const ctl = require(ROOT + '/src/controllers/bank/setupController');
+          const call = (handler) => new Promise((resolve) => {
+            const res = { set() { return res; }, status() { return res; }, json: (body) => resolve({ body }) };
+            handler({ bankUser: { id: 'staff', email: 'admin@hedgestone.test', role: 'admin' }, headers: {} }, res, (err) => resolve({ err }));
+          });
+          const health = await req(base, 'GET', '/api/health?probe=1');
+          assert.strictEqual(health.body.supabaseProject, 'testref1234', 'the health report names the project');
+          assert.strictEqual(health.body.config.supabaseAccessToken, true);
+
+          const first = (await call(ctl.setup)).body;
+          assert.strictEqual(first.sql.project, 'testref1234');
+          assert.strictEqual(first.sql.canApply, true);
+          assert.match(first.sql.editorUrl, /project\/testref1234\/sql/);
+
+          answer = 'refused';
+          assert.strictEqual((await call(ctl.apply)).err.code, 'token_refused');
+          answer = 'sql';
+          const failed = (await call(ctl.apply)).err;
+          assert.strictEqual(failed.code, 'sql_failed');
+          assert.match(failed.message, /must be owner of table bank_trades/, 'Postgres says why, word for word');
+
+          answer = 'ok';
+          const done = (await call(ctl.apply)).body;
+          assert.deepStrictEqual(done.applied, ['0007_invest_term.sql', '0008_vault.sql']);
+          assert.strictEqual(done.result.sql, null, 'nothing is missing afterwards');
+          assert.strictEqual(done.result.items.find((i) => i.id === '0008_vault.sql').status, 'done');
+          const last = ran[ran.length - 1];
+          assert.strictEqual(last.url, 'https://api.supabase.com/v1/projects/testref1234/database/query', 'run on the project the site uses');
+          assert.strictEqual(last.auth, 'Bearer sbp_test_token');
+          assert.match(last.query, /add column if not exists term_months[\s\S]*bank_vault_requests[\s\S]*notify pgrst/);
+          const again = (await call(ctl.apply)).body;
+          assert.deepStrictEqual(again.applied, [], 'with nothing missing, nothing is run');
+          console.log('  ok  with an access token the console applies the missing SQL itself, on the right project, and reports Postgres errors verbatim');
+        }
+      );
+    } finally {
+      global.fetch = realFetch;
+      delete process.env.SUPABASE_ACCESS_TOKEN;
+      owed.close();
+    }
+
     // Once MAILBOX_ADDRESS is set the inbox tables stop being optional. Filing
     // is best effort, so without them the webhook still answers 200 and Resend
     // still reports success while /admin stays empty and nothing says why.

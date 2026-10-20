@@ -180,9 +180,19 @@ the vault**; returned, it is converted next time.
 
 #### The SQL ran, but the checklist still says to do
 
+The surest fix is to let the site run it: create a token in Supabase
+(**Account → Access Tokens**, signed in to the account that owns the project),
+add it in Vercel as `SUPABASE_ACCESS_TOKEN`, redeploy, and press **Apply it
+for me** in the checklist. It runs on the project the site uses and shows
+Postgres's own message if anything fails. Delete the token afterwards.
+
+Otherwise, the usual reasons:
+
 - **It ran in a different Supabase project.** The checklist's first Database
-  line names the project this site uses (its id is in the Supabase dashboard's
-  address bar). SQL run anywhere else changes nothing here.
+  line names the project this site uses, and `/api/health` reports it as
+  `supabaseProject`. Its id is in the Supabase dashboard's address bar
+  (`supabase.com/dashboard/project/<id>`). SQL run anywhere else changes
+  nothing here.
 - **It stopped on an error.** The SQL Editor runs a paste as one transaction:
   one error and *nothing* in it is saved, including everything before the
   error. A run that worked says "Success. No rows returned". Fix or report the

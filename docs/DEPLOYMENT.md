@@ -142,7 +142,9 @@ come next.
    It runs as one transaction: if the editor shows an error, nothing in the
    paste was saved. A good run answers "Success. No rows returned". After an
    update, the console's **Setup checklist** shows exactly the SQL a database
-   is missing, with a Copy button, and names the Supabase project it checks.
+   is missing, with a Copy button, and names the Supabase project it checks
+   (so does `/api/health`, as `supabaseProject`). With `SUPABASE_ACCESS_TOKEN`
+   set, its **Apply it for me** button runs that SQL itself, on that project.
 
    The individual files, if you would rather run them one at a time:
 
@@ -548,6 +550,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `SUPABASE_URL` | for the database | Project URL (`VITE_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` accepted) |
 | `SUPABASE_ANON_KEY` | for chat and `/admin` | anon key; public by design, sent to the browser (`SUPABASE_PUBLISHABLE_KEY` and the `NEXT_PUBLIC_` / `VITE_` forms accepted) |
 | `SUPABASE_SERVICE_ROLE_KEY` | for the database | service_role key; server side only (`SUPABASE_SECRET_KEY` accepted) |
+| `SUPABASE_ACCESS_TOKEN` | no | A Supabase personal access token (`sbp_...`, from Account, Access Tokens). Lets the console's **Setup checklist** run missing SQL itself, on the project `SUPABASE_URL` names. It can reach every project in that Supabase account, so delete it once the database is up to date |
 | `RESEND_API_KEY` | for email | Resend API key |
 | `FORM_TO` | for email | Where enquiries and chat land |
 | `FORM_FROM` | for email | Verified sender identity |

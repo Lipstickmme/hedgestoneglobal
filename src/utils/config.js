@@ -46,6 +46,27 @@ const supabaseAnonKey = () =>
 const supabaseServiceKey = () =>
   pick('SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY', 'NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY');
 
+/**
+ * The Supabase project the server talks to, from its URL: "abcd1234" for
+ * https://abcd1234.supabase.co. Not a secret - the browser is handed the URL
+ * - and the one thing that tells an operator which project to change.
+ */
+function supabaseProject() {
+  try {
+    const host = new URL(supabaseUrl()).hostname;
+    return { host, ref: /\.supabase\.(co|in)$/i.test(host) ? host.split('.')[0] : '' };
+  } catch (err) {
+    return { host: '', ref: '' };
+  }
+}
+
+/**
+ * A Supabase personal access token (sbp_...), optional. With it the console
+ * can run the SQL a database is missing itself, through Supabase's
+ * Management API, on exactly the project above.
+ */
+const supabaseAccessToken = () => pick('SUPABASE_ACCESS_TOKEN');
+
 const resendApiKey = () => pick('RESEND_API_KEY');
 
 /** True when this process looks like a deployment rather than a laptop. */
@@ -223,6 +244,8 @@ module.exports = {
   supabaseUrl,
   supabaseAnonKey,
   supabaseServiceKey,
+  supabaseProject,
+  supabaseAccessToken,
   resendApiKey,
   resendWebhookSecret,
   formTo,

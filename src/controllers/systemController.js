@@ -474,7 +474,7 @@ exports.health = async (req, res) => {
     schema = probed ? probed.results : null;
     (probed ? probed.problems : []).forEach(({ table, message, migration }) => {
       warnings.push(
-        `Table ${table} did not answer as expected: ${message}. Run supabase/migrations/${migration} in the Supabase SQL Editor.`
+        `Table ${table} did not answer as expected: ${message}. Run supabase/migrations/${migration} in the Supabase SQL Editor${config.supabaseProject().ref ? ` of project ${config.supabaseProject().ref}` : ''}, or press Apply it for me in the console's Setup checklist.`
       );
     });
   }
@@ -515,8 +515,11 @@ exports.health = async (req, res) => {
       formFrom: Boolean(config.formFrom()),
       mailboxAddress: Boolean(mailbox),
       forwardTo: Boolean(forward),
+      supabaseAccessToken: Boolean(config.supabaseAccessToken()),
     },
     storage: url && service ? 'supabase' : 'filesystem',
+    // Which project the site reads and writes, so SQL is run in that one.
+    supabaseProject: url ? (config.supabaseProject().ref || config.supabaseProject().host) : undefined,
     // Enough to tell a locked-out operator what the bank thinks its sign-in
     // is, without saying what it is: the address is reported only as set or
     // not, and no password or hash goes anywhere near this response.

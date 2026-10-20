@@ -1065,6 +1065,21 @@
       <section class="rf-card rf-mb hs-setup-sql" data-setup-sql>
         <div class="rf-card-head"><h3>Run this in Supabase</h3><span class="rf-muted rf-small">${esc(data.sql.files.join(', '))}</span></div>
         <div class="rf-card-body">
+          ${data.sql.canApply ? `
+          <div class="hs-setup-apply">
+            <p>The site can run this itself, on project <strong>${esc(data.sql.project)}</strong>, the one it uses.</p>
+            <button class="rf-btn" type="button" data-setup-apply>Apply it for me</button>
+          </div>
+          <p class="rf-small rf-muted rf-mt">Or run it yourself:</p>` : `
+          <div class="hs-setup-apply">
+            <p><strong>Let the site run it for you</strong>, on exactly the right project:</p>
+            <ol class="hs-setup-steps">
+              <li>In Supabase, open <a href="${esc(data.sql.tokenUrl)}" target="_blank" rel="noopener">Account, Access Tokens</a> and generate a token, signed in to the account that owns project <strong>${esc(data.sql.project)}</strong>.</li>
+              <li>In Vercel, Settings, Environment Variables, add <code>SUPABASE_ACCESS_TOKEN</code> with that token, and redeploy.</li>
+              <li>Come back here and press <b>Apply it for me</b>. You can delete the token afterwards.</li>
+            </ol>
+          </div>
+          <p class="rf-small rf-muted rf-mt">Or run it yourself:</p>`}
           <ol class="hs-setup-steps">
             <li>Open the SQL Editor of project <strong>${esc(data.sql.project)}</strong>. It has to be this project: SQL run in another one changes nothing here.</li>
             <li>Paste the SQL below into a new query and press <b>Run</b>. It should answer <b>Success. No rows returned</b>.</li>
@@ -1095,6 +1110,22 @@
         </ul>
       </section>`).join('');
     qsa('[data-staff-pip="setup"]').forEach((pip) => { const left = data.counts.todo || 0; pip.textContent = String(left || ''); pip.classList.toggle('rf-hide', !left); });
+    const applyBtn = qs('[data-setup-apply]');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', async () => {
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = 'Running the SQL&hellip;';
+        try {
+          const res = await api.post('/admin/setup/apply');
+          toast(res.result.sql ? 'The SQL ran, but something is still missing. See the checklist.' : `Done: ${res.applied.join(', ') || 'nothing was missing'}.`, res.result.sql ? 'bad' : 'ok');
+          await setup();
+        } catch (err) {
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply it for me';
+          toast(err.message, 'bad');
+        }
+      });
+    }
     const copy = qs('[data-setup-copy]');
     if (copy) {
       copy.addEventListener('click', async () => {
