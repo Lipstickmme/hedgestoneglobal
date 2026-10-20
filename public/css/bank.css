@@ -2226,21 +2226,63 @@ tr.is-reversed td { opacity: .55; }
 .rf-pw-toggle[aria-pressed="true"] { color: var(--rf-navy); }
 
 /* A suspended account: the notice at the top of every signed-in page. */
-.hs-suspended {
-  display: flex; align-items: flex-start; gap: 14px; margin: 0 0 18px; padding: 16px 18px; border-radius: 16px;
-  background: #fff1f0; border: 1px solid #f3b8b1; color: #6e1d14; box-shadow: 0 10px 30px -22px rgba(170, 40, 30, .6);
+.hs-susp {
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; margin: 0 0 20px; padding: 22px;
+  border-radius: 22px; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #fff 0%, #fff7f6 55%, #ffeceb 100%);
+  border: 1px solid #f6cfca; box-shadow: 0 18px 40px -28px rgba(150, 30, 20, .55), 0 1px 0 rgba(255, 255, 255, .8) inset;
 }
-.hs-suspended-icon {
-  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; background: #c8372b; color: #fff;
-  font-weight: 800; font-size: 17px; line-height: 32px; text-align: center;
+.hs-susp::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, #e5484d, #f59e0b); }
+.hs-susp-head { display: flex; align-items: center; gap: 14px; }
+.hs-susp-icon {
+  flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px;
+  background: linear-gradient(135deg, #e5484d, #c2262c); color: #fff; box-shadow: 0 10px 22px -10px rgba(197, 38, 44, .8);
 }
-.hs-suspended-body { flex: 1 1 auto; min-width: 0; }
-.hs-suspended-body strong { display: block; font-size: 16px; color: #5a140d; margin-bottom: 4px; }
-.hs-suspended-body p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; }
-.hs-suspended-reason { padding: 8px 11px; border-radius: 10px; background: rgba(200, 55, 43, .08); color: #5a140d; }
-.hs-suspended .rf-btn { flex: 0 0 auto; align-self: center; }
-@media (max-width: 640px) { .hs-suspended { flex-wrap: wrap; } .hs-suspended .rf-btn { width: 100%; } }
+.hs-susp-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px;
+  background: #fde5e3; color: #a51d24; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+}
+.hs-susp-chip i { width: 7px; height: 7px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 0 3px rgba(229, 72, 77, .2); animation: hs-susp-pulse 1.8s ease-in-out infinite; }
+@keyframes hs-susp-pulse { 50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); } }
+.hs-susp h2 { margin: 6px 0 0; font-size: 21px; line-height: 1.25; letter-spacing: -.02em; color: #3d0d0a; }
+.hs-susp-reason { margin: 14px 0 0; font-size: 14.5px; line-height: 1.6; color: #4a1c18; }
+.hs-susp-foot { margin: 12px 0 0; font-size: 12.5px; line-height: 1.55; color: #8a4a44; }
+.hs-susp-next {
+  display: grid; align-content: start; gap: 8px; padding: 16px 18px; border-radius: 16px;
+  background: rgba(255, 255, 255, .85); border: 1px solid #f1d6d2; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.hs-susp-next .k { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #b4561c; }
+.hs-susp-next p { margin: 0; font-size: 14.5px; line-height: 1.55; font-weight: 600; color: var(--rf-ink); }
+.hs-susp-office { display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: #fff8ec; border: 1px solid #f6dfb5; color: #6b4300; }
+.hs-susp-office svg { flex: 0 0 auto; margin-top: 2px; color: #d97706; }
+.hs-susp-office b { display: block; font-size: 13.5px; color: #4d3000; }
+.hs-susp-office small { display: block; font-size: 12.5px; color: #7a5410; }
+.hs-susp-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (max-width: 860px) { .hs-susp { grid-template-columns: 1fr; padding: 18px; } .hs-susp h2 { font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { .hs-susp-chip i { animation: none; } }
+
+/* The status badge in the dashboard's green panel. */
+.hs-pill-status i { width: 8px; height: 8px; border-radius: 50%; background: #5ee3a8; box-shadow: 0 0 0 3px rgba(94, 227, 168, .25); }
+.hs-pill-status small { color: #bfe3d5; }
+.hs-pill-status.is-suspended { background: rgba(229, 72, 77, .28); border-color: rgba(255, 170, 160, .6); }
+.hs-pill-status.is-suspended i { background: #ff8a80; box-shadow: 0 0 0 3px rgba(255, 138, 128, .3); }
+.hs-pill-status.is-suspended b { color: #fff; }
+.hs-pill-status[hidden] { display: none; }
+
 /* While suspended, the forms that would change something are shown as closed. */
 body.is-suspended [data-suspend-closed] { opacity: .55; pointer-events: none; }
 .hs-susp-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .hs-susp-note > span { flex: 1 1 320px; }
+
+/* Console: the reasons a suspension can have. */
+.hs-reason-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.hs-reason-opt { display: block; cursor: pointer; }
+.hs-reason-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.hs-reason-opt span {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--rf-line); background: var(--rf-surface); font-size: 13.5px; font-weight: 600; transition: border-color .15s, background .15s;
+}
+.hs-reason-opt span small { font-size: 11px; font-weight: 700; color: #b4561c; background: #fff2d6; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.hs-reason-opt input:checked + span { border-color: #c2262c; background: #fff3f2; box-shadow: 0 0 0 3px rgba(229, 72, 77, .12); }
+.hs-reason-opt input:focus-visible + span { outline: 2px solid var(--rf-navy); outline-offset: 2px; }
+@media (max-width: 560px) { .hs-reason-grid { grid-template-columns: 1fr; } }

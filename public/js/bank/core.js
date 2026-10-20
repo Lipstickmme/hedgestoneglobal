@@ -533,12 +533,25 @@
   }
 
   /**
-   * Suspended: said at the top of every signed-in page, with the reason staff
-   * gave, and what still works. The forms that would change something say
-   * the same when used; the server refuses them either way.
+   * Suspended: said at the top of every signed-in page - why, since when, and
+   * the step that lifts it, with the office to visit when it is done in
+   * person. The dashboard's status badge says it too. The forms that would
+   * change something are shown as closed; the server refuses them either way.
    */
+  const LOCK = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/><circle cx="12" cy="15.5" r="1.3"/></svg>';
+  const PIN = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg>';
+
+  function paintStatus(suspended) {
+    qsa('[data-hero="status"]').forEach((el) => {
+      el.hidden = false;
+      el.classList.toggle('is-suspended', Boolean(suspended));
+      el.innerHTML = `<i aria-hidden="true"></i><small>Status</small><b>${suspended ? 'Suspended' : 'Active'}</b>`;
+    });
+  }
+
   function paintSuspended(suspended) {
     document.body.classList.toggle('is-suspended', Boolean(suspended));
+    paintStatus(suspended);
     const content = qs('#rf-content');
     let box = qs('[data-suspended]');
     if (!suspended || !content) {
@@ -547,20 +560,36 @@
     }
     if (!box) {
       box = document.createElement('section');
-      box.className = 'hs-suspended';
+      box.className = 'hs-susp';
       box.setAttribute('data-suspended', '');
       box.setAttribute('role', 'alert');
       content.insertBefore(box, content.firstChild);
     }
     const since = suspended.since ? date(suspended.since, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const office = suspended.office;
+    const phone = office && office.phone;
     box.innerHTML = `
-      <span class="hs-suspended-icon" aria-hidden="true">!</span>
-      <div class="hs-suspended-body">
-        <strong>Your account is suspended${since ? ` since ${esc(since)}` : ''}</strong>
-        ${suspended.reason ? `<p class="hs-suspended-reason"><b>Reason:</b> ${esc(suspended.reason)}</p>` : ''}
-        <p>You can still sign in, see your vault and message us. Receiving, sending and changes to your account are paused until our team lifts the suspension.</p>
+      <div class="hs-susp-main">
+        <div class="hs-susp-head">
+          <span class="hs-susp-icon">${LOCK}</span>
+          <div>
+            <span class="hs-susp-chip"><i aria-hidden="true"></i>Account suspended${since ? ` &middot; since ${esc(since)}` : ''}</span>
+            <h2>${esc(suspended.label || 'Account suspended')}</h2>
+          </div>
+        </div>
+        ${suspended.reason ? `<p class="hs-susp-reason">${esc(suspended.reason)}</p>` : ''}
+        <p class="hs-susp-foot">You can still sign in, see your vault and message us. Receiving, sending and changes to your account are paused until the suspension is lifted.</p>
       </div>
-      <a class="rf-btn sm" href="/messages">Message us</a>`;
+      <div class="hs-susp-next">
+        <span class="k">What to do next</span>
+        <p>${esc(suspended.nextAction || 'Message us and our team will tell you what is needed.')}</p>
+        ${office && (office.address || office.hours) ? `<div class="hs-susp-office">${PIN}<span>${office.address ? `<b>${esc(office.address)}</b>` : ''}${office.hours ? `<small>${esc(office.hours)}</small>` : ''}</span></div>` : ''}
+        <div class="hs-susp-actions">
+          <a class="rf-btn sm" href="/messages">Message us</a>
+          ${phone ? `<a class="rf-btn ghost sm" href="tel:${esc(String(phone).replace(/[^+\d]/g, ''))}">Call ${esc(phone)}</a>` : ''}
+          ${suspended.category === 'documents' ? '<a class="rf-btn ghost sm" href="/profile">Upload documents</a>' : ''}
+        </div>
+      </div>`;
   }
 
   /**

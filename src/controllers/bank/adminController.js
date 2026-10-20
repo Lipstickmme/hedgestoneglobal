@@ -162,6 +162,7 @@ const customerDetail = asyncHandler(async (req, res) => {
     requests: requests.map(vaultLib.publicRequest),
     investments,
     vaultDetails,
+    suspensionReasons: require('../../bank/constants').SUSPENSION_REASONS,
   });
 });
 
@@ -304,20 +305,24 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
   const status = trimmed(req.body.status, 20);
   if (!['active', 'suspended', 'closed', 'pending'].includes(status)) throw fail(400, 'Unknown status.');
-  const reason = trimmed(req.body.reason, 300);
+  // Why, in the customer's words: a category's own wording unless staff wrote their own.
+  const category = status === 'suspended' ? suspensionCategory(req.body.category) : null;
+  const preset = category ? usersLib.suspensionPreset(category) : null;
+  const reason = trimmed(req.body.reason, 300) || (preset ? preset.reason : '');
+  const nextAction = status === 'suspended' ? (trimmed(req.body.nextAction, 300) || preset.nextAction) : '';
   // The day it counts from: today unless staff say otherwise.
   const since = status === 'suspended' ? usersLib.suspensionDay(req.body.since) : null;
 
   await db.users.update(user.id, { status, updated_at: nowIso(), notes: reason ? `${user.notes || ''}\n[${nowIso().slice(0, 10)}] ${status}: ${reason}`.trim() : user.notes });
-  await usersLib.saveSuspension(user.id, status === 'suspended' ? { reason, since, by: req.bankUser.email } : null);
+  const suspension = await usersLib.saveSuspension(user.id, status === 'suspended' ? { category, reason, nextAction, since, by: req.bankUser.email } : null);
   if (status !== 'active') {
     await require('../../bank/auth').revokeOtherSessions(user.id, null);
   }
   await audit.log({
     action: `admin.customer_${status}`, category: 'admin', userId: user.id, req, severity: status === 'active' ? 'notice' : 'warning',
-    actor: actorOf(req), detail: `Account ${status}${reason ? `: ${reason}` : ''}`,
+    actor: actorOf(req), detail: `Account ${status}${suspension ? ` (${suspension.label})` : ''}${reason ? `: ${reason}` : ''}`,
     // The reason is shown to the customer on every page while suspended.
-    meta: { status, reason: reason || null, since },
+    meta: { status, category, reason: reason || null, nextAction: nextAction || null, since },
   });
   const plain = status === 'suspended'
     ? 'Your account is suspended. You can still sign in and see your vault and message us, but nothing can be received, sent or changed until our team lifts it.'
@@ -325,8 +330,9 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   await alerts.notifyUser(await db.users.findById(user.id), 'profile_changed', {
     force: true,
     subject: `Your ${BANK.name} account is now ${status}`,
-    heading: `Account ${status}`,
+    heading: suspension ? suspension.label : `Account ${status}`,
     intro: reason ? `${plain} The reason: ${reason}` : plain,
+    rows: suspension && suspension.nextAction ? [{ label: 'What to do next', value: suspension.nextAction }] : undefined,
     footNote: `Questions? Please ${contact.callSupport()}.`,
     severity: status === 'active' ? 'info' : 'warning',
   });
@@ -389,6 +395,13 @@ const deleteCustomer = asyncHandler(async (req, res) => {
   res.json({ deleted: true, id: user.id });
 });
 
+/** A suspension category from the list, or Other. */
+function suspensionCategory(value) {
+  const { SUSPENSION_REASONS } = require('../../bank/constants');
+  const id = String(value || '').trim();
+  return SUSPENSION_REASONS.some((r) => r.id === id) ? id : 'other';
+}
+
 /**
  * PATCH /admin/customers/:id/suspension - correct a suspension: the day it
  * counts from, or the reason the customer reads. Nobody is signed out and no
@@ -399,16 +412,21 @@ const editSuspension = asyncHandler(async (req, res) => {
   if (user.status !== 'suspended') throw fail(409, 'This customer is not suspended.', 'not_suspended');
   const before = await usersLib.suspensionOf(user);
   const body = req.body || {};
+  const category = body.category !== undefined ? suspensionCategory(body.category) : before.category;
+  const preset = usersLib.suspensionPreset(category);
   const since = body.since !== undefined ? usersLib.suspensionDay(body.since) : before.since;
-  const reason = body.reason !== undefined ? trimmed(body.reason, 300) : before.reason;
-  const saved = await usersLib.saveSuspension(user.id, { reason, since, by: req.bankUser.email });
+  const reason = body.reason !== undefined ? (trimmed(body.reason, 300) || preset.reason) : before.reason;
+  const nextAction = body.nextAction !== undefined ? (trimmed(body.nextAction, 300) || preset.nextAction) : before.nextAction;
+  const saved = await usersLib.saveSuspension(user.id, { category, reason, nextAction, since, by: req.bankUser.email });
   const changed = [];
+  if (category !== before.category) changed.push(`now ${saved.label}`);
   if (String(since).slice(0, 10) !== String(before.since || '').slice(0, 10)) changed.push(`dated ${String(since).slice(0, 10)} (was ${String(before.since || 'unset').slice(0, 10)})`);
   if (reason !== before.reason) changed.push(`reason "${reason}"`);
+  if (nextAction !== before.nextAction) changed.push(`next step "${nextAction}"`);
   await audit.log({
     action: 'admin.suspension_edited', category: 'admin', userId: user.id, req, severity: 'notice',
     actor: actorOf(req), detail: `Suspension ${changed.join(', ') || 'unchanged'}`,
-    meta: { reason, since, before },
+    meta: { category, reason, nextAction, since, before },
   });
   res.json({ suspension: saved });
 });

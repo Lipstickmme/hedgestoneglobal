@@ -182,6 +182,7 @@ const dashboardContent = `
                 <div class="hs-hero-pills">
                   <span class="hs-pill hs-pill-gain" data-hero="gainPill"><span class="arrow" aria-hidden="true">&#9650;</span><b data-hero="gain">&mdash;</b><small>all time</small></span>
                   <span class="hs-pill">${btcMark(14)}<b data-hero="units">&mdash;</b></span>
+                  <span class="hs-pill hs-pill-status" data-hero="status" hidden></span>
                 </div>
               </div>
               <nav class="hs-qa" aria-label="Quick actions">

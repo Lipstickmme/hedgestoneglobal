@@ -283,15 +283,46 @@ function patchFromBody(body = {}, allowed = EDITABLE) {
  */
 const SUSPENSION_ROW = (userId) => `suspension:${userId}`;
 
+/** The preset for a category, or Other. */
+function suspensionPreset(category) {
+  const { SUSPENSION_REASONS } = require('./constants');
+  return SUSPENSION_REASONS.find((r) => r.id === category) || SUSPENSION_REASONS.find((r) => r.id === 'other');
+}
+
+/**
+ * What a suspension says, filled in: its category and label, the reason, the
+ * next step, the day it counts from and - when the step is done in person -
+ * the office to go to, from Settings.
+ */
+async function describeSuspension(stored) {
+  const preset = suspensionPreset(stored.category);
+  const out = {
+    category: stored.category || null,
+    label: stored.category ? preset.label : 'Account suspended',
+    reason: String(stored.reason || '').slice(0, 300),
+    nextAction: String(stored.nextAction || (stored.category ? preset.nextAction : '') || '').slice(0, 300),
+    since: stored.since || null,
+    visit: Boolean(stored.category && preset.visit),
+    office: null,
+  };
+  if (out.visit) {
+    const cfg = await require('./settings').get().catch(() => ({}));
+    if (cfg.mailingAddress || cfg.supportHours || cfg.supportPhone) {
+      out.office = { address: cfg.mailingAddress || '', hours: cfg.supportHours || '', phone: cfg.supportPhone || '' };
+    }
+  }
+  return out;
+}
+
 async function suspensionOf(user) {
   if (!user || user.status !== 'suspended') return null;
   const own = await db.settings.findById(SUSPENSION_ROW(user.id)).catch(() => null);
-  if (own && own.values) return { reason: String(own.values.reason || '').slice(0, 300), since: own.values.since || null };
+  if (own && own.values) return describeSuspension(own.values);
   const rows = await db.activity.find({ user_id: user.id, action: 'admin.customer_suspended' }, { order: 'created_at.desc', limit: 1 }).catch(() => []);
   const row = rows[0];
-  if (!row) return { reason: '', since: user.updated_at || null };
+  if (!row) return describeSuspension({ since: user.updated_at || null });
   const fromDetail = String(row.detail || '').replace(/^Account suspended:?\s*/i, '');
-  return { reason: String((row.meta && row.meta.reason) || fromDetail || '').slice(0, 300), since: row.created_at };
+  return describeSuspension({ reason: (row.meta && row.meta.reason) || fromDetail || '', since: row.created_at });
 }
 
 /**
@@ -314,14 +345,18 @@ async function saveSuspension(userId, value) {
     await db.settings.remove(id).catch(() => {});
     return null;
   }
-  const row = { values: { reason: value.reason || '', since: value.since, by: value.by || null }, updated_at: new Date().toISOString() };
+  const row = {
+    values: { category: value.category || null, reason: value.reason || '', nextAction: value.nextAction || '', since: value.since, by: value.by || null },
+    updated_at: new Date().toISOString(),
+  };
   if (await db.settings.findById(id)) await db.settings.update(id, row);
   else await db.settings.insert({ id, ...row });
-  return { reason: row.values.reason, since: row.values.since };
+  return describeSuspension(row.values);
 }
 
 module.exports = {
   suspensionOf,
+  suspensionPreset,
   suspensionDay,
   saveSuspension,
   createUser,

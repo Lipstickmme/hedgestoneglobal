@@ -300,7 +300,52 @@ const DOCUMENT_KINDS = [
   { id: 'other', label: 'Other document' },
 ];
 
+/*
+ * Why an account is suspended: the choices staff pick from, each with the
+ * words the customer reads and the next step that lifts it. Staff can edit
+ * both for one customer. `visit` means the step is done in person, so the
+ * notice shows the office address and hours from Settings.
+ */
+const SUSPENSION_REASONS = [
+  {
+    id: 'biometric', label: 'Biometric verification required', visit: true,
+    reason: 'We need to confirm your identity in person with a biometric check before your account can be used again.',
+    nextAction: 'Visit our office with a valid photo ID to complete your biometric verification. It takes about 15 minutes.',
+  },
+  {
+    id: 'fraud', label: 'Suspected fraud', visit: false,
+    reason: 'We have seen activity on your account that we need to review, to keep your Bitcoin safe.',
+    nextAction: 'Message us or call our team so we can confirm the recent activity with you. Never share your password or one-time codes with anyone, including us.',
+  },
+  {
+    id: 'dormant', label: 'Dormant account', visit: true,
+    reason: 'Your account has not been used for a long time, so it has been paused for your protection.',
+    nextAction: 'Visit our office, or message us, to confirm your details and reactivate your account.',
+  },
+  {
+    id: 'documents', label: 'Identity documents needed', visit: true,
+    reason: 'We need up-to-date identity documents to keep your account open.',
+    nextAction: 'Upload a valid photo ID and a recent proof of address from your Profile, or bring them to our office.',
+  },
+  {
+    id: 'funds', label: 'Proof of funds needed', visit: false,
+    reason: 'We need to confirm where the money in a recent payment came from.',
+    nextAction: 'Send us a bank statement or similar document showing where the funds came from, by message or at our office.',
+  },
+  {
+    id: 'compliance', label: 'Compliance review', visit: false,
+    reason: 'Your account is under a routine compliance review.',
+    nextAction: 'Nothing is needed from you for now. We will contact you if we need anything, and lift the suspension as soon as the review is done.',
+  },
+  {
+    id: 'other', label: 'Other', visit: false,
+    reason: '',
+    nextAction: 'Message us and our team will tell you what is needed.',
+  },
+];
+
 module.exports = {
+  SUSPENSION_REASONS,
   BANK,
   RETIRED_NAMES,
   PRODUCTS,

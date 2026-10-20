@@ -163,10 +163,18 @@ the vault**; returned, it is converted next time.
   their vault, read alerts, message us, change their password and cancel a
   request that is waiting; receiving, sending and changes to their details
   are refused until you reactivate them. Suspending signs them out once, so
-  they see the notice when they next sign in. When suspending you give the
-  reason and the day it counts from (today unless you change it); **Edit
-  date or reason** on their sheet corrects either later, without signing
-  them out. Every change is in the activity log.
+  they see the notice when they next sign in. When suspending you pick a
+  reason — **Biometric verification required**, **Suspected fraud**,
+  **Dormant account**, **Identity documents needed**, **Proof of funds
+  needed**, **Compliance review** or **Other** — which fills in what the
+  customer reads and the next step (for example "Visit our office with a
+  valid photo ID to complete your biometric verification"); edit either
+  for the customer. Steps done in person also show your office address,
+  hours and phone from **Settings**, so fill those in. You also give the
+  day it counts from (today unless you change it). **Edit suspension** on
+  their sheet changes any of it later, without signing them out. Their
+  dashboard's green panel shows **Status: Suspended** while it lasts.
+  Every change is in the activity log.
 - **Delete customer** erases them for good: their login, vault, every movement,
   request, message and document. You type their email address to confirm. The
   activity log keeps a record of who was deleted, by whom, and what their vault

@@ -220,7 +220,7 @@
         ${c.lockedUntil ? badge('bad', 'Locked out') : ''}
         ${c.mustChangePassword ? badge('pending', 'Must change password') : ''}
       </div>
-      ${data.suspension ? `<div class="rf-notice bad rf-mb hs-susp-note"><span><strong>Suspended${data.suspension.since ? ` since ${date(data.suspension.since)}` : ''}.</strong> ${data.suspension.reason ? `They see the reason: &ldquo;${esc(data.suspension.reason)}&rdquo;` : 'No reason was given.'} They can sign in and look, and message us; nothing can be received, sent or changed until you reactivate them.</span><button class="rf-btn ghost sm" data-customer-action="edit-suspension" data-id="${esc(c.id)}">Edit date or reason</button></div>` : ''}
+      ${data.suspension ? `<div class="rf-notice bad rf-mb hs-susp-note"><span><strong>Suspended${data.suspension.since ? ` since ${date(data.suspension.since)}` : ''}: ${esc(data.suspension.label)}.</strong> ${data.suspension.reason ? `They read: &ldquo;${esc(data.suspension.reason)}&rdquo;` : 'No reason was given.'}${data.suspension.nextAction ? ` Next step: &ldquo;${esc(data.suspension.nextAction)}&rdquo;` : ''} They can sign in and look, and message us; nothing can be received, sent or changed until you reactivate them.</span><button class="rf-btn ghost sm" data-customer-action="edit-suspension" data-id="${esc(c.id)}">Edit suspension</button></div>` : ''}
 
       <div class="rf-grid cols-2">
         <div>
@@ -386,7 +386,7 @@
           await api.post(`/admin/customers/${id}/kyc`, { kycStatus: status, notes: prompt('Note (optional):') || '' });
           toast('Identity status updated.', 'ok');
         } else if (action === 'suspend' || action === 'edit-suspension') {
-          suspensionSheet(customer, action === 'edit-suspension' ? data.suspension : null);
+          suspensionSheet(customer, action === 'edit-suspension' ? data.suspension : null, data.suspensionReasons);
           return;
         } else if (action === 'activate') {
           await api.post(`/admin/customers/${id}/status`, { status: 'active' });
@@ -404,22 +404,43 @@
   }
 
   /**
-   * Suspend a customer, or correct a suspension: the reason they read on every
-   * page, and the day it counts from.
+   * Suspend a customer, or correct a suspension: why (a category, whose
+   * wording fills the reason and the next step until staff write their own),
+   * and the day it counts from.
    */
-  function suspensionSheet(customer, current) {
+  function suspensionSheet(customer, current, reasons) {
     const today = localDate(new Date().toISOString());
-    const { form, close } = staffSheet(current ? `Suspension of ${customer.fullName}` : `Suspend ${customer.fullName}`, `
-      ${current ? '' : '<p class="rf-small rf-muted">They can still sign in, see their vault and message us; receiving, sending and changes are paused until you reactivate them. They are signed out now and see the reason when they sign in again.</p>'}
-      <div class="rf-field"><label>Reason (the customer reads this)</label><textarea class="rf-textarea" name="reason" maxlength="300" rows="3" placeholder="We are reviewing a recent payment. Please send us proof of where the funds came from.">${esc(current ? current.reason : '')}</textarea></div>
+    const list = reasons && reasons.length ? reasons : [{ id: 'other', label: 'Other', reason: '', nextAction: '' }];
+    const chosen = (current && current.category) || list[0].id;
+    const preset = (id) => list.find((r) => r.id === id) || list[list.length - 1];
+    const { el, form, close } = staffSheet(current ? `Suspension of ${customer.fullName}` : `Suspend ${customer.fullName}`, `
+      ${current ? '' : '<p class="rf-small rf-muted">They can still sign in, see their vault and message us; receiving, sending and changes are paused until you reactivate them. They are signed out now and see all of this when they sign in again.</p>'}
+      <div class="rf-field"><label>Reason</label>
+        <div class="hs-reason-grid" role="radiogroup" aria-label="Reason">
+          ${list.map((r) => `<label class="hs-reason-opt"><input type="radio" name="category" value="${esc(r.id)}" ${r.id === chosen ? 'checked' : ''} /><span>${esc(r.label)}${r.visit ? '<small>In person</small>' : ''}</span></label>`).join('')}
+        </div>
+      </div>
+      <div class="rf-field"><label>What the customer reads</label><textarea class="rf-textarea" name="reason" maxlength="300" rows="3">${esc(current ? current.reason : preset(chosen).reason)}</textarea></div>
+      <div class="rf-field"><label>Next step for them</label><textarea class="rf-textarea" name="nextAction" maxlength="300" rows="2">${esc(current ? current.nextAction : preset(chosen).nextAction)}</textarea><div class="hint">For steps done in person, the notice also shows your office address and hours from Settings.</div></div>
       <div class="rf-field"><label>Suspended from</label><input class="rf-input" type="date" name="since" max="${today}" value="${current && current.since ? localDate(current.since) : today}" /><div class="hint">The day it counts from, shown to the customer. Not in the future.</div></div>`, current ? 'Save' : 'Suspend');
+    // Picking another reason puts its wording in, unless staff have written their own.
+    const reasonBox = qs('textarea[name="reason"]', el);
+    const nextBox = qs('textarea[name="nextAction"]', el);
+    let lastPreset = preset(chosen);
+    qsa('input[name="category"]', el).forEach((radio) => radio.addEventListener('change', () => {
+      const next = preset(radio.value);
+      if (!reasonBox.value.trim() || reasonBox.value === lastPreset.reason) reasonBox.value = next.reason;
+      if (!nextBox.value.trim() || nextBox.value === lastPreset.nextAction) nextBox.value = next.nextAction;
+      lastPreset = next;
+    }));
     onSubmit(form, async (values) => {
+      const body = { category: values.category || 'other', reason: values.reason || '', nextAction: values.nextAction || '', since: values.since || today };
       if (current) {
-        await api.patch(`/admin/customers/${customer.id}/suspension`, { reason: values.reason || '', since: values.since || today });
+        await api.patch(`/admin/customers/${customer.id}/suspension`, body);
         toast('Suspension updated. The customer sees it on their next page.', 'ok');
       } else {
-        await api.post(`/admin/customers/${customer.id}/status`, { status: 'suspended', reason: values.reason || '', since: values.since || today });
-        toast('Suspended. The customer sees the reason when they next sign in.', 'ok');
+        await api.post(`/admin/customers/${customer.id}/status`, { status: 'suspended', ...body });
+        toast('Suspended. The customer sees why, and what to do next, when they sign in.', 'ok');
       }
       close();
       openCustomer(customer.id);

@@ -756,13 +756,17 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       await signInAs(sam);
       assert.strictEqual((await sam.get('/api/bank/auth/session')).body.suspended, null, 'not suspended yet');
 
-      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'suspended', reason: 'Identity documents under review', since: '2026-03-02' });
+      await admin.put('/api/bank/admin/settings', { mailingAddress: '200 Market Street, Columbus, OH 43215', supportHours: 'Monday to Friday, 9am to 5pm' });
+      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'suspended', category: 'documents', reason: 'Identity documents under review', since: '2026-03-02' });
       assert.strictEqual((await sam.get('/api/bank/auth/session')).body.authenticated, false, 'suspending ends the sessions they had');
       await signInAs(sam);
       const session = (await sam.get('/api/bank/auth/session')).body;
       assert.strictEqual(session.authenticated, true, 'a suspended customer can still sign in');
       assert.strictEqual(session.suspended.reason, 'Identity documents under review', 'and is told why');
       assert.strictEqual(session.suspended.since.slice(0, 10), '2026-03-02', 'and since the day staff gave');
+      assert.strictEqual(session.suspended.label, 'Identity documents needed', 'under the reason picked');
+      assert.match(session.suspended.nextAction, /Upload a valid photo ID/, 'with that reason\'s next step');
+      assert.strictEqual(session.suspended.office.address, '200 Market Street, Columbus, OH 43215', 'and, done in person, where to go');
       assert.strictEqual((await sam.get('/api/bank/boot?page=dashboard')).body.session.suspended.reason, 'Identity documents under review', 'on the dashboard too');
       assert.strictEqual((await sam.get('/api/bank/invest')).status, 200, 'they can see their vault');
       const refused = await sam.post('/api/bank/vault/receive', { kind: 'cash', amount: '100', occurredAt: '2020-01-01', termYears: 10 });
@@ -781,12 +785,17 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       // The day and the reason can be corrected, without signing them out.
       const future = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
       assert.strictEqual((await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: future })).body.error, 'future_date');
-      const moved = await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: '2026-02-14', reason: 'Proof of funds needed' });
+      const moved = await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: '2026-02-14', reason: 'Proof of funds needed', category: 'biometric', nextAction: '' });
       assert.strictEqual(moved.status, 200, moved.text);
       const after = (await sam.get('/api/bank/auth/session')).body;
       assert.strictEqual(after.authenticated, true, 'still signed in');
       assert.strictEqual(after.suspended.since.slice(0, 10), '2026-02-14', 'the new day');
       assert.strictEqual(after.suspended.reason, 'Proof of funds needed', 'and the new reason');
+      assert.strictEqual(after.suspended.label, 'Biometric verification required');
+      assert.match(after.suspended.nextAction, /Visit our office with a valid photo ID to complete your biometric verification/, 'a blank next step takes the reason\'s own');
+      assert.strictEqual(sheet.body.suspensionReasons.length, 7, 'staff choose from the reasons');
+      const told = (await sam.get('/api/bank/alerts')).body.alerts.find((a) => /suspended/i.test(a.subject || ''));
+      assert.ok(told, 'the customer was told by email');
       const logged = (await admin.get('/api/bank/admin/activity?limit=20')).body.activity.find((a) => a.action === 'admin.suspension_edited');
       assert.ok(logged && /2026-02-14/.test(logged.detail), 'the correction is in the activity log');
 
