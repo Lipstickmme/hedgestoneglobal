@@ -156,7 +156,7 @@
     onSubmit(qs('#rf-pin-form'), async (values) => {
       await api.patch('/me/security', values);
       qs('#rf-pin-form').reset();
-      toast('Withdrawal PIN saved.', 'ok');
+      toast('PIN saved. You will be asked for it whenever you send Bitcoin.', 'ok');
     });
 
     onSubmit(qs('#rf-question-form'), async (values) => {

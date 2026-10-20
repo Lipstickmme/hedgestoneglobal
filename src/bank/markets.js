@@ -14,8 +14,11 @@
  *   stocks and ETFs   Finnhub (when FINNHUB_API_KEY is set), Yahoo Finance, Stooq
  *   gold              Stooq spot XAU/USD, Yahoo gold futures, CoinGecko PAX Gold
  *
- * Daily history (history()) comes from CoinGecko, Yahoo Finance or Coinbase,
- * whichever answers first, and is held in memory for HISTORY_CACHE_MS.
+ * Daily history (history()) comes from CoinGecko, Yahoo Finance, Coinbase,
+ * Blockchain.com or CryptoCompare, whichever answers first with enough of it,
+ * and is held in memory for HISTORY_CACHE_MS. It reaches back to EARLIEST, the
+ * first day a purchase may be dated, and priceAt() reads a day's close from it
+ * so that a purchase booked after the fact is booked at that day's price.
  *
  * Every answer is cached in memory for CACHE_MS, so a page of visitors costs
  * one round of provider calls rather than one each, and written back to
@@ -387,8 +390,18 @@ async function tradeQuote(symbol) {
  * so it is held in memory for HISTORY_CACHE_MS and shared at the edge.
  */
 const HISTORY_CACHE_MS = Number(process.env.MARKET_HISTORY_CACHE_MINUTES || 30) * 60 * 1000;
-const HISTORY_MAX_DAYS = 1825;
 const historyMemory = new Map(); // "BTC:365" -> { at, points, source }
+
+/*
+ * The earliest day a purchase may be dated. Bitcoin itself began in January
+ * 2009, but there was no market price until the middle of 2010 and very
+ * little trading for months after; from 2011 there is a daily price to book
+ * against.
+ */
+const EARLIEST = require('./constants').VAULT.earliest;
+const DAY_MS = 86400000;
+const daysSince = (iso) => Math.ceil((Date.now() - new Date(`${iso}T00:00:00.000Z`).getTime()) / DAY_MS) + 1;
+const maxDays = () => daysSince(EARLIEST);
 
 const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
 
@@ -410,10 +423,10 @@ async function historyFromCoinGecko(asset, days) {
   return j && Array.isArray(j.prices) ? dailyPoints(j.prices.map(([ms, p]) => [Number(ms), p])) : null;
 }
 
-/** Yahoo Finance: no key, any range, one request. */
+/** Yahoo Finance: no key, any range, one request. Bitcoin from September 2014. */
 async function historyFromYahoo(asset, days) {
   if (!asset.yahoo) return null;
-  const range = [[30, '1mo'], [90, '3mo'], [180, '6mo'], [365, '1y'], [730, '2y'], [1825, '5y']].find(([d]) => days <= d) || [0, '5y'];
+  const range = [[30, '1mo'], [90, '3mo'], [180, '6mo'], [365, '1y'], [730, '2y'], [1825, '5y'], [3650, '10y']].find(([d]) => days <= d) || [0, 'max'];
   const j = await getJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(asset.yahoo)}?range=${range[1]}&interval=1d`);
   const r = j && j.chart && j.chart.result && j.chart.result[0];
   const closes = r && r.indicators && r.indicators.quote && r.indicators.quote[0] && r.indicators.quote[0].close;
@@ -421,13 +434,30 @@ async function historyFromYahoo(asset, days) {
   return dailyPoints(r.timestamp.map((ts, i) => [ts * 1000, closes[i]]));
 }
 
-/** Coinbase Exchange: no key, 300 daily candles a request, newest first. */
+/** Blockchain.com: no key, one request, a daily price back to 2010. Bitcoin only. */
+async function historyFromBlockchain(asset, days) {
+  if (asset.symbol !== 'BTC') return null;
+  const span = days <= 365 ? '1year' : days <= 1825 ? '5years' : 'all';
+  const j = await getJson(`https://api.blockchain.info/charts/market-price?timespan=${span}&format=json&sampled=false&cors=true`);
+  const values = j && Array.isArray(j.values) ? j.values : null;
+  return values ? dailyPoints(values.map((v) => [Number(v.x) * 1000, v.y])) : null;
+}
+
+/** CryptoCompare: no key for light use, every daily close since 2010 in one request. */
+async function historyFromCryptoCompare(asset, days) {
+  if (asset.symbol !== 'BTC') return null;
+  const j = await getJson(`https://min-api.cryptocompare.com/data/v2/histoday?fsym=BTC&tsym=USD&${days > 2000 ? 'allData=true' : `limit=${days}`}`);
+  const rows = j && j.Data && Array.isArray(j.Data.Data) ? j.Data.Data : null;
+  return rows ? dailyPoints(rows.map((r) => [Number(r.time) * 1000, r.close])) : null;
+}
+
+/** Coinbase Exchange: no key, 300 daily candles a request, newest first. From July 2015. */
 async function historyFromCoinbase(asset, days) {
   if (!asset.coinbase) return null;
   const pairs = [];
   let end = Date.now();
   const start = end - days * 86400000;
-  for (let page = 0; page < 7 && end > start; page += 1) {
+  for (let page = 0; page < 25 && end > start; page += 1) {
     const from = Math.max(start, end - 299 * 86400000);
     // eslint-disable-next-line no-await-in-loop
     const rows = await getJson(`https://api.exchange.coinbase.com/products/${encodeURIComponent(asset.coinbase)}/candles?granularity=86400&start=${new Date(from).toISOString()}&end=${new Date(end).toISOString()}`);
@@ -458,13 +488,19 @@ function historyFromFixture(asset, days) {
  * p: dollars }]. Answers { symbol, points, source }; points is empty when no
  * provider could be reached, and the chart says so rather than drawing a line
  * it does not have.
+ *
+ * A provider's answer is taken only if it reaches back far enough: Yahoo has
+ * Bitcoin from 2014 and Coinbase from 2015, so a series from 2012 comes from
+ * one of the providers that go further. When none does, the longest answer
+ * is used.
  */
 async function history(symbol, days = 365) {
   const asset = BY_SYMBOL.get(String(symbol || '').toUpperCase());
   if (!asset) throw Object.assign(new Error('That asset is not available.'), { status: 400, code: 'unknown_asset' });
   // Bucketed, so a purchase made yesterday and one made last week share a cache entry.
-  const wanted = Math.min(HISTORY_MAX_DAYS, Math.max(30, Number(days) || 365));
-  const bucket = [30, 90, 180, 365, 730, HISTORY_MAX_DAYS].find((d) => wanted <= d);
+  const longest = maxDays();
+  const wanted = Math.min(longest, Math.max(30, Number(days) || 365));
+  const bucket = [30, 90, 180, 365, 730, 1825, 3650, longest].find((d) => wanted <= d) || longest;
   const key = `${asset.symbol}:${bucket}`;
   const cached = historyMemory.get(key);
   if (cached && Date.now() - cached.at < HISTORY_CACHE_MS) return { symbol: asset.symbol, points: cached.points, source: cached.source };
@@ -475,28 +511,70 @@ async function history(symbol, days = 365) {
     points = historyFromFixture(asset, bucket);
     source = 'Demo prices (fixture)';
   } else {
-    const chain = [
-      ['CoinGecko', historyFromCoinGecko],
-      ['Yahoo Finance', historyFromYahoo],
-      ['Coinbase', historyFromCoinbase],
-    ];
+    const reaches = dayOf(Date.now() - (bucket - 8) * DAY_MS);
+    const from = dayOf(Date.now() - (bucket - 1) * DAY_MS);
+    const recent = dayOf(Date.now() - 7 * DAY_MS);
+    const chain = bucket <= 365
+      ? [['CoinGecko', historyFromCoinGecko], ['Yahoo Finance', historyFromYahoo], ['Coinbase', historyFromCoinbase], ['Blockchain.com', historyFromBlockchain], ['CryptoCompare', historyFromCryptoCompare]]
+      : [['Yahoo Finance', historyFromYahoo], ['Blockchain.com', historyFromBlockchain], ['CryptoCompare', historyFromCryptoCompare], ['Coinbase', historyFromCoinbase]];
+    let best = null;
     for (const [name, provider] of chain) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const got = await provider(asset, bucket);
-        if (got && got.length > 1) { points = got; source = name; break; }
+        const all = await provider(asset, bucket);
+        // A series that stopped a week ago is no use for today's chart, and
+        // only the days inside the window count towards how far it reaches.
+        if (!all || all.length < 2 || all[all.length - 1].t < recent) continue;
+        const got = all.filter((p) => p.t >= from && p.t >= EARLIEST);
+        if (got.length < 2) continue;
+        if (!best || got[0].t < best.points[0].t) best = { points: got, source: name };
+        if (got[0].t <= reaches) break;
       } catch (err) {
         console.warn(`[hedgestone] ${name} history failed: ${err.message}`);
       }
     }
+    if (best) ({ points, source } = best);
   }
   if (points && points.length > 1) {
+    const from = dayOf(Date.now() - (bucket - 1) * DAY_MS);
+    points = points.filter((p) => p.t >= from && p.t >= EARLIEST);
     historyMemory.set(key, { at: Date.now(), points, source });
     return { symbol: asset.symbol, points, source };
   }
   // Nothing new: an old series is better than none, and is labelled with its source.
   if (cached) return { symbol: asset.symbol, points: cached.points, source: cached.source };
   return { symbol: asset.symbol, points: [], source: '' };
+}
+
+/**
+ * The price a purchase dated `when` is booked at: the live price for today,
+ * otherwise that day's closing price. Refuses a day before EARLIEST or in the
+ * future, and a day the providers have no price for.
+ *
+ * @returns {Promise<{ asset, quote: { symbol, price, source, asOf } }>}
+ */
+async function priceAt(symbol, when) {
+  const asset = BY_SYMBOL.get(String(symbol || 'BTC').toUpperCase());
+  if (!asset) throw Object.assign(new Error('That asset is not available.'), { status: 400, code: 'unknown_asset' });
+  const at = new Date(when || Date.now());
+  if (Number.isNaN(at.getTime())) throw Object.assign(new Error('Enter a valid date.'), { status: 400, code: 'invalid_date' });
+  if (at.getTime() > Date.now() + 60000) throw Object.assign(new Error('A date in the future cannot be used.'), { status: 400, code: 'future_date' });
+  const day = dayOf(at.getTime());
+  if (day < EARLIEST) {
+    throw Object.assign(new Error(`The earliest date that can be used is ${new Date(`${EARLIEST}T00:00:00Z`).toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' })}.`), { status: 400, code: 'before_earliest' });
+  }
+  if (day === dayOf(Date.now())) return tradeQuote(asset.symbol);
+
+  const { points, source } = await history(asset.symbol, daysSince(day) + 1);
+  let hit = null;
+  for (const p of points) {
+    if (p.t > day) break;
+    hit = p;
+  }
+  if (!hit || (new Date(`${day}T00:00:00Z`) - new Date(`${hit.t}T00:00:00Z`)) > 7 * DAY_MS) {
+    throw Object.assign(new Error(`We cannot get ${asset.name}'s price for ${day} right now. Try again in a minute.`), { status: 503, code: 'price_unavailable', expose: true });
+  }
+  return { asset, quote: { symbol: asset.symbol, price: hit.p, source: `${source}, close on ${hit.t}`, asOf: `${hit.t}T23:59:59.000Z` } };
 }
 
 /** Tests: set fixture prices and drop the cache so the next read sees them. */
@@ -508,6 +586,6 @@ function _setFixture(prices) {
 }
 
 module.exports = {
-  ASSETS, RETIRED, BY_SYMBOL, list, tradeQuote, history, TRADE_MAX_AGE_MS, _setFixture,
-  _history: { dailyPoints, historyFromCoinGecko, historyFromYahoo, historyFromCoinbase },
+  ASSETS, RETIRED, BY_SYMBOL, EARLIEST, list, tradeQuote, history, priceAt, TRADE_MAX_AGE_MS, _setFixture,
+  _history: { dailyPoints, historyFromCoinGecko, historyFromYahoo, historyFromCoinbase, historyFromBlockchain, historyFromCryptoCompare },
 };

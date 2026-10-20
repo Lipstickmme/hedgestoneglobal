@@ -1,34 +1,36 @@
 'use strict';
 
 /**
- * Buying Bitcoin with a cash balance, and selling it back again.
+ * The vault: the Bitcoin a customer holds, how it got there, and how it
+ * leaves.
  *
- * A purchase debits the cash balance through the ledger like any other
- * payment, at the live price of the moment, and books the units it bought
- * against the customer's holding. Selling is the same in reverse: units come
- * off the holding and the proceeds are credited to the cash balance.
+ * Bitcoin comes in two ways, each confirmed by staff (vault.js holds the
+ * requests):
  *
- * Every purchase carries a term - how long the customer plans to hold it -
- * and so a maturity date, which the dashboard counts down to. A maturity date
- * is a plan, not a lock: nothing here refuses a sale before it.
+ *   cash     paid to the OTC partner; it buys Bitcoin at that day's price
+ *   bitcoin  sent to the vault address; it is valued at that day's price
  *
- * Bitcoin is the only asset. Whatever a customer still holds of the assets
- * the platform used to offer (markets.RETIRED) is converted to Bitcoin the
- * next time their portfolio is read, or when staff open the investments
- * screen (convertRetired). Until then it is not shown anywhere.
+ * and goes out one way: sent to an address of the customer's, once it has
+ * matured, again approved by staff.
  *
- * Arithmetic is exact. Cash is integer cents, as everywhere in the bank; units
- * are carried as BigInt multiples of the asset's smallest unit (a millionth of
- * a share, a satoshi) and stored as decimal strings, so no balance is ever the
- * result of a floating-point rounding error. Units bought are rounded down and
- * proceeds of a sale are rounded down: we never book more than the money paid
- * for.
+ * Everything that comes in carries a term of whole years (VAULT.termYears)
+ * and so a maturity date. Anything dated in the past is priced at Bitcoin's
+ * closing price on that day (markets.priceAt), never at today's, so the
+ * growth shown for a purchase from 2014 is the growth since 2014. Nothing can
+ * be dated before VAULT.earliest.
  *
- * Each customer's trades run one at a time (withLock on the customer), and the
- * price a trade books at is fetched at that moment, never taken from the
- * browser. The browser sends the price it showed, and a trade is refused if
- * the market has moved more than PRICE_TOLERANCE since, so nobody confirms one
- * number and is booked at another.
+ * Customers no longer hold cash or any other asset. Whatever they still had of
+ * either is converted to Bitcoin the next time their vault is read, or when
+ * staff open the investments screen (convertRetired, convertCash).
+ *
+ * Arithmetic is exact. Cash is integer cents, as everywhere in the platform;
+ * units are carried as BigInt multiples of the asset's smallest unit (a
+ * satoshi) and stored as decimal strings, so no balance is ever the result of
+ * a floating-point rounding error. Units bought are rounded down: we never
+ * book more than the money paid for.
+ *
+ * Each customer's vault changes one thing at a time (withLock on the
+ * customer).
  */
 
 const { db, withLock } = require('./db');
@@ -38,12 +40,12 @@ const markets = require('./markets');
 const settings = require('./settings');
 const alerts = require('./alerts');
 const audit = require('./audit');
-const { ACCOUNT_TYPES } = require('./constants');
+const { ACCOUNT_TYPES, VAULT } = require('./constants');
 const { money } = require('./http');
 
 const MIN_BUY = 100; // $1.00
-const PRICE_TOLERANCE = 0.02;
-const MAX_TERM_MONTHS = 120;
+const TERM_YEARS = VAULT.termYears;
+const MAX_TERM_MONTHS = TERM_YEARS.max * 12;
 
 const nowIso = () => new Date().toISOString();
 const err = (status, message, code, extra) => Object.assign(new Error(message), { status, code }, extra || {});
@@ -80,6 +82,9 @@ const unitsFor = (cents, pc, decimals) => (BigInt(cents) * SCALE(decimals)) / Bi
 /** What `scaled` units are worth at `pc` cents per unit, rounded down. */
 const valueOf = (scaled, pc, decimals) => Number((scaled * BigInt(pc)) / SCALE(decimals));
 
+/** A cost split in proportion to units, rounded to the cent. */
+const shareOf = (cost, part, whole) => (part >= whole ? cost : Math.round(cost * Number((part * 1000000n) / whole) / 1000000));
+
 /* ---------------------------------------------------------------- terms --- */
 
 /** `iso` plus `months` calendar months, clamped to the last day of a short month. */
@@ -93,24 +98,24 @@ function addMonths(iso, months) {
   return d.toISOString();
 }
 
-/**
- * The term a purchase is booked with. A customer picks one of the terms
- * offered under Settings; staff booking on someone's behalf may enter any
- * whole number of months. Blank means the default term.
- */
-function termFor(input, cfg, staff) {
-  const offered = (Array.isArray(cfg.investmentTerms) ? cfg.investmentTerms : []).map(Number).filter((n) => n > 0);
-  const fallback = Number(cfg.investmentTermMonths) || offered[0] || 12;
-  if (input == null || input === '') return fallback;
-  const months = Number(input);
-  if (!Number.isInteger(months) || months < 1 || months > MAX_TERM_MONTHS) {
-    throw err(400, `Choose a term between 1 and ${MAX_TERM_MONTHS} months.`, 'invalid_term');
-  }
-  if (!staff && offered.length && !offered.includes(months)) {
-    throw err(400, `Choose one of the terms offered: ${offered.join(', ')} months.`, 'invalid_term');
-  }
-  return months;
+/** The term preselected and used when nobody chose one, in years. */
+function defaultTermYears(cfg) {
+  const years = Number(cfg && cfg.investmentTermYears);
+  return Number.isInteger(years) && years >= TERM_YEARS.min && years <= TERM_YEARS.max ? years : TERM_YEARS.min;
 }
+
+/** A term in whole years, as the months it is stored in. Blank means the default. */
+function termFor(years, cfg) {
+  if (years == null || years === '') return defaultTermYears(cfg) * 12;
+  const n = Number(years);
+  if (!Number.isInteger(n) || n < TERM_YEARS.min || n > TERM_YEARS.max) {
+    throw err(400, `Choose a term of ${TERM_YEARS.min} to ${TERM_YEARS.max} years, in whole years.`, 'invalid_term');
+  }
+  return n * 12;
+}
+
+/** "10-year term"; terms booked before the vault were months, and still say so. */
+const termLabel = (months) => (months % 12 === 0 ? `${months / 12}-year term` : `${months}-month term`);
 
 /*
  * term_months and matures_at arrived with 0007_invest_term.sql. A database
@@ -136,35 +141,27 @@ async function insertTrade(row) {
   }
 }
 
-/** When a purchase matures: as booked, or worked out from the default term. */
+/** When something in the vault matures: as booked, or worked out from the default term. */
 function maturityOf(t) {
   if (t.side !== 'buy') return { termMonths: null, maturesAt: null };
   if (t.matures_at) return { termMonths: t.term_months == null ? null : Number(t.term_months), maturesAt: new Date(t.matures_at).toISOString() };
-  const months = Number(t.term_months) || Number(settings.snapshot().investmentTermMonths) || 12;
+  const months = Number(t.term_months) || defaultTermYears(settings.snapshot()) * 12;
   return { termMonths: months, maturesAt: addMonths(t.created_at, months) };
 }
 
+/** A date to book at: valid, not in the future, not before VAULT.earliest. */
+function bookingDate(at) {
+  if (at == null || at === '') return nowIso();
+  const when = new Date(at);
+  if (Number.isNaN(when.getTime())) throw err(400, 'Enter a valid date.', 'invalid_date');
+  if (when.getTime() > Date.now() + 60000) throw err(400, 'A date in the future cannot be used.', 'future_date');
+  if (when.toISOString().slice(0, 10) < VAULT.earliest) {
+    throw err(400, `The earliest date that can be used is ${new Date(`${VAULT.earliest}T00:00:00Z`).toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' })}.`, 'before_earliest');
+  }
+  return when.toISOString();
+}
+
 /* ------------------------------------------------------------- helpers --- */
-
-function checkPrice(quotedPrice, quote) {
-  const quoted = Number(quotedPrice);
-  if (!Number.isFinite(quoted) || quoted <= 0) return;
-  const moved = Math.abs(quote.price - quoted) / quoted;
-  if (moved > PRICE_TOLERANCE) {
-    throw err(409, `The price moved from ${money(priceCents(quoted))} to ${money(priceCents(quote.price))} while you were deciding. Review the new price and confirm again.`, 'price_moved', { details: { quote } });
-  }
-}
-
-async function depositAccount(user, accountId) {
-  const account = await db.accounts.findById(accountId);
-  if (!account || account.user_id !== user.id) throw err(400, 'Choose one of your accounts.');
-  if (account.status !== 'active') throw err(409, `That account is ${account.status}, so it cannot be used to buy or sell Bitcoin.`);
-  const type = ACCOUNT_TYPES[account.type] || ACCOUNT_TYPES.checking;
-  if (type.sign === -1 || ['cd', 'loan', 'mortgage'].includes(account.type)) {
-    throw err(400, 'Bitcoin is bought with, and sold into, your cash balance.');
-  }
-  return account;
-}
 
 async function holdingFor(userId, symbol) {
   return db.holdings.findOne({ user_id: userId, symbol });
@@ -183,19 +180,30 @@ async function saveHolding(existing, userId, asset, scaled, costBasis) {
   return row;
 }
 
-function receipt(trade, asset, account) {
+/*
+ * What a trade was, from its reference: OTC- paid in cash through the OTC
+ * partner, RCV- Bitcoin received, SND- Bitcoin sent, CNV- a conversion from
+ * cash or another asset. INV- is a purchase or sale from before the vault.
+ */
+const KINDS = { OTC: 'cash', RCV: 'bitcoin', SND: 'sent', CNV: 'converted' };
+const kindOf = (t) => KINDS[String(t.reference || '').slice(0, 3)] || (t.side === 'buy' ? 'bought' : 'sold');
+const isConversion = (t) => kindOf(t) === 'converted';
+const isSend = (t) => kindOf(t) === 'sent';
+
+const longDate = (iso) => new Date(iso).toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' });
+
+function receipt(trade) {
+  const { termMonths, maturesAt } = maturityOf(trade);
+  const kind = kindOf(trade);
   return [
-    { label: trade.side === 'buy' ? 'Converted' : 'Sold', value: `${trade.units} ${asset.unit === 'share' ? `share${trade.units === '1' ? '' : 's'} of` : asset.unit} ${asset.name}` },
-    { label: 'Price', value: `${money(trade.price)} per ${asset.unit === 'share' ? 'share' : asset.unit}` },
-    { label: trade.side === 'buy' ? 'Amount paid' : 'Amount received', value: money(trade.amount) },
-    ...(trade.side === 'buy' ? [{ label: 'Matures', value: `${new Date(maturityOf(trade).maturesAt).toLocaleDateString('en-US', { dateStyle: 'long' })} (${maturityOf(trade).termMonths}-month term)` }] : []),
-    { label: trade.side === 'buy' ? 'Paid from' : 'Paid to', value: `${account.nickname || account.name} (${ids.maskAccount(account.account_number)})` },
+    { label: kind === 'sent' ? 'Sent' : 'Added', value: `${trade.units} BTC` },
+    { label: 'Bitcoin price', value: `${money(trade.price)} on ${longDate(trade.created_at)}` },
+    { label: kind === 'cash' ? 'Paid' : 'Value', value: money(trade.amount) },
+    ...(trade.side === 'buy' ? [{ label: 'Matures', value: `${longDate(maturesAt)} (${termLabel(termMonths)})` }] : []),
+    ...(kind === 'sent' && trade.note ? [{ label: 'To', value: trade.note }] : []),
     { label: 'Reference', value: trade.reference },
   ];
 }
-
-/** A trade booked by convertRetired rather than by anybody buying or selling. */
-const isConversion = (t) => /^CNV-/.test(String(t.reference || ''));
 
 function publicTrade(t) {
   const asset = markets.BY_SYMBOL.get(t.symbol) || { name: t.symbol, unit: 'unit' };
@@ -203,6 +211,7 @@ function publicTrade(t) {
     id: t.id,
     createdAt: t.created_at,
     side: t.side,
+    kind: kindOf(t),
     symbol: t.symbol,
     name: asset.name,
     unit: asset.unit,
@@ -222,264 +231,317 @@ function publicTrade(t) {
   };
 }
 
-/* ----------------------------------------------------------------- buy --- */
+const actorOf = (user, opts) => (opts.staff
+  ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' }
+  : opts.system ? { role: 'system' } : { id: user.id, email: user.email, role: 'customer' });
+
+/* ----------------------------------------------------------- vault: in --- */
 
 /**
- * Buy Bitcoin with part or all of an account's available balance.
+ * Book Bitcoin into a customer's vault, dated when it happened and priced at
+ * Bitcoin's price that day.
  *
- * @param {object} user
- * @param {object} input  { accountId, symbol, amount (cents) | percent | all, quotedPrice, termMonths }
+ * @param {object} input  { kind: 'cash' | 'bitcoin', amount (cents, cash) | units (bitcoin),
+ *                          at (ISO, default now), termYears, note }
  */
-async function convert(user, input, req, opts = {}) {
+async function addToVault(user, input, req, opts = {}) {
+  const at = bookingDate(input.at);
+  const cfg = await settings.get();
+  const termMonths = termFor(input.termYears, cfg);
+  const kind = input.kind === 'bitcoin' ? 'bitcoin' : 'cash';
+
   return withLock(`invest:${user.id}`, async () => {
-    const account = await depositAccount(user, input.accountId);
-    const available = ledger.availableFor(account);
-
-    let amount;
-    if (input.all) amount = available;
-    else if (input.percent != null && input.percent !== '') {
-      const pct = Number(input.percent);
-      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) throw err(400, 'Choose a percentage between 1 and 100.');
-      amount = Math.floor((available * pct) / 100);
-    } else amount = Math.round(Number(input.amount));
-
-    if (!Number.isFinite(amount) || amount < MIN_BUY) throw err(400, `The smallest purchase is ${money(MIN_BUY)}.`, 'below_minimum');
-    if (amount > available) {
-      throw err(400, `Not enough available funds. ${money(available)} is available in that account.`, 'insufficient_funds');
-    }
-    const cfg = await settings.get();
-    const cap = Number(cfg.limits && cfg.limits.singleTransactionMax) || 0;
-    if (cap && amount > cap) throw err(400, `The most you can invest at once is ${money(cap)}.`, 'limit_exceeded');
-    const termMonths = termFor(input.termMonths, cfg, Boolean(opts.staff));
-
-    const listed = markets.BY_SYMBOL.get(String(input.symbol || 'BTC').toUpperCase());
-    if (listed && listed.retired) {
-      throw err(400, 'Bitcoin is the only asset you can buy.', 'asset_retired');
-    }
-    const { asset, quote } = opts.price ? staffQuote(input.symbol || 'BTC', opts) : await markets.tradeQuote(input.symbol || 'BTC');
-    if (!opts.staff) checkPrice(input.quotedPrice, quote);
+    const { asset, quote } = await markets.priceAt('BTC', at);
     const pc = priceCents(quote.price);
-    const bought = unitsFor(amount, pc, asset.decimals);
-    if (bought <= 0n) throw err(400, `${money(amount)} is too small to buy any ${asset.name}.`, 'below_minimum');
-
-    const reference = ids.reference('INV');
-    const units = fromScaled(bought, asset.decimals);
-    const posted = await ledger.post({
-      accountId: account.id,
-      direction: 'debit',
-      amount,
-      description: `Bought ${asset.name} - ${units} ${asset.unit === 'share' ? 'sh' : asset.unit} @ ${money(pc)}`,
-      merchant: asset.name,
-      method: 'investment',
-      category: 'Investments',
-      status: 'posted',
-      reference,
-      createdBy: opts.staff ? 'admin' : 'customer',
-      createdById: opts.staff ? opts.staff.id : user.id,
-      date: opts.at || undefined,
-      adminNote: opts.note || '',
-      meta: { symbol: asset.symbol, units, price: pc, source: quote.source },
-    });
-
-    let trade;
-    try {
-      const existing = await holdingFor(user.id, asset.symbol);
-      const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
-      await saveHolding(existing, user.id, asset, held + bought, Number(existing ? existing.cost_basis : 0) + amount);
-      const bookedAt = opts.at || nowIso();
-      trade = await insertTrade({
-        id: ids.uuid(), created_at: bookedAt, user_id: user.id, account_id: account.id,
-        booked_by: opts.staff ? opts.staff.id : null, note: opts.note || null, status: 'completed',
-        symbol: asset.symbol, side: 'buy', units, price: pc, amount,
-        transaction_id: posted.transaction.id, reference,
-        quote_source: quote.source, quote_as_of: quote.asOf,
-        term_months: termMonths, matures_at: addMonths(bookedAt, termMonths),
-      });
-    } catch (e) {
-      // The money left the account but the holding was not booked: put it back.
-      await ledger.post({
-        accountId: account.id, direction: 'credit', amount,
-        description: `Reversal - ${asset.name} purchase could not be completed`,
-        method: 'investment', category: 'Investments', reference,
-        createdBy: 'system',
-      });
-      throw err(500, 'The purchase could not be completed and has been reversed. Nothing was charged.', 'conversion_failed', { expose: true });
+    let units;
+    let amount;
+    if (kind === 'bitcoin') {
+      units = toScaled(input.units, asset.decimals);
+      if (units <= 0n) throw err(400, 'Enter how much Bitcoin arrived.', 'invalid_units');
+      amount = valueOf(units, pc, asset.decimals);
+    } else {
+      amount = Math.round(Number(input.amount));
+      if (!Number.isFinite(amount) || amount < MIN_BUY) throw err(400, `The smallest amount is ${money(MIN_BUY)}.`, 'below_minimum');
+      units = unitsFor(amount, pc, asset.decimals);
+      if (units <= 0n) throw err(400, `${money(amount)} is too small to buy any Bitcoin.`, 'below_minimum');
     }
 
-    await audit.log({
-      action: 'invest.buy', category: 'money', userId: user.id, req,
-      actor: opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { id: user.id, email: user.email, role: 'customer' },
-      detail: `${money(amount)} of ${asset.symbol} bought: ${units} at ${money(pc)}, ${termMonths}-month term - ${reference}`,
-      meta: { tradeId: trade.id, symbol: asset.symbol },
-    });
-    if (!opts.silent) {
-      await alerts.notifyUser(user, 'investment_trade', {
-        subject: `${money(amount)} of ${asset.name} bought`,
-        heading: `You now hold more ${asset.name}`,
-        intro: `We used ${money(amount)} of your cash balance to buy ${units} ${asset.unit === 'share' ? 'shares of' : asset.unit} ${asset.name} at ${money(pc)}. It matures in ${termMonths} months.`,
-        rows: receipt(trade, asset, account),
-      }).catch(() => {});
-    }
-
-    if (opts.at) await ledger.restate(account.id);
-    return { trade: publicTrade(trade), account: posted.account };
-  });
-}
-
-/* ---------------------------------------------------------------- sell --- */
-
-/**
- * Sell part or all of a holding back into an account.
- *
- * @param {object} input  { symbol, accountId, units | percent | all, quotedPrice }
- */
-async function sell(user, input, req, opts = {}) {
-  return withLock(`invest:${user.id}`, async () => {
-    const account = await depositAccount(user, input.accountId);
-    const asset = markets.BY_SYMBOL.get(String(input.symbol || 'BTC').toUpperCase());
-    if (!asset || asset.retired) throw err(400, 'Bitcoin is the only asset you can sell.', 'asset_retired');
     const existing = await holdingFor(user.id, asset.symbol);
     const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
-    if (held <= 0n) throw err(400, `You do not hold any ${asset.name}.`, 'no_holding');
+    const cost = Number(existing ? existing.cost_basis : 0);
+    await saveHolding(existing, user.id, asset, held + units, cost + amount);
 
-    let selling;
-    if (input.all) selling = held;
-    else if (input.percent != null && input.percent !== '') {
-      const pct = Number(input.percent);
-      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) throw err(400, 'Choose a percentage between 1 and 100.');
-      selling = pct === 100 ? held : (held * BigInt(Math.round(pct * 100))) / 10000n;
-    } else selling = toScaled(input.units, asset.decimals);
-
-    if (selling <= 0n) throw err(400, 'Enter how much to sell.');
-    if (selling > held) throw err(400, `You hold ${fromScaled(held, asset.decimals)} ${asset.unit === 'share' ? 'shares' : asset.unit}.`, 'insufficient_units');
-
-    const { quote } = opts.price ? staffQuote(asset.symbol, opts) : await markets.tradeQuote(asset.symbol);
-    if (!opts.staff) checkPrice(input.quotedPrice, quote);
-    const pc = priceCents(quote.price);
-    const proceeds = valueOf(selling, pc, asset.decimals);
-    if (proceeds <= 0) throw err(400, 'That is too small an amount to sell.', 'below_minimum');
-
-    const reference = ids.reference('INV');
-    const units = fromScaled(selling, asset.decimals);
-    const cost = Number(existing.cost_basis || 0);
-    const remaining = held - selling;
-    const costSold = remaining <= 0n ? cost : Math.round(cost * Number((selling * 1000000n) / held) / 1000000);
-
-    await saveHolding(existing, user.id, asset, remaining, cost - costSold);
-    let posted;
+    const reference = input.reference || ids.reference(kind === 'bitcoin' ? 'RCV' : 'OTC');
+    let trade;
     try {
-      posted = await ledger.post({
-        accountId: account.id,
-        direction: 'credit',
-        amount: proceeds,
-        description: `Sold ${asset.name} - ${units} ${asset.unit === 'share' ? 'sh' : asset.unit} @ ${money(pc)}`,
-        merchant: asset.name,
-        method: 'investment',
-        category: 'Investments',
-        status: 'posted',
-        reference,
-        createdBy: opts.staff ? 'admin' : 'customer',
-        createdById: opts.staff ? opts.staff.id : user.id,
-        date: opts.at || undefined,
-        adminNote: opts.note || '',
-        meta: { symbol: asset.symbol, units, price: pc, source: quote.source },
+      trade = await insertTrade({
+        id: ids.uuid(), created_at: at, user_id: user.id, account_id: null,
+        booked_by: opts.staff ? opts.staff.id : null, note: input.note || null, status: 'completed',
+        symbol: asset.symbol, side: 'buy', units: fromScaled(units, asset.decimals), price: pc, amount,
+        transaction_id: null, reference, quote_source: quote.source, quote_as_of: quote.asOf,
+        term_months: termMonths, matures_at: addMonths(at, termMonths),
       });
     } catch (e) {
-      // Put the units back before reporting the failure.
+      // Put the holding back as it was before reporting the failure.
       await saveHolding(await holdingFor(user.id, asset.symbol), user.id, asset, held, cost);
       throw e;
     }
 
+    await audit.log({
+      action: kind === 'bitcoin' ? 'vault.bitcoin_received' : 'vault.cash_received', category: 'money', userId: user.id, req,
+      actor: actorOf(user, opts),
+      detail: `${trade.units} BTC added (${kind === 'bitcoin' ? 'Bitcoin received' : `${money(amount)} paid through the OTC partner`}) at ${money(pc)} on ${at.slice(0, 10)}, ${termLabel(termMonths)} - ${reference}`,
+      meta: { tradeId: trade.id, kind, at },
+    });
+    if (!opts.silent) {
+      await alerts.notifyUser(user, 'investment_trade', {
+        subject: `${trade.units} BTC added to your vault`,
+        heading: 'Added to your vault',
+        intro: kind === 'bitcoin'
+          ? `The ${trade.units} BTC you sent has arrived in your vault. It was worth ${money(amount)} at ${money(pc)} on ${longDate(at)}.`
+          : `Your payment of ${money(amount)} has bought ${trade.units} BTC at ${money(pc)} on ${longDate(at)}, now in your vault.`,
+        rows: receipt(trade),
+      }).catch(() => {});
+    }
+    return { trade: publicTrade(trade) };
+  });
+}
+
+/* ---------------------------------------------------------- vault: out --- */
+
+/**
+ * The lots that make up a holding: each purchase still (partly) held, oldest
+ * first, with what is left of its units and cost.
+ *
+ * Bitcoin sent out comes off lots that had matured when it was sent, earliest
+ * maturity first; anything else that left (a sale from before the vault)
+ * comes off the oldest first. Anything the holding has that no purchase
+ * explains - a balance booked before trades were recorded - is one lot dated
+ * when the holding was opened, so the lots always add up to the holding.
+ */
+function lotsOf(trades, holding, asset) {
+  const lots = [];
+  const take = (pool, units) => {
+    let left = units;
+    for (const lot of pool) {
+      if (left <= 0n) break;
+      if (lot.units <= 0n) continue;
+      const out = lot.units <= left ? lot.units : left;
+      const costOut = shareOf(lot.cost, out, lot.units);
+      lot.cost -= costOut;
+      lot.units -= out;
+      left -= out;
+    }
+    for (let i = lots.length - 1; i >= 0; i -= 1) if (lots[i].units <= 0n) lots.splice(i, 1);
+    return left;
+  };
+  const ripeAt = (when) => lots
+    .filter((l) => maturityOf(l.trade).maturesAt <= when)
+    .sort((a, b) => (maturityOf(a.trade).maturesAt < maturityOf(b.trade).maturesAt ? -1 : 1));
+
+  trades
+    .filter((t) => t.status !== 'reversed')
+    .slice()
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0))
+    .forEach((t) => {
+      const units = toScaled(t.units, asset.decimals);
+      if (t.side === 'buy') lots.push({ trade: t, units, cost: Number(t.amount || 0) });
+      else if (isSend(t)) {
+        const left = take(ripeAt(t.created_at), units);
+        if (left > 0n) take(lots, left);
+      } else take(lots, units);
+    });
+
+  const held = holding ? toScaled(holding.units, asset.decimals) : 0n;
+  const counted = lots.reduce((n, l) => n + l.units, 0n);
+  if (counted > held) take(lots, counted - held);
+  else if (held > counted) {
+    const cost = Math.max(0, Number(holding.cost_basis || 0) - lots.reduce((n, l) => n + l.cost, 0));
+    lots.unshift({ trade: { id: `holding-${holding.id}`, side: 'buy', created_at: holding.created_at, price: 0, term_months: null }, units: held - counted, cost });
+  }
+  return { lots, ripeAt, take };
+}
+
+const OPEN_SENDS = ['pending_verification', 'pending'];
+
+/**
+ * Bitcoin that has matured and is not already asked to be sent, in satoshis.
+ * `excluding` leaves one request out, for approving that request.
+ */
+async function maturedUnits(userId, { excluding } = {}) {
+  const asset = markets.BY_SYMBOL.get('BTC');
+  const [holding, trades, sends] = await Promise.all([
+    holdingFor(userId, 'BTC'),
+    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
+    db.vaultRequests.find({ user_id: userId, kind: 'btc_out' }).catch(() => []),
+  ]);
+  const now = nowIso();
+  const { lots } = lotsOf(trades, holding, asset);
+  const ripe = lots.filter((l) => maturityOf(l.trade).maturesAt <= now).reduce((n, l) => n + l.units, 0n);
+  const asked = sends
+    .filter((r) => OPEN_SENDS.includes(r.status) && r.id !== excluding)
+    .reduce((n, r) => n + toScaled(r.units, asset.decimals), 0n);
+  return ripe > asked ? ripe - asked : 0n;
+}
+
+/**
+ * Send matured Bitcoin out of the vault. Called when staff approve a send
+ * request, after they have made the transfer; `txid` is that transaction.
+ *
+ * @param {object} input  { units, address, txid, requestId, reference }
+ */
+async function sendFromVault(user, input, req, opts = {}) {
+  const asset = markets.BY_SYMBOL.get('BTC');
+  return withLock(`invest:${user.id}`, async () => {
+    const units = toScaled(input.units, asset.decimals);
+    if (units <= 0n) throw err(400, 'Enter how much Bitcoin to send.', 'invalid_units');
+    const ready = await maturedUnits(user.id, { excluding: input.requestId });
+    if (units > ready) {
+      throw err(409, `Only Bitcoin that has matured can be sent. ${fromScaled(ready, asset.decimals)} BTC is ready.`, 'not_matured');
+    }
+
+    // Valued at the live price when it can be had, the last one seen when not:
+    // the units are what leave, the value is for the record.
+    let quote = null;
+    try {
+      ({ quote } = await markets.tradeQuote('BTC'));
+    } catch (e) {
+      quote = ((await markets.list()).find((a) => a.symbol === 'BTC') || {}).quote || null;
+    }
+    const pc = quote ? priceCents(quote.price) : 0;
+    const value = pc ? valueOf(units, pc, asset.decimals) : 0;
+
+    const [existing, trades] = await Promise.all([
+      holdingFor(user.id, 'BTC'),
+      db.trades.find({ user_id: user.id, symbol: 'BTC' }, { order: 'created_at.asc' }),
+    ]);
+    const { ripeAt } = lotsOf(trades, existing, asset);
+    let left = units;
+    let costOut = 0;
+    for (const lot of ripeAt(nowIso())) {
+      if (left <= 0n) break;
+      const out = lot.units <= left ? lot.units : left;
+      costOut += shareOf(lot.cost, out, lot.units);
+      left -= out;
+    }
+    const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
+    const cost = Number(existing ? existing.cost_basis : 0);
+    await saveHolding(existing, user.id, asset, held - units, cost - costOut);
+
+    const reference = input.reference || ids.reference('SND');
     const trade = {
-      id: ids.uuid(), created_at: opts.at || nowIso(), user_id: user.id, account_id: account.id,
-      booked_by: opts.staff ? opts.staff.id : null, note: opts.note || null, status: 'completed',
-      symbol: asset.symbol, side: 'sell', units, price: pc, amount: proceeds,
-      transaction_id: posted.transaction.id, reference,
-      quote_source: quote.source, quote_as_of: quote.asOf,
-      realized_gain: proceeds - costSold,
+      id: ids.uuid(), created_at: nowIso(), user_id: user.id, account_id: null,
+      booked_by: opts.staff ? opts.staff.id : null, note: input.address || null, status: 'completed',
+      symbol: 'BTC', side: 'sell', units: fromScaled(units, asset.decimals), price: pc, amount: value,
+      // transaction_id is the ledger's (a uuid); the Bitcoin txid is kept on the request.
+      transaction_id: null, reference,
+      quote_source: quote ? quote.source : null, quote_as_of: quote ? quote.asOf : null,
+      realized_gain: value - costOut,
     };
-    await db.trades.insert(trade);
+    try {
+      await db.trades.insert(trade);
+    } catch (e) {
+      await saveHolding(await holdingFor(user.id, 'BTC'), user.id, asset, held, cost);
+      throw e;
+    }
 
     await audit.log({
-      action: 'invest.sell', category: 'money', userId: user.id, req,
-      actor: opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { id: user.id, email: user.email, role: 'customer' },
-      detail: `${units} ${asset.symbol} sold at ${money(pc)} for ${money(proceeds)} - ${reference}`,
-      meta: { tradeId: trade.id, symbol: asset.symbol },
+      action: 'vault.sent', category: 'money', userId: user.id, req, actor: actorOf(user, opts), severity: 'notice',
+      detail: `${trade.units} BTC sent to ${input.address || 'an address'}${input.txid ? ` (transaction ${input.txid})` : ''} - ${reference}`,
+      meta: { tradeId: trade.id, address: input.address, txid: input.txid || null },
     });
-    await alerts.notifyUser(user, 'investment_trade', {
-      subject: `${asset.name} sold - ${money(proceeds)} credited`,
-      heading: `${money(proceeds)} is back in your account`,
-      intro: `We sold ${units} ${asset.unit === 'share' ? 'shares of' : asset.unit} ${asset.name} at ${money(pc)} and credited the proceeds.`,
-      rows: receipt(trade, asset, account),
-    }).catch(() => {});
-
-    return { trade: publicTrade(trade), account: posted.account };
+    if (!opts.silent) {
+      await alerts.notifyUser(user, 'investment_trade', {
+        subject: `${trade.units} BTC sent from your vault`,
+        heading: 'Bitcoin sent',
+        intro: `We have sent ${trade.units} BTC from your vault to ${input.address}.${input.txid ? ` The transaction is ${input.txid}.` : ''}`,
+        rows: receipt(trade),
+      }).catch(() => {});
+    }
+    return { trade: publicTrade(trade) };
   });
 }
 
 /* ---------------------------------------------------------------- staff --- */
 
 /**
- * A price entered by staff, for a trade booked after the fact: a walk-in
- * customer's instruction, or one taken by phone while the network was down,
- * recorded at the price and time it was actually agreed.
+ * Move something in the vault to the date it really happened, or change a
+ * purchase's term. Moving it reprices it at that day's price: a cash purchase
+ * keeps what was paid and is worth the Bitcoin that bought then; Bitcoin
+ * received keeps its units and is valued at that day. The maturity moves
+ * with it: it is always the date plus the term.
  */
-function staffQuote(symbol, opts) {
-  const asset = markets.BY_SYMBOL.get(String(symbol || '').toUpperCase());
-  if (!asset) throw err(400, 'That asset is not available.');
-  const price = Number(opts.price);
-  if (!Number.isFinite(price) || price <= 0) throw err(400, 'Enter the price per unit the trade was agreed at.');
-  return { asset, quote: { symbol: asset.symbol, price: Math.round(price * 100) / 100, source: 'Entered by staff', asOf: opts.at || nowIso() } };
-}
+async function retimeTrade(tradeId, at, staff, note, req, { termYears } = {}) {
+  const found = await db.trades.findById(tradeId);
+  if (!found) throw err(404, 'Trade not found.');
+  return withLock(`invest:${found.user_id}`, async () => {
+    const trade = await db.trades.findById(tradeId);
+    if (trade.status === 'reversed') throw err(409, 'That trade has been reversed.');
+    const iso = at ? bookingDate(at) : trade.created_at;
+    const patch = { created_at: iso, note: note || trade.note || null };
+    const kind = kindOf(trade);
+    const asset = markets.BY_SYMBOL.get(trade.symbol);
 
-/**
- * Move a trade, and its ledger entry, to the time it actually happened, and
- * for a purchase optionally change its term. A purchase's maturity moves with
- * it: it is always the purchase date plus the term.
- */
-async function retimeTrade(tradeId, at, staff, note, req, { termMonths } = {}) {
-  const trade = await db.trades.findById(tradeId);
-  if (!trade) throw err(404, 'Trade not found.');
-  let iso = trade.created_at;
-  if (at) {
-    const when = new Date(at);
-    if (Number.isNaN(when.getTime())) throw err(400, 'Enter a valid date and time.');
-    if (when.getTime() > Date.now() + 60000) throw err(400, 'A trade cannot be dated in the future.');
-    iso = when.toISOString();
-  }
-  const patch = { created_at: iso, note: note || trade.note || null };
-  let term = trade.term_months == null ? null : Number(trade.term_months);
-  if (trade.side === 'buy' && termMonths != null && termMonths !== '') term = termFor(termMonths, await settings.get(), true);
-  // Only where the columns exist: a row booked without them was booked on a
-  // database without them, and an update naming them would be refused.
-  if (trade.side === 'buy' && (trade.term_months != null || trade.matures_at)) {
-    patch.term_months = term;
-    patch.matures_at = addMonths(iso, term);
-  } else if (trade.side === 'buy' && term !== null) {
-    throw err(409, 'This database cannot store a term yet. Run supabase/setup.sql in Supabase, then try again.', 'term_unsupported');
-  }
-  await db.trades.update(trade.id, patch);
-  if (trade.transaction_id && iso !== trade.created_at) await db.transactions.update(trade.transaction_id, { date: iso });
-  if (trade.account_id && iso !== trade.created_at) await ledger.restate(trade.account_id);
-  await audit.log({
-    action: 'admin.trade_retimed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
-    actor: { id: staff.id, email: staff.email, role: 'admin' },
-    detail: `${trade.side === 'buy' ? 'Purchase' : 'Sale'} ${trade.reference} dated ${iso}${patch.term_months ? `, ${patch.term_months}-month term` : ''}${note ? ` - ${note}` : ''}`,
-    meta: { tradeId: trade.id, from: trade.created_at, to: iso },
+    if (trade.side === 'buy' && trade.symbol === 'BTC' && iso !== trade.created_at && kind !== 'converted') {
+      const { quote } = await markets.priceAt('BTC', iso);
+      const pc = priceCents(quote.price);
+      const existing = await holdingFor(trade.user_id, 'BTC');
+      const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
+      const cost = Number(existing ? existing.cost_basis : 0);
+      const units = toScaled(trade.units, asset.decimals);
+      if (kind === 'bitcoin') {
+        const amount = valueOf(units, pc, asset.decimals);
+        await saveHolding(existing, trade.user_id, asset, held, cost + amount - Number(trade.amount || 0));
+        patch.amount = amount;
+      } else {
+        const next = unitsFor(Number(trade.amount || 0), pc, asset.decimals);
+        if (held + next - units < 0n) throw err(409, 'Some of this Bitcoin has been sent since; at that date it would have bought less than has gone.', 'units_sent');
+        await saveHolding(existing, trade.user_id, asset, held + next - units, cost);
+        patch.units = fromScaled(next, asset.decimals);
+      }
+      Object.assign(patch, { price: pc, quote_source: quote.source, quote_as_of: quote.asOf });
+    }
+
+    let term = trade.term_months == null ? null : Number(trade.term_months);
+    if (trade.side === 'buy' && termYears != null && termYears !== '') term = termFor(termYears, await settings.get());
+    // Only where the columns exist: a row booked without them was booked on a
+    // database without them, and an update naming them would be refused.
+    if (trade.side === 'buy' && (trade.term_months != null || trade.matures_at)) {
+      patch.term_months = term;
+      patch.matures_at = addMonths(iso, term);
+    } else if (trade.side === 'buy' && term !== null) {
+      throw err(409, 'This database cannot store a term yet. Run supabase/setup.sql in Supabase, then try again.', 'term_unsupported');
+    }
+    await db.trades.update(trade.id, patch);
+    if (trade.transaction_id && iso !== trade.created_at) {
+      await db.transactions.update(trade.transaction_id, { date: iso });
+      if (trade.account_id) await ledger.restate(trade.account_id);
+    }
+    await audit.log({
+      action: 'admin.trade_retimed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
+      actor: { id: staff.id, email: staff.email, role: 'admin' },
+      detail: `${trade.reference} dated ${iso.slice(0, 10)}${patch.price ? ` at ${money(patch.price)}` : ''}${patch.term_months ? `, ${termLabel(patch.term_months)}` : ''}${note ? ` - ${note}` : ''}`,
+      meta: { tradeId: trade.id, from: trade.created_at, to: iso },
+    });
+    return publicTrade({ ...trade, ...patch });
   });
-  return publicTrade({ ...trade, ...patch });
 }
 
 /**
- * Undo a trade completely: the units come off (or go back on) the holding and
- * the cash goes back (or comes back out) through a ledger reversal.
+ * Undo something in the vault completely: what came in comes off the
+ * holding, what was sent goes back on. A conversion is final, and so is a
+ * purchase paid from a cash balance before the vault, whose cash would only
+ * be converted straight back.
  */
 async function reverseTrade(tradeId, staff, note, req) {
   const trade = await db.trades.findById(tradeId);
   if (!trade) throw err(404, 'Trade not found.');
   if (trade.status === 'reversed') throw err(409, 'That trade has already been reversed.');
   if (isConversion(trade)) {
-    throw err(409, 'A conversion to Bitcoin cannot be reversed. Book a sale of the Bitcoin instead.', 'conversion_final');
+    throw err(409, 'A conversion to Bitcoin cannot be reversed.', 'conversion_final');
+  }
+  if (trade.transaction_id) {
+    throw err(409, 'This was paid from a cash balance before the vault, so it cannot be reversed. Change its date or term instead.', 'cash_final');
   }
   const asset = markets.BY_SYMBOL.get(trade.symbol);
   if (!asset) throw err(400, 'That asset is no longer listed.');
@@ -492,29 +554,21 @@ async function reverseTrade(tradeId, staff, note, req) {
 
     if (trade.side === 'buy') {
       if (held < units) {
-        throw err(409, `The customer now holds ${fromScaled(held, asset.decimals)} ${asset.symbol}, fewer than this purchase bought. Reverse the later sale first.`);
+        throw err(409, `The customer now holds ${fromScaled(held, asset.decimals)} BTC, less than this added. Reverse the later send first.`);
       }
       await saveHolding(existing, trade.user_id, asset, held - units, cost - Number(trade.amount || 0));
     } else {
-      const costSold = Number(trade.amount || 0) - Number(trade.realized_gain || 0);
-      await saveHolding(existing, trade.user_id, asset, held + units, cost + costSold);
+      const costSent = Number(trade.amount || 0) - Number(trade.realized_gain || 0);
+      await saveHolding(existing, trade.user_id, asset, held + units, cost + costSent);
     }
 
-    let reversal = null;
-    if (trade.transaction_id) {
-      reversal = await ledger.reverse(trade.transaction_id, {
-        reason: note || `${trade.side === 'buy' ? 'Purchase' : 'Sale'} reversed by staff`,
-        actor: 'admin',
-        actorId: staff.id,
-      });
-    }
     const patch = { status: 'reversed', reversed_at: nowIso(), note: note || trade.note || null };
     await db.trades.update(trade.id, patch);
     await audit.log({
       action: 'admin.trade_reversed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
       actor: { id: staff.id, email: staff.email, role: 'admin' },
-      detail: `Reversed ${trade.side} of ${trade.units} ${trade.symbol} (${money(trade.amount)}) - ${trade.reference}${note ? ` - ${note}` : ''}`,
-      meta: { tradeId: trade.id, reversalTransactionId: reversal && reversal.id },
+      detail: `Reversed ${trade.reference}: ${trade.units} BTC (${money(trade.amount)})${note ? ` - ${note}` : ''}`,
+      meta: { tradeId: trade.id },
     });
     return publicTrade({ ...trade, ...patch });
   });
@@ -527,10 +581,10 @@ async function reverseTrade(tradeId, staff, note, req) {
  * offers into Bitcoin, at the live price of each.
  *
  * The holding is valued at its own price and that value buys Bitcoin at
- * Bitcoin's. No cash moves, so nothing is posted to the cash balance. What the
- * customer originally paid carries over as the cost of the Bitcoin, so the
- * gain or loss they had continues rather than restarting at zero. The Bitcoin
- * is a new purchase dated now, on the default term.
+ * Bitcoin's. No cash moves. What the customer originally paid carries over as
+ * the cost of the Bitcoin, so the gain or loss they had continues rather than
+ * restarting at zero. The Bitcoin is new to the vault today, on the default
+ * term.
  *
  * Removing the old holding is the claim: a delete that finds nothing means
  * another request converted it first, and this one books nothing. Without a
@@ -565,8 +619,7 @@ async function convertRetired(user, opts = {}) {
       return out;
     }
     const btcPc = priceCents(btc.quote.price);
-    const cfg = await settings.get();
-    const termMonths = termFor(null, cfg, true);
+    const termMonths = termFor(null, await settings.get());
     const actor = opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { role: 'system' };
 
     for (const { h, asset, quote } of priced) {
@@ -644,7 +697,7 @@ async function convertRetired(user, opts = {}) {
           ...out.converted.map((c) => ({ label: c.name, value: `${c.units} ${c.unit === 'share' ? `share${c.units === '1' ? '' : 's'}` : c.unit}, worth ${money(c.value)}` })),
           { label: 'Bitcoin received', value: `${coins} BTC` },
           { label: 'Bitcoin price', value: money(btcPc) },
-          { label: 'Matures', value: `${new Date(addMonths(nowIso(), termMonths)).toLocaleDateString('en-US', { dateStyle: 'long' })} (${termMonths}-month term)` },
+          { label: 'Matures', value: `${longDate(addMonths(nowIso(), termMonths))} (${termLabel(termMonths)})` },
         ],
       }).catch(() => {});
     }
@@ -652,16 +705,116 @@ async function convertRetired(user, opts = {}) {
   });
 }
 
-/** convertRetired for every customer who still holds something other than Bitcoin. */
-async function convertAllRetired(opts = {}) {
-  const rows = (await db.holdings.find({})).filter((h) => h.symbol !== 'BTC');
-  const out = { customers: 0, converted: [], pending: [] };
-  if (!rows.length) return out;
-  const people = await db.users.findByIds([...new Set(rows.map((h) => h.user_id))]);
-  for (const user of people.values()) {
+/**
+ * Turn a cash balance left from before the vault into Bitcoin at the live
+ * price. The ledger records it: the balance is spent on Bitcoin like any
+ * purchase, so the cash history still adds up. Money on hold for a
+ * withdrawal from before the vault is left alone until staff release or
+ * return it; returned, it is converted the next time.
+ */
+async function convertCash(user, opts = {}) {
+  const out = { converted: [], pending: [] };
+  const accounts = await db.accounts.find({ user_id: user.id, status: 'active' });
+  for (const account of accounts) {
+    const type = ACCOUNT_TYPES[account.type] || ACCOUNT_TYPES.checking;
+    if (type.sign === -1 || ['cd', 'loan', 'mortgage'].includes(account.type)) continue;
+    if (ledger.availableFor(account) < MIN_BUY) continue;
     try {
       // eslint-disable-next-line no-await-in-loop
-      const r = await convertRetired(user, opts);
+      const result = await withLock(`invest:${user.id}`, () => buyWithCash(user, account.id, opts));
+      if (result) out.converted.push(result);
+    } catch (e) {
+      out.pending.push({ accountId: account.id, reason: e.message });
+    }
+  }
+  if (out.converted.length && !opts.silent) {
+    const paid = out.converted.reduce((n, c) => n + c.amount, 0);
+    const coins = fromScaled(out.converted.reduce((n, c) => n + toScaled(c.units, 8), 0n), 8);
+    const first = out.converted[0];
+    await alerts.notifyUser(user, 'investment_trade', {
+      subject: 'Your cash is now in Bitcoin',
+      heading: 'Your cash is now in Bitcoin',
+      intro: `Your vault holds Bitcoin only, so the ${money(paid)} you had in cash has bought ${coins} BTC at ${money(first.price)}.`,
+      rows: [
+        { label: 'Bitcoin added', value: `${coins} BTC` },
+        { label: 'Bitcoin price', value: money(first.price) },
+        { label: 'Matures', value: `${longDate(first.maturesAt)} (${termLabel(first.termMonths)})` },
+        { label: 'Reference', value: out.converted.map((c) => c.reference).join(', ') },
+      ],
+    }).catch(() => {});
+  }
+  return out;
+}
+
+/** The whole available balance of one cash account into Bitcoin, inside the customer's lock. */
+async function buyWithCash(user, accountId, opts) {
+  const account = await db.accounts.findById(accountId);
+  const amount = ledger.availableFor(account);
+  if (amount < MIN_BUY) return null;
+  const { asset, quote } = await markets.tradeQuote('BTC');
+  const pc = priceCents(quote.price);
+  const bought = unitsFor(amount, pc, asset.decimals);
+  if (bought <= 0n) return null;
+  const termMonths = termFor(null, await settings.get());
+  const reference = ids.reference('CNV');
+  const units = fromScaled(bought, asset.decimals);
+  const posted = await ledger.post({
+    accountId: account.id,
+    direction: 'debit',
+    amount,
+    description: `Converted to Bitcoin - ${units} BTC @ ${money(pc)}`,
+    merchant: asset.name,
+    method: 'investment',
+    category: 'Investments',
+    status: 'posted',
+    reference,
+    createdBy: opts.staff ? 'admin' : 'system',
+    createdById: opts.staff ? opts.staff.id : null,
+    meta: { symbol: asset.symbol, units, price: pc, source: quote.source },
+  });
+  const existing = await holdingFor(user.id, asset.symbol);
+  const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
+  await saveHolding(existing, user.id, asset, held + bought, Number(existing ? existing.cost_basis : 0) + amount);
+  const at = nowIso();
+  const trade = await insertTrade({
+    id: ids.uuid(), created_at: at, user_id: user.id, account_id: account.id,
+    booked_by: opts.staff ? opts.staff.id : null, note: 'Cash balance converted to Bitcoin', status: 'completed',
+    symbol: asset.symbol, side: 'buy', units, price: pc, amount,
+    transaction_id: posted.transaction.id, reference,
+    quote_source: quote.source, quote_as_of: quote.asOf,
+    term_months: termMonths, matures_at: addMonths(at, termMonths),
+  });
+  await audit.log({
+    action: 'invest.cash_converted', category: 'money', userId: user.id, req: opts.req,
+    actor: opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { role: 'system' },
+    detail: `${money(amount)} cash converted to ${units} BTC at ${money(pc)} - ${reference}`,
+    meta: { tradeId: trade.id },
+  });
+  return { amount, units, price: pc, reference, ...maturityOf(trade) };
+}
+
+/** Bring one customer's vault up to date: other assets and cash become Bitcoin. */
+async function convertLegacy(user, opts = {}) {
+  const retired = await convertRetired(user, opts);
+  const cash = await convertCash(user, opts);
+  return { converted: [...retired.converted, ...cash.converted], pending: [...retired.pending, ...cash.pending] };
+}
+
+/** convertLegacy for every customer who still holds cash or another asset. */
+async function convertAllLegacy(opts = {}) {
+  const [holdings, accounts] = await Promise.all([db.holdings.find({}), db.accounts.find({ status: 'active' })]);
+  const who = new Set([
+    ...holdings.filter((h) => h.symbol !== 'BTC').map((h) => h.user_id),
+    ...accounts.filter((a) => ledger.availableFor(a) >= MIN_BUY && (ACCOUNT_TYPES[a.type] || {}).sign !== -1).map((a) => a.user_id),
+  ]);
+  const out = { customers: 0, converted: [], pending: [] };
+  if (!who.size) return out;
+  const people = await db.users.findByIds([...who]);
+  for (const user of people.values()) {
+    if (user.role === 'admin') continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await convertLegacy(user, opts);
       if (r.converted.length) out.customers += 1;
       out.converted.push(...r.converted.map((c) => ({ ...c, userId: user.id })));
       out.pending.push(...r.pending.map((p) => ({ ...p, userId: user.id })));
@@ -675,43 +828,9 @@ async function convertAllRetired(opts = {}) {
 
 /* ----------------------------------------------------------- portfolio --- */
 
-/**
- * The customer's Bitcoin as the purchases that make it up, oldest first.
- *
- * Each purchase is its own position with its own date and maturity. Sales
- * come off the oldest purchase first (first in, first out), so a position's
- * units and cost are what is left of that purchase. Anything the holding has
- * that no purchase explains - a balance booked before trades were recorded -
- * appears as one position dated when the holding was opened, so the
- * positions always add up to the holding.
- */
+/** Each lot as the customer sees it: when it came in, what it cost, what it is worth, when it matures. */
 function positionsOf(trades, holding, asset, pc) {
-  const lots = [];
-  const take = (units) => {
-    let left = units;
-    while (left > 0n && lots.length) {
-      const lot = lots[0];
-      if (lot.units <= left) { left -= lot.units; lots.shift(); continue; }
-      const costOut = Math.round(lot.cost * Number((left * 1000000n) / lot.units) / 1000000);
-      lot.cost -= costOut;
-      lot.units -= left;
-      left = 0n;
-    }
-  };
-  trades.filter((t) => t.status !== 'reversed').forEach((t) => {
-    const units = toScaled(t.units, asset.decimals);
-    if (t.side === 'buy') lots.push({ trade: t, units, cost: Number(t.amount || 0) });
-    else take(units);
-  });
-
-  const held = holding ? toScaled(holding.units, asset.decimals) : 0n;
-  const counted = lots.reduce((n, l) => n + l.units, 0n);
-  if (counted > held) take(counted - held);
-  else if (held > counted) {
-    const cost = Math.max(0, Number(holding.cost_basis || 0) - lots.reduce((n, l) => n + l.cost, 0));
-    lots.unshift({ trade: { id: `holding-${holding.id}`, side: 'buy', created_at: holding.created_at, price: 0, term_months: null }, units: held - counted, cost });
-  }
-
+  const { lots } = lotsOf(trades, holding, asset);
   const now = Date.now();
   return lots.map(({ trade, units, cost }) => {
     const { termMonths, maturesAt } = maturityOf(trade);
@@ -720,6 +839,7 @@ function positionsOf(trades, holding, asset, pc) {
     const value = pc ? valueOf(units, pc, asset.decimals) : null;
     return {
       id: trade.id,
+      kind: kindOf(trade),
       purchasedAt: trade.created_at,
       units: fromScaled(units, asset.decimals),
       cost,
@@ -728,6 +848,7 @@ function positionsOf(trades, holding, asset, pc) {
       gain: value == null ? null : value - cost,
       gainPct: value == null || !cost ? null : Math.round(((value - cost) / cost) * 10000) / 100,
       termMonths,
+      termYears: termMonths % 12 === 0 ? termMonths / 12 : null,
       maturesAt,
       daysHeld: Math.max(0, Math.floor((now - start) / 86400000)),
       daysToMaturity: Math.max(0, Math.ceil((end - now) / 86400000)),
@@ -739,27 +860,29 @@ function positionsOf(trades, holding, asset, pc) {
 }
 
 /**
- * The customer's Bitcoin: what it is worth, what it cost, and the purchases
- * that make it up. Anything still held of an asset no longer offered is
- * converted first; if it cannot be yet, `converting` says so without naming it.
+ * The customer's vault: what it is worth, what went in, and everything that
+ * makes it up. Cash and other assets left from before the vault are
+ * converted first; if one cannot be yet, `converting` says so without naming
+ * it.
  */
 async function portfolio(userId) {
   let pending = [];
   const user = await db.users.findById(userId);
-  if (user) {
+  if (user && user.role !== 'admin') {
     try {
-      ({ pending } = await convertRetired(user));
+      ({ pending } = await convertLegacy(user));
     } catch (e) {
       console.warn(`[hedgestone] converting ${userId} to Bitcoin failed: ${e.message}`);
       pending = [{ reason: e.message }];
     }
   }
 
-  const [btcHolding, trades, btcTrades, assets] = await Promise.all([
+  const [btcHolding, trades, btcTrades, assets, ready] = await Promise.all([
     holdingFor(userId, 'BTC'),
     db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.desc', limit: 25 }),
     db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
     markets.list(),
+    maturedUnits(userId),
   ]);
   const btc = assets.find((a) => a.symbol === 'BTC');
   const btcPc = btc && btc.quote ? priceCents(btc.quote.price) : null;
@@ -811,6 +934,8 @@ async function portfolio(userId) {
       firstPurchasedAt: positions.length ? positions[0].purchasedAt : null,
       nextMaturity: upcoming.length ? upcoming[0].maturesAt : null,
       lastMaturity: positions.length ? positions.map((p) => p.maturesAt).sort().pop() : null,
+      ready: fromScaled(ready, 8),
+      readyValue: btcPc ? valueOf(ready, btcPc, 8) : null,
     },
     positions,
     trades: trades.map(publicTrade),
@@ -819,7 +944,7 @@ async function portfolio(userId) {
 }
 
 module.exports = {
-  convert, sell, portfolio, publicTrade, retimeTrade, reverseTrade, addMonths,
-  convertRetired, convertAllRetired,
-  MIN_BUY, PRICE_TOLERANCE, MAX_TERM_MONTHS, _units: { toScaled, fromScaled, unitsFor, valueOf },
+  addToVault, sendFromVault, maturedUnits, portfolio, publicTrade, retimeTrade, reverseTrade, addMonths,
+  convertRetired, convertCash, convertLegacy, convertAllLegacy, termFor, defaultTermYears, termLabel,
+  MIN_BUY, TERM_YEARS, MAX_TERM_MONTHS, _units: { toScaled, fromScaled, unitsFor, valueOf },
 };

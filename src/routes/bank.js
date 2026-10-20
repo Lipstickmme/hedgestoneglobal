@@ -27,6 +27,7 @@ const money = require('../controllers/bank/moneyController');
 const messaging = require('../controllers/bank/messagingController');
 const admin = require('../controllers/bank/adminController');
 const invest = require('../controllers/bank/investController');
+const vaultController = require('../controllers/bank/vaultController');
 const setupController = require('../controllers/bank/setupController');
 
 const router = express.Router();
@@ -123,29 +124,16 @@ router.get('/me/activity', profile.activity);
 router.get('/me/alert-preferences', profile.alertPreferences);
 router.put('/me/alert-preferences', profile.updateAlertPreferences);
 
-router.get('/accounts', accounts.list);
-
-router.get('/transactions', accounts.transactions);
-router.get('/transactions/export', accounts.exportTransactions);
-router.get('/transactions/:id', accounts.transactionDetail);
-
-// Withdrawals. The paths keep their old name; only withdrawals are accepted.
-router.get('/transfers/options', money.transferOptions);
-router.get('/transfers', money.listTransfers);
-router.post('/transfers', money.createTransfer);
-router.get('/transfers/:id', money.getTransfer);
-router.post('/transfers/:id/verify', money.verifyTransfer);
-router.post('/transfers/:id/resend', money.resendTransferCode);
-router.post('/transfers/:id/cancel', money.cancelTransfer);
-
-router.get('/beneficiaries', money.listBeneficiaries);
-router.post('/beneficiaries', money.createBeneficiary);
-router.patch('/beneficiaries/:id', money.updateBeneficiary);
-router.delete('/beneficiaries/:id', money.deleteBeneficiary);
-
+// The vault: what is in it, and requests to receive Bitcoin into it or send it out.
 router.get('/invest', invest.portfolio);
-router.post('/invest/convert', invest.convert);
-router.post('/invest/sell', invest.sell);
+router.get('/vault', vaultController.details);
+router.post('/vault/receive', vaultController.receive);
+router.post('/vault/send', vaultController.send);
+router.post('/vault/requests/:id/verify', vaultController.verify);
+router.post('/vault/requests/:id/resend', vaultController.resend);
+router.post('/vault/requests/:id/cancel', vaultController.cancel);
+router.get('/vault/history', vaultController.history);
+router.get('/vault/history/export', vaultController.exportHistory);
 
 router.get('/alerts', messaging.listAlerts);
 router.post('/alerts/read-all', messaging.readAllAlerts);
@@ -163,6 +151,9 @@ staff.use(auth.requireAdmin);
 staff.get('/overview', admin.overview);
 staff.get('/setup', setupController.setup);
 staff.get('/investments', invest.staffOverview);
+staff.get('/vault/requests', vaultController.staffQueue);
+staff.post('/vault/requests/:id/confirm', vaultController.staffConfirm);
+staff.post('/vault/requests/:id/reject', vaultController.staffReject);
 staff.post('/trades', invest.staffBook);
 staff.patch('/trades/:id', invest.staffRetime);
 staff.post('/trades/:id/reverse', invest.staffReverse);

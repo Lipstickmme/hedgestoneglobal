@@ -1,28 +1,6 @@
 {
   "_comment": "Page-level image slots. Every placement on the site has its own slot and no photograph is used twice, so a visitor never meets the same picture on two pages. Each slot lists the files it would like, best first, and the placeholder it falls back on if none is there. Names are matched without regard to case and any of .webp .avif .jpg .jpeg .png .svg works, with .webp preferred, so replacing a photograph is a file drop into public/assets/img/ and needs no code change. The fallbacks are the generated placeholder artwork that ships with the build.",
   "slots": {
-    "hero": {
-      "_where": "Home page, the 'Invest with a plan' panel under the hero. Square-ish crop, people centred.",
-      "prefer": [
-        "hedgestone-family"
-      ],
-      "fallback": "/assets/bank/personal.svg"
-    },
-    "homeMobile": {
-      "_where": "Home page landing hero, full width. Subject in the middle third, calm space on the left for the headline.",
-      "prefer": [
-        "hedgestone-mobile"
-      ],
-      "fallback": "/assets/bank/mobile.svg"
-    },
-    "homeSecurity": {
-      "_where": "The security panel on the home page, beside 'Guarded like it matters'.",
-      "prefer": [
-        "hedgestone2",
-        "rf2"
-      ],
-      "fallback": "/assets/bank/security.svg"
-    },
     "bitcoinHeader": {
       "_where": "/bitcoin",
       "prefer": [
@@ -33,27 +11,25 @@
       "fallback": "/assets/bank/personal.svg"
     },
     "ratesHeader": {
-      "_where": "/rates (fees)",
+      "_where": "/rates (fees). The photograph that headed the old landing page.",
+      "prefer": [
+        "hedgestone-mobile"
+      ],
+      "fallback": "/assets/bank/mobile.svg"
+    },
+    "securityHeader": {
+      "_where": "/security-center. The vault-door hinge: the lock.",
       "prefer": [
         "hedgestone4",
         "rf4"
       ],
-      "fallback": "/assets/bank/personal.svg"
-    },
-    "securityHeader": {
-      "_where": "/security-center",
-      "prefer": [
-        "hedgestone",
-        "rf"
-      ],
       "fallback": "/assets/bank/security.svg"
     },
     "openAccountHeader": {
-      "_where": "/open-account",
+      "_where": "/open-account. Not hedgestonehero or hedgestone: both show bank signage on the wall.",
       "prefer": [
-        "hedgestonehero",
-        "hedgestone0",
-        "rf0"
+        "hedgestone2",
+        "rf2"
       ],
       "fallback": "/assets/bank/hero.svg"
     },

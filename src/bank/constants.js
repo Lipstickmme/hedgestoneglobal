@@ -23,7 +23,7 @@ const BANK = {
   name: 'Hedgestone Finance',
   shortName: 'Hedgestone Finance',
   legalName: 'Hedgestone Finance',
-  tagline: 'Invest in Bitcoin, and watch every step of it.',
+  tagline: 'A vault for your Bitcoin, built for the long term.',
   // ABA checksum valid: 3(8+2+4)+7(1+6+1)+(9+4+7) = 42+56+20 = 118... see
   // validateRouting() in ids.js, which is what actually enforces this.
   routingNumber: '819264176',
@@ -140,12 +140,26 @@ const US_STATES = [
  */
 const DEFAULT_SETTINGS = {
   bankName: BANK.name,
-  // How long a Bitcoin purchase is planned to be held, in months. The buyer
-  // picks one of `investmentTerms` (staff can book any whole number); the
-  // dashboard counts down to the date it matures. A maturity date is a plan,
-  // not a lock: Bitcoin can still be sold before it.
-  investmentTerms: [3, 6, 12, 24],
-  investmentTermMonths: 12,
+  // How long Bitcoin stays in the vault, in whole years between
+  // VAULT.termYears.min and max. The customer chooses when they add to the
+  // vault; this is the term preselected, and the one used when nobody chose
+  // (a conversion). Bitcoin can only be sent out once it has matured.
+  investmentTermYears: 10,
+  // Where customers send Bitcoin into the vault. One address per line,
+  // optionally followed by a label; each customer is shown one of them,
+  // always the same one.
+  vaultAddresses: '',
+  // The OTC partner customers pay cash to. Shown on the Receive page with the
+  // customer's own reference; staff confirm the payment and book the Bitcoin.
+  otc: {
+    name: '',
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    routingNumber: '',
+    swift: '',
+    instructions: '',
+  },
   routingNumber: BANK.routingNumber,
   supportEmail: BANK.email,
   // Blank until an operator sets them at the console. Everything that prints
@@ -181,8 +195,10 @@ const DEFAULT_SETTINGS = {
     cardDaily: 750000,
     singleTransactionMax: 25000000,
   },
-  // Fees, charged at post time.
+  // Fees, charged at post time. vaultSend is the platform's own fee for
+  // sending Bitcoin out, in cents; the Bitcoin network's fee is separate.
   fees: {
+    vaultSend: 0,
     achOutgoing: 0,
     wireDomestic: 2500,
     wireInternational: 4500,
@@ -210,6 +226,16 @@ const DEFAULT_SETTINGS = {
   otpMinutes: 10,
 };
 
+/**
+ * The vault's fixed rules. Terms are whole years; the earliest date anything
+ * can be dated is when Bitcoin first had a daily market price to book against
+ * (markets.EARLIEST, repeated here for the pages).
+ */
+const VAULT = {
+  termYears: { min: 10, max: 100 },
+  earliest: '2011-01-01',
+};
+
 /** Security questions offered at enrollment. */
 const SECURITY_QUESTIONS = [
   'What was the name of your first school?',
@@ -222,25 +248,26 @@ const SECURITY_QUESTIONS = [
 
 /**
  * Alert types a customer can switch on or off, grouped for the settings page.
- * The last three are only raised by features that have been retired; they
- * stay defined so older alerts still have a label, and are hidden from the
- * preferences list (`retired`).
+ * Types marked `retired` are only raised by features from before the vault
+ * (cash, withdrawals, cards); they stay defined so older alerts still have a
+ * label, and are hidden from the preferences list.
  */
 const ALERT_TYPES = [
   { id: 'login_new_device', group: 'Security', label: 'Sign-in from a new device', default: true, locked: true },
   { id: 'password_changed', group: 'Security', label: 'Password or security settings changed', default: true, locked: true },
   { id: 'profile_changed', group: 'Security', label: 'Profile or contact details changed', default: true },
-  { id: 'investment_trade', group: 'Bitcoin', label: 'Bitcoin bought or sold', default: true },
-  { id: 'deposit_posted', group: 'Cash', label: 'Money added to your cash balance', default: true },
-  { id: 'balance_available', group: 'Cash', label: 'Cash available to invest after money arrives', default: true },
-  { id: 'large_transaction', group: 'Cash', label: 'A movement over your alert threshold', default: true },
-  { id: 'low_balance', group: 'Cash', label: 'Cash balance falls below your threshold', default: true },
-  { id: 'transfer_submitted', group: 'Withdrawals', label: 'Withdrawal requested', default: true },
-  { id: 'transfer_completed', group: 'Withdrawals', label: 'Withdrawal sent', default: true },
-  { id: 'transfer_rejected', group: 'Withdrawals', label: 'Withdrawal returned', default: true, locked: true },
-  { id: 'account_opened', group: 'Account', label: 'New account opened', default: true },
-  { id: 'message_received', group: 'Account', label: 'New secure message', default: true },
-  { id: 'marketing', group: 'Account', label: 'Product news and offers', default: false },
+  { id: 'investment_trade', group: 'Vault', label: 'Bitcoin added to or sent from your vault', default: true },
+  { id: 'vault_request', group: 'Vault', label: 'A request to receive or send Bitcoin, and its outcome', default: true, locked: true },
+  { id: 'message_received', group: 'Messages', label: 'New secure message', default: true },
+  { id: 'marketing', group: 'Messages', label: 'Product news and offers', default: false },
+  { id: 'deposit_posted', group: 'Cash', label: 'Money added to your cash balance', default: true, retired: true },
+  { id: 'balance_available', group: 'Cash', label: 'Cash available to invest after money arrives', default: true, retired: true },
+  { id: 'large_transaction', group: 'Cash', label: 'A movement over your alert threshold', default: true, retired: true },
+  { id: 'low_balance', group: 'Cash', label: 'Cash balance falls below your threshold', default: true, retired: true },
+  { id: 'transfer_submitted', group: 'Withdrawals', label: 'Withdrawal requested', default: true, retired: true },
+  { id: 'transfer_completed', group: 'Withdrawals', label: 'Withdrawal sent', default: true, retired: true },
+  { id: 'transfer_rejected', group: 'Withdrawals', label: 'Withdrawal returned', default: true, locked: true, retired: true },
+  { id: 'account_opened', group: 'Account', label: 'New account opened', default: true, retired: true },
   { id: 'overdraft', group: 'Account', label: 'Returned item', default: true, locked: true, retired: true },
   { id: 'statement_ready', group: 'Account', label: 'Monthly statement ready', default: false, retired: true },
   { id: 'card_activity', group: 'Account', label: 'Card activity', default: false, retired: true },
@@ -282,6 +309,7 @@ module.exports = {
   CATEGORIES,
   US_STATES,
   DEFAULT_SETTINGS,
+  VAULT,
   SECURITY_QUESTIONS,
   ALERT_TYPES,
   REJECTION_REASONS,

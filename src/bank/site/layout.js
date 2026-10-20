@@ -43,6 +43,21 @@ function socialImage() {
  * definition serves a navy sidebar and a white page.
  */
 const ICONS = {
+  // A safe door: the body, the handle wheel, the hinges.
+  vault: {
+    body: '<path d="M3 4.2h18v15.6H3z"/><circle cx="12" cy="12" r="4.2"/>',
+    fine: '<path d="M12 9.6v4.8M9.6 12h4.8"/><path d="M5.6 8v1.6M5.6 14.4V16"/>',
+  },
+  // In: an arrow down into a tray.
+  receive: {
+    body: '<path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/>',
+    fine: '',
+  },
+  // Out: an arrow leaving, up and to the right.
+  send: {
+    body: '<path d="M6 18 18 6"/><path d="M9 6h9v9"/>',
+    fine: '<path d="M3.3 21h17.4"/>',
+  },
   // A portico. The dashboard of a bank should look like one.
   home: {
     body: '<path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/>',
@@ -234,22 +249,22 @@ const scripts = (list) =>
 
 const NAV = [
   {
-    group: 'Investment',
+    group: 'Vault',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: 'home', key: 'dashboard' },
-      { href: '/invest', label: 'Bitcoin', icon: 'bitcoin', key: 'invest' },
-      { href: '/transactions', label: 'Transactions', icon: 'activity', key: 'transactions' },
+      { href: '/vault', label: 'My vault', icon: 'vault', key: 'vault' },
+      { href: '/history', label: 'History', icon: 'activity', key: 'history' },
     ],
   },
   {
-    group: 'Cash',
+    group: 'Move Bitcoin',
     items: [
-      { href: '/transfers', label: 'Withdraw', icon: 'withdraw', key: 'transfers' },
-      { href: '/recipients', label: 'Withdrawal accounts', icon: 'people', key: 'recipients' },
+      { href: '/receive', label: 'Receive', icon: 'receive', key: 'receive' },
+      { href: '/send', label: 'Send', icon: 'send', key: 'send' },
     ],
   },
   {
-    group: 'Account',
+    group: 'You',
     items: [
       { href: '/alerts', label: 'Alerts', icon: 'bell', key: 'alerts', pip: 'alerts' },
       { href: '/messages', label: 'Messages', icon: 'mail', key: 'messages', pip: 'messages' },
@@ -269,7 +284,7 @@ const STAFF_NAV = [
     group: 'Today',
     items: [
       { tab: 'overview', label: 'Overview', icon: 'home' },
-      { tab: 'queue', label: 'Withdrawals', icon: 'withdraw', pip: 'queue' },
+      { tab: 'queue', label: 'Requests', icon: 'send', pip: 'queue' },
       { tab: 'messages', label: 'Messages', icon: 'mail', pip: 'messages' },
     ],
   },
@@ -278,7 +293,7 @@ const STAFF_NAV = [
     items: [
       { tab: 'customers', label: 'All customers', icon: 'people' },
       { tab: 'register', label: 'Register a customer', icon: 'plus' },
-      { tab: 'investments', label: 'Bitcoin investments', icon: 'bitcoin' },
+      { tab: 'investments', label: 'Vaults', icon: 'vault' },
     ],
   },
   {
@@ -354,7 +369,7 @@ function legacySidebar(groups) {
         <img class="rf-mark" src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
           <strong>${BANK.name}</strong>
-          <small>Bitcoin investing</small>
+          <small>Bitcoin vault</small>
         </span>
       </div>
       <nav class="rf-nav">${groups}
@@ -389,14 +404,14 @@ function legacySidebar(groups) {
  */
 const TABS = [
   { href: '/dashboard', label: 'Home', icon: 'home', key: 'dashboard' },
-  { href: '/invest', label: 'Bitcoin', icon: 'bitcoin', key: 'invest' },
-  { href: '/transactions', label: 'History', icon: 'activity', key: 'transactions' },
-  { href: '/transfers', label: 'Withdraw', icon: 'withdraw', key: 'transfers' },
+  { href: '/vault', label: 'Vault', icon: 'vault', key: 'vault' },
+  { href: '/receive', label: 'Receive', icon: 'receive', key: 'receive' },
+  { href: '/send', label: 'Send', icon: 'send', key: 'send' },
 ];
 
 const STAFF_TABS = [
   { tab: 'overview', label: 'Today', icon: 'home' },
-  { tab: 'queue', label: 'Withdrawals', icon: 'withdraw' },
+  { tab: 'queue', label: 'Requests', icon: 'send' },
   { tab: 'customers', label: 'Customers', icon: 'people' },
   { tab: 'messages', label: 'Messages', icon: 'mail' },
 ];
@@ -461,12 +476,12 @@ function authPage({ title, description, content, extraScripts = [] }) {
       <a class="brandline" href="/" aria-label="${BANK.name} home">
         ${brand('lg')}
       </a>
-      <h2>Your Bitcoin, from the day you bought it to the day it matures.</h2>
-      <p>${BANK.tagline} One investment, Bitcoin only, with its value since purchase and the time left to maturity on the first screen you see.</p>
+      <h2>Your vault, from the day each investment went in to the day it matures.</h2>
+      <p>${BANK.tagline} What it is worth, what went in, and when each part matures, on the first screen you see.</p>
       <ul class="rf-auth-points">
-        <li>${icon('check', 17)}<span>Bitcoin bought and sold at the live price</span></li>
-        <li>${icon('check', 17)}<span>A chart of your investment from the day you bought it</span></li>
-        <li>${icon('check', 17)}<span>Two-step verification on every sign-in and every withdrawal</span></li>
+        <li>${icon('check', 17)}<span>Every investment priced on the day it went in</span></li>
+        <li>${icon('check', 17)}<span>A chart of your vault from your first investment</span></li>
+        <li>${icon('check', 17)}<span>Two-step verification on every sign-in and every send</span></li>
         <li>${icon('check', 17)}<span>Alerts the moment anything moves</span></li>
       </ul>
       <div class="rf-auth-foot">
@@ -480,7 +495,7 @@ function authPage({ title, description, content, extraScripts = [] }) {
         <img src="/assets/bank/logomark-dark.png" alt="" width="23" height="28" />
         <span>
           <strong>${BANK.name}</strong>
-          <small>Bitcoin investing</small>
+          <small>Bitcoin vault</small>
         </span>
       </a>
 ${content}
@@ -495,11 +510,11 @@ ${content}
  * The live price strip under the nav. Empty until /js/ticker.js fills it from
  * /api/bank/markets, and it stays hidden if no price can be had.
  */
-const ticker = () => `
+const ticker = (href = '/receive', label = 'Add to your vault') => `
   <div class="hs-ticker" data-hs-ticker hidden role="region" aria-label="Live market prices">
     <span class="hs-ticker-live"><i></i>Live</span>
     <div class="hs-ticker-window"><div class="hs-ticker-track" data-hs-ticker-track></div></div>
-    <a class="hs-ticker-cta" href="/invest">Buy Bitcoin &rarr;</a>
+    <a class="hs-ticker-cta" href="${href}">${label} &rarr;</a>
   </div>`;
 
 /* -------------------------------------------------------- marketing bits --- */
@@ -514,8 +529,7 @@ function marketingNav(active = '') {
         ${brand('nav')}
       </a>
       <nav>
-        ${link('/bitcoin', 'Invest in Bitcoin', 'bitcoin')}
-        ${link('/digital', 'Your dashboard', 'digital')}
+        ${link('/bitcoin', 'How the vault works', 'bitcoin')}
         ${link('/rates', 'Fees', 'rates')}
         ${link('/security-center', 'Security', 'security-center')}
         ${link('/support', 'Support', 'support')}
@@ -523,7 +537,7 @@ function marketingNav(active = '') {
       <span class="spacer"></span>
       <div class="actions">
         <a class="rf-btn ghost sm hs-login" href="/signin">Log in</a>
-        <a class="rf-btn sm" href="/open-account">Start investing</a>
+        <a class="rf-btn sm" href="/open-account">Open your vault</a>
       </div>
     </div>
   </header>`;
@@ -539,15 +553,15 @@ function marketingFooter() {
       <div class="cols">
         <div>
           <span class="rf-footer-brand">${brand()}</span>
-          <p style="margin:0 0 12px;max-width:34ch">${BANK.tagline} Bitcoin is the only thing we invest in.</p>
+          <p style="margin:0 0 12px;max-width:34ch">${BANK.tagline}</p>
           <p style="margin:0;font-size:12.5px" data-site-row="address" hidden><span data-site="address"></span></p>
         </div>
         <div>
-          <h5>Invest</h5>
-          <a href="/bitcoin">Invest in Bitcoin</a>
-          <a href="/digital">Your dashboard</a>
+          <h5>The vault</h5>
+          <a href="/bitcoin">How it works</a>
           <a href="/rates">Fees</a>
-          <a href="/open-account">Start investing</a>
+          <a href="/open-account">Open your vault</a>
+          <a href="/signin">Sign in</a>
         </div>
         <div>
           <h5>Support</h5>
@@ -566,7 +580,7 @@ function marketingFooter() {
       </div>
       <div class="legal">
         <strong>Risk warning.</strong> ${RISK}<br />
-        This is a demonstration application. ${BANK.name} is a fictional company: the accounts, balances and customer records used here are synthetic, and no real money moves through it.<br />
+        This is a demonstration application. ${BANK.name} is a fictional company: the vaults, balances and customer records used here are synthetic, and no real money or Bitcoin moves through it.<br />
         &copy; ${YEAR} ${BANK.legalName}. All rights reserved.
       </div>
     </div>
@@ -586,7 +600,7 @@ function marketingPage({ title, description, active, content, extraScripts = [],
   return [
     head({ title, description, bodyClass }),
     marketingNav(active),
-    ticker(),
+    ticker('/open-account', 'Open your vault'),
     content,
     marketingFooter(),
     chatWidget(),

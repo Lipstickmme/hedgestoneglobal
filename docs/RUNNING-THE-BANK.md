@@ -9,11 +9,13 @@ Everything here happens at **`/console`**. You get there by signing in at
 login. See [DEPLOYMENT.md](DEPLOYMENT.md#two-sign-ins-and-which-is-which) if
 that sentence is surprising.
 
-The platform does one thing: customers invest in **Bitcoin only**. Each has a
-cash balance, which holds money waiting to buy Bitcoin and receives the
-proceeds of a sale, and the Bitcoin itself, bought in purchases that each carry
-a term and a maturity date. There are no cards, cheques, bill payments,
-statements or payments between customers.
+The platform is a **Bitcoin vault**. Each customer has a vault of investments,
+each with the day it went in, its price that day, and a term of 10 to 100
+years that sets when it matures. Bitcoin comes in as cash paid to the OTC
+partner or as Bitcoin sent to the vault address, and goes out only once it has
+matured, sent to an address of the customer's. You confirm every one. There
+are no cash balances, cards, cheques, bill payments, statements or payments
+between customers.
 
 ---
 
@@ -23,13 +25,30 @@ statements or payments between customers.
 
 | To do this | Go here |
 | --- | --- |
-| Create a customer and their cash balance | **Register a customer** |
-| Put money into a cash balance, any amount | **Customers** → open one → **Adjust** |
-| Buy or sell Bitcoin for a customer, or change a purchase's term | **Customers** → open one → **Book a purchase or sale** / **Change date or term** |
-| Release or return a withdrawal | **Withdrawals** |
-| See who holds what, and convert any other assets still held to Bitcoin | **Bitcoin investments** |
+| Set the vault addresses, the OTC partner, the default term and the fee to send | **Settings** |
+| Confirm a payment or a transfer a customer told us about, or mark a send as sent | **Requests** |
+| Create a customer, with anything they have already paid | **Register a customer** |
+| Add to a vault directly, move an investment to its real date, change its term, or reverse it | **Customers** → open one → **Add to this vault** / **Change date or term** / **Reverse** |
+| See every vault, and convert any cash or other assets still held to Bitcoin | **Vaults** |
 | Email or text every customer at once | **Email alerts** |
-| Rename the platform, set the terms on offer, limits and fees | **Settings** |
+| Rename the platform | **Settings** |
+
+### Set the vault up first
+
+Under **Settings**:
+
+- **Vault addresses** — the Bitcoin addresses customers send to, one a line,
+  optionally followed by a label (`bc1q... Main vault`). Each customer is
+  always shown the same one. Until one is set, Receive tells customers it
+  cannot take Bitcoin yet.
+- **OTC partner** — the partner's name, bank, payee name, the number to pay,
+  routing or sort code, SWIFT and any instructions. Customers pay the partner
+  directly and quote their customer number. Until the payee name and number are
+  set, cash payments are closed.
+- **Default term** — 10 to 100 years. Customers choose their own term within
+  that range; this one is preselected and used for conversions.
+- **Fee to send** — our own fee, shown on the Send page. The Bitcoin network's
+  fee is separate.
 
 ### Rename the platform
 
@@ -46,73 +65,69 @@ Bitcoin-only message but no name.
 
 ### Register a customer
 
-**Register a customer** is one form and it does the whole thing: the person,
-their identity details, their cash balance and the money they start with.
+**Register a customer** is one form: the person, their identity details, and
+optionally what they have already paid the OTC partner.
 
 - **Email** — this is their sign-in. It must not be the same as any other
   account, including the administrator's.
-- **Opening deposit** — the cash balance opens with this in it, posted as a
-  dated ledger entry described as "Opening deposit". Leave it at zero and
-  credit it afterwards if you prefer.
+- **First amount into the vault** — the amount, the day they paid and the term.
+  It is booked as the Bitcoin that amount bought at that day's closing price.
+  Leave it blank and add to their vault later.
 
 On save you get a **temporary password** shown once. Copy it before closing the
 panel; it is not recoverable, and the customer is forced to change it on first
 sign-in.
 
-### Credit a cash balance
+### Requests: what comes in and what goes out
 
-**Customers** → click the customer → **Adjust** on their cash balance.
+**Requests** lists what is waiting for you.
 
-| Field | What it does |
-| --- | --- |
-| **Direction** | Credit (money in) or Debit (money out) |
-| **Amount** | Any figure. Daily limits apply to customer withdrawals, not to staff entries |
-| **Description the customer sees** | "DEPOSIT RECEIVED", not "adjustment" |
-| **Method, Category** | How it arrived and how it is filed |
-| **Status** | **Posted** changes the balance now. **Pending** reserves it until you settle it |
-| **Value date** | Date an entry to when the money actually arrived |
-| **Paid by, Their bank, Memo** | Shown to the customer under the entry |
+- **Cash through the OTC partner** — the customer says they paid an amount on a
+  date. Check it with the partner, then **Confirm**: correct the amount, the
+  date or the term to what actually happened if they differ. It is booked at
+  Bitcoin's closing price on the date paid, and the customer is told.
+- **Bitcoin received** — the customer says they sent an amount to the vault
+  address. Check it arrived (the transaction ID helps), then **Confirm** with
+  the amount that arrived. It is valued at that day's price.
+- **Bitcoin sent out** — the customer asked to send matured Bitcoin to an
+  address, and confirmed it with their PIN and an emailed code. The request
+  shows how much else of theirs has matured. Make the transfer from the vault
+  wallet, then **Mark sent** with its transaction ID. It comes off their vault,
+  from what matured first.
+- **Reject** any of them with a reason; the customer reads it. A rejected send
+  leaves the Bitcoin in their vault.
 
-The balance moves immediately and the customer is emailed — and texted, once
-Part 2 is set up. See [what the customer gets](#what-the-customer-gets).
+### Dates, prices and terms
 
-### Bitcoin, terms and maturity
+Nothing can be dated before **1 January 2011**, nor in the future. Anything
+dated in the past is priced at Bitcoin's closing price on that day, never at
+today's, so the growth shown is the growth since that day. On a customer's
+record:
 
-Customers buy Bitcoin themselves from **Bitcoin** (`/invest`), choosing an
-amount and a term from the ones offered under **Settings** → **Bitcoin terms**
-(3, 6, 12 and 24 months to start with; the default is preselected). A purchase
-matures on its purchase date plus its term. The dashboard shows each purchase
-with what it cost, what it is worth at the live price, its growth, and a
-countdown to maturity, and charts the value of what they hold since their first
-purchase against what they paid.
+- **Add to this vault** — cash they paid or Bitcoin they sent, dated when it
+  happened, with a term of 10 to 100 years. Use it for payments made before the
+  customer was set up, or confirmed outside a request.
+- **Change date or term** — moving an investment reprices it at the new day:
+  cash paid keeps its amount and buys what it would have then; Bitcoin received
+  keeps its units and is valued at that day. Its maturity moves with it.
+- **Reverse** — takes it back out of the vault completely. A conversion cannot
+  be reversed.
 
-A maturity date is a plan, not a lock: a customer can sell before it, and
-nothing happens automatically on the day. It is not a promise of any value.
+An investment matures on its date plus its term. Until then it cannot be sent
+out; from then it can, when the customer asks.
 
-From the customer drawer, staff can **Book a purchase or sale** (at an agreed
-price, an earlier time and any whole number of months), **Change date or term**
-on a purchase (its maturity moves with it), or **Reverse** one completely.
+### What customers had before the vault
 
-Customers who bought another asset before the platform became Bitcoin only
-(the S&P 500, stocks, gold) have it converted to Bitcoin automatically: the
-next time they open their dashboard, or when you open **Bitcoin
-investments**, whichever comes first. Each holding is valued at its live price
-and that value buys Bitcoin; what they originally invested carries over, and
-they are sent a notice. A conversion shows as "Converted" in their purchases
-and cannot be reversed. If a live price for the old asset cannot be had,
-**Bitcoin investments** says how many are waiting; open it again a few
-minutes later to convert them.
-
-### Withdrawals
-
-A customer withdraws from their cash balance to a bank account in their own
-name, saved under **Withdrawal accounts**. Withdrawals wait in **Withdrawals**
-when **Hold withdrawals for review** is on in Settings, or when they are over
-the review threshold.
-
-- **Release** — the money leaves, the hold clears, and the customer is told.
-- **Return** — pick a reason. The customer sees it, and the held funds go
-  straight back to their cash balance.
+Customers who had a cash balance or another asset (the S&P 500, stocks, gold)
+have it converted to Bitcoin automatically: the next time they open their
+dashboard, or when you open **Vaults**, whichever comes first. It is valued at
+the live price and buys Bitcoin, what they originally paid carries over as
+invested, it goes on the default term, and they are sent a notice. A
+conversion shows as "Converted" and cannot be reversed. If a live price cannot
+be had, **Vaults** says how many are waiting; open it again a few minutes
+later. Cash held for a withdrawal asked for before the vault stays put until
+you release or return it under **Requests** → **Cash withdrawals from before
+the vault**; returned, it is converted next time.
 
 ### Everything else worth knowing
 
@@ -120,19 +135,22 @@ the review threshold.
   an email (and a text), and optionally drops a secure message they can reply to.
 - **Activity log** — every staff action, attributed, exportable as CSV. Viewing
   a full Social Security number is recorded against whoever looked.
-- **Settings** — the platform name, the Bitcoin terms, withdrawal limits and
-  fees, verification rules and your contact details. Changes take effect on the
-  next request, with no deploy.
+- **Settings** — the platform name, the vault addresses, the OTC partner, the
+  default term, the fee to send, verification rules and your contact details.
+  Changes take effect on the next request, with no deploy.
 
 ### Things that will stop you
 
 | What you see | Why |
 | --- | --- |
 | "That email address already has an account" | Every address is unique across customers *and* staff |
-| A withdrawal stuck in the queue | Review is on. Release it, or turn the rule off in Settings |
+| A send cannot be confirmed: "has not confirmed this request with their code yet" | The customer has not entered the emailed code. It waits under **Waiting for the customer's code** |
+| "Only Bitcoin that has matured can be sent" | Nothing, or not enough, of theirs has reached its maturity date |
+| "We cannot get Bitcoin's price for that day" | No history provider answered. Try again in a minute; see the setup checklist's **Price history** |
+| "The earliest date that can be used is January 1, 2011" | Nothing is dated before Bitcoin had a daily price |
 | A customer cannot sign in | Check their status, and whether they are locked after five failed attempts. The customer drawer has **Clear the lockout** |
-| Buying is refused with "no live price" | No price provider answered for two minutes. See the setup checklist's **Live Bitcoin price** |
 | "This database cannot store a term yet" | Run `supabase/setup.sql` again; it adds the term columns (0007) |
+| Requests do not save, or the setup checklist flags `bank_vault_requests` | Run `supabase/setup.sql` again; it adds the requests table (0008) |
 
 ---
 
@@ -190,42 +208,34 @@ error.
 
 ### What the customer gets
 
-Money arriving raises **two messages, in this order**:
+Each step of a request is a message, by email and text:
 
-**1. It has landed.**
+- **When they tell us about a payment or a transfer** — "We have your payment
+  details", with the reference and the term they chose.
+- **When they ask to send** — the verification code, then "Your request to send
+  Bitcoin is with us" once they have entered it.
+- **When you confirm** — "0.0123 BTC added to your vault", with the Bitcoin
+  price on the day, what was paid or what it was worth, and the maturity date;
+  or "0.25 BTC sent from your vault", with the address and transaction ID.
+- **When you reject** — "About your request OTC-…", with the reason you gave.
 
-> Hedgestone Finance: $2,500.00 credited to Cash balance ••••2835.
-> Current balance $16,447.26. Ref TXN-5EAUZ-JQ5M2
+A text reads like this:
 
-**2. What they can actually use.**
+> Hedgestone Finance: Your payment of $250.00 has bought 0.00395256 BTC at
+> $63,250.00 on October 20, 2026, now in your vault.
 
-> Hedgestone Finance: Available to invest or withdraw from Cash balance ••••2835 is
-> $16,379.84. $67.42 is on hold and will be released as it clears.
-
-Two messages rather than one because they answer two different questions, and
-the answers are different numbers. The current balance is what is in the cash
-balance. The available balance is what can buy Bitcoin or be withdrawn — lower
-when something is on hold, such as a withdrawal waiting for review. Put both
-figures in one message and people read the wrong one.
-
-The same pair goes out by email, in more detail, with the reference and the
-counterparty.
-
-Both are ordinary alerts: stored, visible under **Alerts**, and switchable by
-the customer under **Alerts → Preferences** as *Money added to your cash
-balance* and *Cash available to invest after money arrives*.
-
-To send only the first, set `availableBalanceAlert` to `false` in the
-`settings` record.
+All of them are ordinary alerts: stored, visible under **Alerts**. Messages
+about requests are always sent; *Bitcoin added to or sent from your vault* can
+be switched off by the customer under **Alerts → Preferences**.
 
 ### Checking it works
 
-Credit a test customer a small amount from the console and watch:
+Add a small amount to a test customer's vault from their record and watch:
 
-- the **Email alerts** tab — two new rows, `deposit_posted` and
-  `balance_available`, each showing `sent` or the provider's error;
-- the customer's **Alerts** screen — both messages, whether or not a provider
-  is configured;
+- the **Email alerts** tab — a new `investment_trade` row, showing `sent` or the
+  provider's error;
+- the customer's **Alerts** screen — the message, whether or not a provider is
+  configured;
 - Resend's **Logs** and Pingram's dashboard for the actual delivery.
 
 If an alert says `not_configured`, the provider variable is missing from the

@@ -3,18 +3,14 @@
 /**
  * The staff console: one page, a tab per job.
  *
- * Kept on a single page on purpose. The work here is interleaved - a held
- * withdrawal sends you to the customer, the customer sends you to their
- * documents, the documents send you back to the withdrawal - and a page load
- * between each step is what makes a console tiring to use.
+ * Kept on a single page on purpose. The work here is interleaved - a request
+ * sends you to the customer, the customer sends you to their documents, the
+ * documents send you back to the request - and a page load between each step
+ * is what makes a console tiring to use.
  */
 
 const { appPage, dateField } = require('./layout');
-const { BANK, US_STATES, CATEGORIES, TRANSACTION_METHODS, REJECTION_REASONS, DOCUMENT_KINDS } = require('../constants');
-
-/** What staff post by hand: money in, money out, fees, and Bitcoin. */
-const STAFF_METHODS = ['adjustment', 'direct_deposit', 'ach', 'wire_domestic', 'wire_international', 'fee', 'refund', 'investment'];
-const STAFF_CATEGORIES = CATEGORIES.slice(0, CATEGORIES.indexOf('Other') + 1);
+const { BANK, US_STATES, REJECTION_REASONS, DOCUMENT_KINDS, VAULT } = require('../constants');
 
 const option = (value, label) => `<option value="${value}">${label || value}</option>`;
 
@@ -30,10 +26,10 @@ const content = `
           <div class="rf-grid cols-4 rf-mb" data-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Waiting for a decision</h3><div class="rf-card-actions"><button class="rf-btn ghost sm" data-goto="queue">Open the queue</button></div></div>
+              <div class="rf-card-head"><h3>Waiting for a decision</h3><div class="rf-card-actions"><button class="rf-btn ghost sm" data-goto="queue">Open the requests</button></div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
-                  <thead><tr><th>Customer</th><th>Type</th><th>To</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
+                  <thead><tr><th>Customer</th><th>Request</th><th>Details</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
                   <tbody data-queue-preview><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
                 </table>
               </div>
@@ -68,7 +64,7 @@ const content = `
             <div class="rf-card-head"><h3>Customers</h3><div class="rf-card-actions rf-small rf-muted" data-customer-count></div></div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Accounts</th><th class="num">Cash</th><th>Joined</th></tr></thead>
+                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Bitcoin</th><th class="num">Invested</th><th>Joined</th></tr></thead>
                 <tbody data-customers><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
@@ -152,10 +148,14 @@ const content = `
 
               <div class="rf-stack">
                 <section class="rf-card">
-                  <div class="rf-card-head"><h3>Cash balance</h3></div>
+                  <div class="rf-card-head"><h3>First amount into the vault</h3></div>
                   <div class="rf-card-body">
-                    <p class="rf-small rf-muted" style="margin-top:0">Every customer has one cash balance. It holds money waiting to buy Bitcoin, and it is where sales are paid. Post what they are starting with; add more later with Adjust on their record.</p>
-                    <div class="rf-field"><label for="r-opening">Opening deposit</label><input class="rf-input money" id="r-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
+                    <p class="rf-small rf-muted" style="margin-top:0">Optional. Cash they have already paid the OTC partner, booked as Bitcoin at its price on the day they paid. Add more later from their record.</p>
+                    <div class="rf-row">
+                      <div class="rf-field"><label for="r-opening">Amount paid</label><input class="rf-input money" id="r-opening" name="firstAmount" inputmode="decimal" placeholder="0.00" /></div>
+                      <div class="rf-field"><label for="r-first-date">Paid on</label><input class="rf-input" type="date" id="r-first-date" name="firstDate" min="${VAULT.earliest}" /></div>
+                    </div>
+                    <div class="rf-field"><label for="r-first-term">Term (years)</label><input class="rf-input" type="number" id="r-first-term" name="firstTermYears" min="${VAULT.termYears.min}" max="${VAULT.termYears.max}" step="1" placeholder="${VAULT.termYears.min}" /><div class="hint">${VAULT.termYears.min} to ${VAULT.termYears.max} years. Blank for the default term.</div></div>
                   </div>
                 </section>
 
@@ -175,7 +175,7 @@ const content = `
                     <div class="rf-field"><label for="r-notes">Internal notes</label><textarea class="rf-textarea" id="r-notes" name="notes" style="min-height:70px"></textarea></div>
                     <div class="rf-notice bad rf-hide" data-form-error></div>
                     <button class="rf-btn block" type="submit" data-submit>Register customer</button>
-                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number, the cash balance and the temporary password.</p>
+                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number and the temporary password.</p>
                   </div>
                 </section>
               </div>
@@ -187,23 +187,34 @@ const content = `
         <section data-panel="queue" hidden>
           <section class="rf-card">
             <div class="rf-card-head">
-              <h3>Withdrawals</h3>
+              <h3>Requests</h3>
               <div class="rf-card-actions">
                 <select class="rf-select" data-queue-status style="width:auto">
-                  <option value="pending_review">In review</option>
-                  <option value="">Everything</option>
-                  <option value="pending_verification">Awaiting the customer&rsquo;s code</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="rejected">Returned</option>
+                  <option value="pending">Waiting for us</option>
+                  <option value="pending_verification">Waiting for the customer&rsquo;s code</option>
+                  <option value="completed">Done</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled by the customer</option>
+                  <option value="all">Everything</option>
                 </select>
-                <button class="rf-btn ghost sm" data-run-scheduled>Run scheduled now</button>
               </div>
             </div>
+            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Cash paid to the OTC partner and Bitcoin sent to the vault are booked when you confirm them, at Bitcoin&rsquo;s price on the day the customer paid or sent it. A send can only be approved for Bitcoin that has matured: make the transfer from the vault wallet, then mark it sent with its transaction ID.</p>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Submitted</th><th>Customer</th><th>Type</th><th>To</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
-                <tbody data-queue><tr><td colspan="8" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                <thead><tr><th>Submitted</th><th>Customer</th><th>Request</th><th>Details</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+                <tbody data-queue><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="rf-card rf-mt" data-legacy-wrap hidden>
+            <div class="rf-card-head"><h3>Cash withdrawals from before the vault</h3></div>
+            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Asked for before the platform became a vault. Release one to pay it, or return it: returned cash is converted to Bitcoin the next time the customer signs in.</p>
+            <div class="rf-table-wrap">
+              <table class="rf-table">
+                <thead><tr><th>Submitted</th><th>Customer</th><th>To</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+                <tbody data-legacy-queue></tbody>
               </table>
             </div>
           </section>
@@ -324,7 +335,7 @@ const content = `
           <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Who holds Bitcoin</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
+              <div class="rf-card-head"><h3>Vaults</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
                   <thead><tr><th>Customer</th><th class="num">Bitcoin</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
@@ -386,35 +397,43 @@ const content = `
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Bitcoin terms</h3></div>
+                <div class="rf-card-head"><h3>The vault</h3></div>
                 <div class="rf-card-body">
-                  <p class="rf-small rf-muted" style="margin:0 0 16px">The terms a customer chooses from when they buy, and the one chosen for them. Each purchase matures on its purchase date plus its term; the dashboard counts down to it. A maturity date does not lock anything.</p>
+                  <div class="rf-field"><label for="st-addresses">Vault addresses</label><textarea class="rf-textarea mono" id="st-addresses" name="vaultAddresses" style="min-height:96px" placeholder="bc1q... Main vault"></textarea><div class="hint">Where customers send Bitcoin in. One address a line, optionally followed by a label. Each customer is always shown the same one. Until one is set, customers cannot send Bitcoin in.</div></div>
                   <div class="rf-row">
-                    <div class="rf-field"><label for="st-terms">Terms offered (months)</label><input class="rf-input" id="st-terms" name="investmentTerms" placeholder="3, 6, 12, 24" /></div>
-                    <div class="rf-field"><label for="st-term">Default term (months)</label><input class="rf-input" id="st-term" name="investmentTermMonths" inputmode="numeric" /></div>
+                    <div class="rf-field"><label for="st-term">Default term (years)</label><input class="rf-input" id="st-term" name="investmentTermYears" type="number" min="${VAULT.termYears.min}" max="${VAULT.termYears.max}" step="1" /><div class="hint">Customers choose ${VAULT.termYears.min} to ${VAULT.termYears.max} years; this one is preselected.</div></div>
+                    <div class="rf-field"><label for="st-send-fee">Fee to send Bitcoin out</label><input class="rf-input money" id="st-send-fee" name="vaultSendFee" inputmode="decimal" placeholder="0.00" /><div class="hint">Ours, shown on the Fees page. The Bitcoin network&rsquo;s fee is separate.</div></div>
                   </div>
                 </div>
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Verification and review</h3></div>
+                <div class="rf-card-head"><h3>OTC partner</h3></div>
                 <div class="rf-card-body">
-                  <div class="rf-switch"><span class="t">One-time code on every withdrawal<small>Emailed before the withdrawal is accepted.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Withdrawal PIN required<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Hold withdrawals for review<small>Nothing leaves until someone here releases it.</small></span><input type="checkbox" name="holdTransfersForReview" /></div>
-                  <div class="rf-switch"><span class="t">Maintenance mode<small>Shows a banner across the site.</small></span><input type="checkbox" name="maintenanceMode" /></div>
-                  <div class="rf-field rf-mt"><label for="st-hold">Always review above</label><input class="rf-input" id="st-hold" name="holdThresholdCents" inputmode="decimal" /></div>
+                  <p class="rf-small rf-muted" style="margin:0 0 16px">Customers paying cash pay the OTC partner directly, quoting their customer number. These details are shown on their Receive page. Until the payee name and number are set, cash payments are closed.</p>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-name">Partner</label><input class="rf-input" id="st-otc-name" name="otc.name" placeholder="The OTC desk's trading name" /></div>
+                    <div class="rf-field"><label for="st-otc-bank">Their bank</label><input class="rf-input" id="st-otc-bank" name="otc.bankName" /></div>
+                  </div>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-payee">Payee name</label><input class="rf-input" id="st-otc-payee" name="otc.accountName" /></div>
+                    <div class="rf-field"><label for="st-otc-number">Number to pay</label><input class="rf-input mono" id="st-otc-number" name="otc.accountNumber" /></div>
+                  </div>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-routing">Routing or sort code</label><input class="rf-input mono" id="st-otc-routing" name="otc.routingNumber" /></div>
+                    <div class="rf-field"><label for="st-otc-swift">SWIFT / BIC</label><input class="rf-input mono" id="st-otc-swift" name="otc.swift" /></div>
+                  </div>
+                  <div class="rf-field"><label for="st-otc-instructions">Instructions</label><textarea class="rf-textarea" id="st-otc-instructions" name="otc.instructions" style="min-height:70px" placeholder="Quote your customer number as the payment reference."></textarea></div>
                 </div>
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Daily limits</h3></div>
-                <div class="rf-card-body rf-row" data-limits></div>
-              </section>
-
-              <section class="rf-card">
-                <div class="rf-card-head"><h3>Fees</h3></div>
-                <div class="rf-card-body rf-row" data-fees></div>
+                <div class="rf-card-head"><h3>Verification</h3></div>
+                <div class="rf-card-body">
+                  <div class="rf-switch"><span class="t">One-time code on every send<small>Emailed before a request to send Bitcoin reaches you.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">PIN required to send<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">Maintenance mode<small>Shows a banner across the site.</small></span><input type="checkbox" name="maintenanceMode" /></div>
+                </div>
               </section>
             </div>
             <div class="rf-inline rf-mt">
@@ -433,53 +452,6 @@ const content = `
               <button type="button" data-close-modal aria-label="Close">&times;</button>
             </div>
             <div class="rf-modal-body" data-modal-body></div>
-          </div>
-        </div>
-
-        <!-- ------------------------------------------------ adjust modal -- -->
-        <div class="rf-modal-backdrop rf-hide" data-adjust-modal>
-          <div class="rf-modal">
-            <div class="rf-modal-head">
-              <h3>Adjust a balance</h3>
-              <button type="button" data-close-modal aria-label="Close">&times;</button>
-            </div>
-            <form id="rf-adjust-form">
-              <div class="rf-modal-body">
-                <p class="rf-small rf-muted" data-adjust-account></p>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="ad-direction">Direction</label>
-                    <select class="rf-select" id="ad-direction" name="direction">
-                      <option value="credit">Credit (money in)</option>
-                      <option value="debit">Debit (money out)</option>
-                    </select>
-                  </div>
-                  <div class="rf-field"><label for="ad-amount">Amount</label><input class="rf-input money" id="ad-amount" name="amount" inputmode="decimal" placeholder="0.00" required /></div>
-                </div>
-                <div class="rf-field"><label for="ad-description">Description the customer sees</label><input class="rf-input" id="ad-description" name="description" placeholder="DEPOSIT RECEIVED" required /></div>
-                <div class="rf-row three">
-                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method">${STAFF_METHODS.map((id) => option(id, TRANSACTION_METHODS[id].label)).join('')}</select></div>
-                  <div class="rf-field"><label for="ad-category">Category</label><select class="rf-select" id="ad-category" name="category">${STAFF_CATEGORIES.map((c) => option(c)).join('')}</select></div>
-                  <div class="rf-field"><label for="ad-status">Status</label><select class="rf-select" id="ad-status" name="status"><option value="posted">Posted</option><option value="pending">Pending</option></select></div>
-                </div>
-                <div class="rf-row">
-                  ${dateField({ id: 'ad-date', name: 'date', label: 'Value date', from: -10, to: 1 })}
-                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to date a deposit to when it actually arrived.</div></div>
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field"><label for="ad-merchant">Paid by or to</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
-                  <div class="rf-field"><label for="ad-bank">Their bank</label><input class="rf-input" id="ad-bank" name="counterpartyBank" /></div>
-                </div>
-                <div class="rf-field"><label for="ad-memo">Memo shown to the customer</label><input class="rf-input" id="ad-memo" name="memo" /></div>
-                <div class="rf-field"><label for="ad-note">Internal note</label><input class="rf-input" id="ad-note" name="note" /></div>
-                <label class="rf-check"><input type="checkbox" name="notify" checked /><span>Email the customer about this</span></label>
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-              </div>
-              <div class="rf-modal-foot">
-                <button class="rf-btn ghost" type="button" data-close-modal>Cancel</button>
-                <button class="rf-btn" type="submit" data-submit>Post the entry</button>
-              </div>
-            </form>
           </div>
         </div>
 
@@ -503,26 +475,6 @@ const content = `
               </div>
             </form>
           </div>
-        </div>
-
-        <!-- ------------------------------------------------ account modal -- -->
-        <div class="rf-modal-backdrop rf-hide" data-account-modal>
-          <div class="rf-modal">
-            <div class="rf-modal-head"><h3>Open a cash balance</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
-            <form id="rf-open-account-form">
-              <div class="rf-modal-body">
-                <div class="rf-row">
-                  <div class="rf-field"><label for="oa-nickname">Nickname</label><input class="rf-input" id="oa-nickname" name="nickname" /></div>
-                  <div class="rf-field"><label for="oa-opening">Opening deposit</label><input class="rf-input money" id="oa-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
-                </div>
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-              </div>
-              <div class="rf-modal-foot">
-                <button class="rf-btn ghost" type="button" data-close-modal>Cancel</button>
-                <button class="rf-btn" type="submit" data-submit>Open it</button>
-              </div>
-            </form>
-          </div>
         </div>`;
 
 module.exports = [
@@ -533,7 +485,7 @@ module.exports = [
       title: `Staff console | ${BANK.name}`,
       description: `${BANK.name} staff console.`,
       heading: 'Staff console',
-      sub: 'Customers, withdrawals and everything that has been done today.',
+      sub: 'Customers, their vaults, and everything that has been done today.',
       active: 'console',
       staff: true,
       content,

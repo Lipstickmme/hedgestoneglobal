@@ -75,7 +75,7 @@ function renderEmail({ heading, intro, rows = [], body = '', cta, footNote, bank
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e4e0d8;border-radius:14px;overflow:hidden">
         <tr><td style="background:#0d3b35;padding:20px 26px">
           <span style="color:#ffffff;font:700 17px/1.2 Georgia,'Times New Roman',serif;letter-spacing:.02em">${escapeHtml(name)}</span>
-          <span style="display:block;color:#9fb2cc;font:500 11px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">Bitcoin investing</span>
+          <span style="display:block;color:#9fb2cc;font:500 11px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase">Bitcoin vault</span>
         </td></tr>
         <tr><td style="padding:26px">
           <h1 style="margin:0 0 10px;color:#0d3b35;font:600 21px/1.3 Georgia,'Times New Roman',serif">${escapeHtml(heading)}</h1>

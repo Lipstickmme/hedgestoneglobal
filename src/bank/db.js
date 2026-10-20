@@ -43,6 +43,7 @@ const COLLECTIONS = {
   quotes: 'bank_market_quotes',
   holdings: 'bank_holdings',
   trades: 'bank_trades',
+  vaultRequests: 'bank_vault_requests',
 };
 
 const bankDir = () => path.join(dataDir(), 'bank');

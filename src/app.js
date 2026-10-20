@@ -89,7 +89,6 @@ app.get('/', sendPage('index.html'));
 // in .html into a redirect, which is what took /personal, /business and
 // /support off the deployment while they worked perfectly well locally.
 app.get('/bitcoin', sendPage('bitcoin.html'));
-app.get('/digital', sendPage('digital.html'));
 app.get('/rates', sendPage('rates.html'));
 app.get('/security-center', sendPage('security-center.html'));
 app.get('/open-account', sendPage('open-account.html'));
@@ -109,8 +108,8 @@ app.get('/change-password', sendPage('change-password.html'));
 // session check happens on the first API call each one makes, and an
 // unauthenticated visitor is sent to /signin before anything is rendered.
 [
-  'dashboard', 'transactions', 'transfers', 'recipients',
-  'alerts', 'messages', 'security', 'activity', 'profile', 'invest',
+  'dashboard', 'vault', 'history', 'receive', 'send',
+  'alerts', 'messages', 'security', 'activity', 'profile',
 ].forEach((name) => app.get(`/${name}`, sendPage(`${name}.html`)));
 
 // Pages retired with the banking features, and the older names of the public

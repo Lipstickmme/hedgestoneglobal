@@ -4,23 +4,22 @@
  * First-run data.
  *
  * A dashboard with no history is impossible to judge, so a fresh install
- * comes up with an administrator and two customers. The demonstration customer
- * has a cash balance, a withdrawal account, and three Bitcoin purchases made
- * over the last fourteen months - one that has already matured, one part way
- * through its term and one recent - each booked at the price Bitcoin actually
- * had on that day, so the chart and the growth figures on the dashboard are
- * the real market's.
+ * comes up with an administrator and two customers. The demonstration
+ * customer's vault holds four investments - one from 2015 that has already
+ * matured and can be sent, Bitcoin they sent in, and two recent - each booked
+ * at the price Bitcoin actually had on that day, so the chart and the growth
+ * figures on the dashboard are the real market's. A payment they have told us
+ * about waits in the staff console for someone to confirm.
  *
- * Everything is generated through the same ledger the live application uses,
- * so the seeded balances are the sum of the seeded entries rather than numbers
- * written on top of them. Idempotent: it does nothing if users already exist.
+ * Everything is booked through the same code the live application uses
+ * (invest.addToVault), so the seeded vault is the sum of its seeded entries
+ * rather than numbers written on top of them. Idempotent: it does nothing if
+ * users already exist.
  */
 
 const { db } = require('./db');
 const ids = require('./ids');
-const ledger = require('./ledger');
 const users = require('./users');
-const accountsLib = require('./accounts');
 const security = require('./security');
 const { BANK, DEFAULT_SETTINGS } = require('./constants');
 
@@ -36,79 +35,59 @@ function rng(seed = 20260912) {
   };
 }
 
-/** The demonstration purchases: how long ago, how much, and for how long. */
-const DEMO_PURCHASES = [
-  { daysAgo: 425, amount: 250000, termMonths: 12 },
-  { daysAgo: 270, amount: 600000, termMonths: 12 },
-  { daysAgo: 95, amount: 300000, termMonths: 24 },
+/**
+ * The demonstration vault: when each investment went in, what it was, and its
+ * term in years. The first is old enough to have matured, so Send has
+ * something to send.
+ */
+const DEMO_VAULT = [
+  { at: '2015-01-14T15:00:00.000Z', kind: 'cash', amount: 150000, termYears: 10 },
+  { at: '2019-06-03T15:00:00.000Z', kind: 'bitcoin', units: '0.05', termYears: 20 },
+  { daysAgo: 430, kind: 'cash', amount: 300000, termYears: 15 },
+  { daysAgo: 95, kind: 'cash', amount: 250000, termYears: 10 },
 ];
 
 /**
- * Book the demonstration purchases at Bitcoin's closing price on each day.
+ * Book the demonstration vault at Bitcoin's closing price on each day.
  *
- * Without a price history (no network, no fixture) a backdated purchase would
- * have to be booked at a price nobody saw, so instead there is one purchase,
- * today, at the live price - or none, if there is no price at all. The seed
- * never invents a market.
+ * Without a price history for a day (no network, no fixture) it is skipped
+ * rather than booked at a price nobody saw; with no price at all there is
+ * one investment, today, at the live price, or none. The seed never invents
+ * a market.
  */
-async function seedPurchases(customer, cash, admin) {
+async function seedVault(customer, admin) {
   const invest = require('./invest');
-  const markets = require('./markets');
-  let points = [];
-  try {
-    points = (await markets.history('BTC', 730)).points;
-  } catch (err) {
-    points = [];
-  }
-  const priceOn = (iso) => {
-    const day = iso.slice(0, 10);
-    const hit = points.filter((p) => p.t <= day).pop();
-    return hit ? hit.p : null;
-  };
-
   const booked = [];
-  const plan = points.length ? DEMO_PURCHASES : [{ daysAgo: 0, amount: 300000, termMonths: 12 }];
-  for (const step of plan) {
-    const at = step.daysAgo ? daysAgo(step.daysAgo) : null;
-    const price = at ? priceOn(at) : null;
-    if (at && !price) continue;
+  for (const step of DEMO_VAULT) {
     try {
       // eslint-disable-next-line no-await-in-loop
-      const { trade } = await invest.convert(customer, {
-        accountId: cash.id, symbol: 'BTC', amount: step.amount, termMonths: step.termMonths,
-      }, null, at ? { staff: admin, price, at, silent: true, note: 'Demonstration purchase' } : { staff: admin, silent: true, note: 'Demonstration purchase' });
+      const { trade } = await invest.addToVault(customer, {
+        kind: step.kind, amount: step.amount, units: step.units,
+        at: step.at || daysAgo(step.daysAgo), termYears: step.termYears, note: 'Demonstration',
+      }, null, { staff: admin, silent: true });
       booked.push(trade);
     } catch (err) {
-      console.warn(`[hedgestone] demonstration purchase skipped: ${err.message}`);
+      console.warn(`[hedgestone] demonstration investment skipped: ${err.message}`);
+    }
+  }
+  if (!booked.length) {
+    try {
+      const { trade } = await invest.addToVault(customer, { kind: 'cash', amount: 250000, termYears: 10, note: 'Demonstration' }, null, { staff: admin, silent: true });
+      booked.push(trade);
+    } catch (err) {
+      console.warn(`[hedgestone] no demonstration investment: ${err.message}`);
     }
   }
   return booked;
 }
 
-async function seedBeneficiaries(user) {
-  const rows = [
-    {
-      nickname: 'My bank', name: 'Jordan R Ellis', bank_name: 'First Coast Bank',
-      account_number: '4410028866', routing_number: ids.completeRouting('06100022'),
-      account_type: 'checking', type: 'domestic_ach', relationship: 'Own account',
-    },
-  ];
-  for (const row of rows) {
-    await db.beneficiaries.insert({
-      id: ids.uuid(),
-      created_at: nowIso(),
-      user_id: user.id,
-      status: 'verified',
-      verified_at: nowIso(),
-      last_used_at: null,
-      country: 'United States',
-      swift: '',
-      bank_address: '',
-      address: '',
-      memo: '',
-      ...row,
-    });
-  }
+/** A payment the demonstration customer has told us about, waiting for staff. */
+async function seedRequest(customer) {
+  await db.vaultRequests.insert({
+    id: ids.uuid(), created_at: daysAgo(1), user_id: customer.id, kind: 'cash_in', status: 'pending',
+    amount: 100000, occurred_at: daysAgo(1), term_months: 120, reference: ids.reference('OTC'),
+    note: 'Paid from my bank yesterday',
+  }).catch((err) => console.warn(`[hedgestone] demonstration request skipped: ${err.message}`));
 }
 
 async function seedMessages(user) {
@@ -121,7 +100,7 @@ async function seedMessages(user) {
     from_side: 'bank',
     author_name: `${BANK.name} support`,
     subject: `Welcome to ${BANK.name}`,
-    body: 'Your account is live. Your dashboard shows your Bitcoin from the day you bought it, what it is worth now and how long each purchase has left to maturity. Set a withdrawal PIN under Security before your first withdrawal.',
+    body: 'Your vault is open. Your dashboard shows each investment from the day it went in, what it is worth now and the day it matures. To add to it, pay cash through our OTC partner or send Bitcoin: both are under Receive. Once something matures you can send it to a wallet of yours from Send.',
     read_at: null,
     attachments: null,
   });
@@ -264,34 +243,8 @@ async function ensureSeed(options = {}) {
     openedBy: admin.id,
   });
 
-  // The relationship starts fifteen months ago, before the first purchase.
-  const relationshipStart = daysAgo(450);
-
-  const cash = await accountsLib.openAccount(customer, {
-    productId: 'investment_cash', isPrimary: true,
-    createdBy: 'system', openedAt: relationshipStart,
-  });
-  // Money in first, so every purchase has a balance to come out of.
-  for (const [days, amount, description] of [
-    [450, 300000, 'Opening deposit'],
-    [280, 650000, 'Deposit received'],
-    [100, 450000, 'Deposit received'],
-  ]) {
-    await ledger.post({
-      accountId: cash.id,
-      direction: 'credit',
-      amount,
-      description,
-      method: 'adjustment',
-      category: 'Deposits',
-      status: 'posted',
-      createdBy: 'system',
-      date: daysAgo(days),
-    });
-  }
-
-  await seedPurchases(customer, cash, admin);
-  await seedBeneficiaries(customer);
+  const vault = await seedVault(customer, admin);
+  await seedRequest(customer);
   await seedMessages(customer);
 
   // A second customer, so the console has more than one row to show.
@@ -313,10 +266,6 @@ async function ensureSeed(options = {}) {
     kycStatus: 'pending',
     tier: 'Standard',
     openedBy: admin.id,
-  });
-  const maraCash = await accountsLib.openAccount(second, {
-    productId: 'investment_cash', isPrimary: true, openingBalance: 2450000,
-    openingDescription: 'Opening deposit', createdBy: 'system',
   });
 
   await db.settings.insert({
@@ -348,7 +297,7 @@ async function ensureSeed(options = {}) {
     customer: { email: demoEmail, password: demoPassword },
     demoEmailIgnored: demoClashesWithAdmin ? requestedDemoEmail : null,
     secondary: { email: second.email, password: temporaryPassword },
-    accounts: [cash.account_number, maraCash.account_number],
+    vault: vault.map((t) => `${t.units} BTC on ${t.createdAt.slice(0, 10)}`),
   };
 }
 
@@ -499,5 +448,5 @@ function ensureSeedOnce() {
 module.exports = {
   ensureSeed, ensureSeedOnce, reconcileAdmin, seedStatus,
   seedComplete, seedState, resetBank,
-  seedPurchases, rng,
+  seedVault, rng,
 };

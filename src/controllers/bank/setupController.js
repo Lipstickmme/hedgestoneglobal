@@ -26,6 +26,7 @@ const MIGRATIONS = [
   { file: '0005_bank_invest.sql', what: 'Bitcoin: holdings, purchases and stored prices' },
   { file: '0006_bank_backposting.sql', what: 'Staff booking, re-timing and reversing purchases' },
   { file: '0007_invest_term.sql', what: 'A term and maturity date on every Bitcoin purchase' },
+  { file: '0008_vault.sql', what: 'Requests to receive Bitcoin into the vault and send it out' },
 ];
 
 const setup = asyncHandler(async (req, res) => {

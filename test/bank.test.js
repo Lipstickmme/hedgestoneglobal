@@ -1,15 +1,16 @@
 'use strict';
 
 /**
- * End-to-end tests for the investment platform, over HTTP against the real
- * Express app and the file-backed store.
+ * End-to-end tests for the Bitcoin vault, over HTTP against the real Express
+ * app and the file-backed store.
  *
- * What is worth testing here is the money and the doors: that a balance only
- * changes through an entry, that Bitcoin is the only thing that can be bought,
- * that every purchase carries a term and a maturity date, that a withdrawal
- * cannot exceed what is available, that one customer cannot see another's
- * records, that the admin console can register a customer and adjust a
- * balance, and that both are written to the activity log.
+ * What is worth testing here is the money and the doors: that Bitcoin only
+ * enters a vault when staff confirm it, priced on the day it happened and
+ * never before 2011; that every investment carries a term of 10 to 100 years
+ * and a maturity date; that only matured Bitcoin can be sent, after a code
+ * and a person; that cash and other assets left from before the vault become
+ * Bitcoin; that one customer cannot see another's records; and that all of
+ * it is written to the activity log.
  */
 
 const assert = require('assert');
@@ -114,239 +115,341 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('sign-in: password, then an emailed code');
     }
 
-    /* ---- 3. the dashboard adds up ---- */
-    let checking;
+    /* ---- 3. the dashboard's own call: who, open requests, alerts ---- */
     {
       const res = await customer.get('/api/bank/overview');
       assert.strictEqual(res.status, 200, res.text);
-      const { accounts, totals, recent } = res.body;
-      assert.strictEqual(accounts.length, 1, 'the demo customer has one cash balance');
-      checking = accounts[0];
-      assert.strictEqual(checking.typeLabel, 'Cash balance');
-      assert.strictEqual(totals.deposits, checking.balance, 'the headline cash is the cash balance');
-      assert.ok(recent.length > 0);
-      assert.ok(!('spending' in res.body) && !('cards' in res.body), 'no spending breakdown, no cards');
-      ok(`overview: cash $${dollars(checking.balance)}, ${recent.length} recent entries`);
+      assert.strictEqual(res.body.user.email, 'demo@hedgestonesfinance.com');
+      assert.strictEqual(res.body.openRequests, 1, 'the seeded payment waits for staff');
+      assert.strictEqual(res.body.requests[0].kind, 'cash_in');
+      assert.ok(!('accounts' in res.body) && !('totals' in res.body) && !('transfers' in res.body), 'no cash, no withdrawals');
+      ok(`overview: ${res.body.requests.length} request(s), ${res.body.alerts.length} alert(s)`);
     }
 
-    /* ---- 4. the demo customer's Bitcoin, purchase by purchase ---- */
+    /* ---- 4. the demo vault, investment by investment ---- */
+    const markets_ = require(path.join(ROOT, 'src/bank/markets'));
+    const invest_ = require(path.join(ROOT, 'src/bank/invest'));
+    const db_ = require(path.join(ROOT, 'src/bank/db')).db;
+    const cents = (dollars_) => Math.round(dollars_ * 100);
+    const sats = (u) => BigInt(Math.round(Number(u) * 1e8));
+    const unitsFor = (amount, pc) => (BigInt(amount) * 100000000n) / BigInt(pc);
+    const ADDRESS = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+    let demoId;
     {
       const res = await customer.get('/api/bank/invest');
       assert.strictEqual(res.status, 200, res.text);
-      const { positions, bitcoin, holdings, terms, defaultTerm } = res.body;
-      assert.deepStrictEqual(terms, [3, 6, 12, 24]);
-      assert.strictEqual(defaultTerm, 12);
-      assert.strictEqual(positions.length, 3, 'three seeded purchases');
-      assert.ok(positions[0].matured && !positions[1].matured && !positions[2].matured, 'the oldest has matured, the others have not');
+      const { positions, bitcoin, holdings, terms, earliest } = res.body;
+      assert.deepStrictEqual(terms, { min: 10, max: 100, default: 10 }, 'terms of 10 to 100 years');
+      assert.strictEqual(earliest, '2011-01-01');
+      assert.strictEqual(positions.length, 4, 'four seeded investments');
+      assert.deepStrictEqual(positions.map((p) => p.kind), ['cash', 'bitcoin', 'cash', 'cash']);
+      assert.ok(positions[0].matured && positions.slice(1).every((p) => !p.matured), 'the 2015 one has matured, the rest have not');
+      assert.strictEqual(positions[0].purchasedAt.slice(0, 10), '2015-01-14');
+      const then = (await markets_.priceAt('BTC', positions[0].purchasedAt)).quote.price;
+      assert.strictEqual(positions[0].price, cents(then), 'priced at Bitcoin\'s close on that day');
+      assert.strictEqual(sats(positions[0].units), unitsFor(150000, cents(then)), 'and the $1,500 bought what it would have then');
       positions.forEach((p) => {
-        assert.ok(p.maturesAt > p.purchasedAt, 'a maturity after the purchase');
-        assert.ok(p.progress >= 0 && p.progress <= 1);
+        assert.ok(p.maturesAt > p.purchasedAt);
+        assert.strictEqual(p.termMonths % 12, 0, 'whole years');
         assert.strictEqual(p.value, Math.floor(Number(p.units) * 1e8 * bitcoin.price / 1e8), 'valued at the live price');
       });
       const held = holdings.find((h) => h.symbol === 'BTC');
-      const sum = positions.reduce((n, p) => n + Math.round(Number(p.units) * 1e8), 0);
-      assert.strictEqual(sum, Math.round(Number(held.units) * 1e8), 'the purchases add up to the holding');
-      assert.strictEqual(bitcoin.firstPurchasedAt, positions[0].purchasedAt);
-      assert.strictEqual(bitcoin.nextMaturity, positions[1].maturesAt, 'the next maturity is the earliest still to come');
-      ok(`portfolio: ${positions.length} purchases, ${held.units} BTC, next maturity ${bitcoin.nextMaturity.slice(0, 10)}`);
+      assert.strictEqual(positions.reduce((n, p) => n + sats(p.units), 0n), sats(held.units), 'the investments add up to the vault');
+      assert.strictEqual(bitcoin.ready, positions[0].units, 'what has matured is ready to send');
+      assert.strictEqual(bitcoin.nextMaturity, positions.filter((p) => !p.matured).map((p) => p.maturesAt).sort()[0]);
+      demoId = (await db_.users.findOne({ email: 'demo@hedgestonesfinance.com' })).id;
+      ok(`vault: ${positions.length} investments, ${held.units} BTC, ${bitcoin.ready} BTC matured, next maturity ${bitcoin.nextMaturity.slice(0, 10)}`);
     }
 
-    /* ---- 5. you cannot withdraw what you do not have, or pay anyone but yourself ---- */
+    /* ---- 5. the banking doors are gone ---- */
     {
-      const options = await customer.get('/api/bank/transfers/options');
-      assert.deepStrictEqual(options.body.types.map((t) => t.id), ['ach', 'wire_domestic', 'wire_international'], 'withdrawals only');
-      assert.ok(!('payees' in options.body), 'no bill payees');
-      const beneficiary = options.body.beneficiaries[0];
-
-      const res = await customer.post('/api/bank/transfers', {
-        type: 'ach', fromAccountId: checking.id, beneficiaryId: beneficiary.id, amount: '90,000.00', pin: '4417',
-      });
-      assert.strictEqual(res.status, 400);
-      assert.match(res.body.message, /available funds/i);
-
-      const absurd = await customer.post('/api/bank/transfers', {
-        type: 'ach', fromAccountId: checking.id, beneficiaryId: beneficiary.id, amount: '9999999.00', pin: '4417',
-      });
-      assert.strictEqual(absurd.status, 400);
-      assert.match(absurd.body.message, /most you can withdraw/i);
-
-      for (const type of ['internal', 'member', 'instant', 'bill_pay']) {
+      for (const [method, url] of [
+        ['get', '/api/bank/accounts'], ['get', '/api/bank/transactions'], ['get', '/api/bank/transfers'], ['post', '/api/bank/transfers'],
+        ['get', '/api/bank/beneficiaries'], ['post', '/api/bank/invest/convert'], ['post', '/api/bank/invest/sell'],
+        ['get', '/api/bank/cards'], ['get', '/api/bank/payees'], ['get', '/api/bank/deposits'], ['get', '/api/bank/disputes'],
+      ]) {
         // eslint-disable-next-line no-await-in-loop
-        const refused = await customer.post('/api/bank/transfers', { type, fromAccountId: checking.id, amount: '5.00', memberQuery: 'x@example.com' });
-        assert.strictEqual(refused.status, 400, `${type} is refused`);
-        assert.strictEqual(refused.body.error, 'withdrawals_only');
+        const gone = await customer[method](url, method === 'post' ? {} : undefined);
+        assert.strictEqual(gone.status, 404, `${method.toUpperCase()} ${url} is gone`);
       }
-      for (const [method, url] of [['get', '/api/bank/cards'], ['get', '/api/bank/payees'], ['get', '/api/bank/deposits'], ['get', '/api/bank/disputes'], ['post', '/api/bank/transfers/member-lookup']]) {
-        // eslint-disable-next-line no-await-in-loop
-        const gone = await customer[method](url, method === 'post' ? { query: 'someone' } : undefined);
-        assert.strictEqual(gone.status, 404, `${url} is gone`);
-      }
-      ok(`withdrawals only: overdraw refused (${res.body.message}); cards, bill pay, cheques, claims and payments to others are gone`);
+      ok('no cash, no buying or selling, no withdrawals, cards or payees: those addresses are gone');
     }
 
-    /* ---- 5b. buying Bitcoin with a term, and selling it back ---- */
+    /* ---- 5a. prices: Bitcoin only, a history back to 2011, a price for any day ---- */
     {
-      const markets_ = require(path.join(ROOT, 'src/bank/markets'));
       markets_._setFixture(null);
-
-      // The ticker's feed is public, and Bitcoin is all it lists.
       const anon = client(base);
       const feed = await anon.get('/api/bank/markets');
-      assert.strictEqual(feed.status, 200, feed.text);
       assert.deepStrictEqual(feed.body.assets.map((a) => a.symbol), ['BTC'], 'Bitcoin only');
-      assert.ok(feed.body.assets[0].quote.price > 0, 'with a price');
       assert.match(feed.headers.get('cache-control') || '', /s-maxage/, 'the feed is cacheable at the edge');
 
-      // So is the history behind the chart.
       const hist = await anon.get('/api/bank/markets/history?symbol=BTC&days=200');
       assert.strictEqual(hist.status, 200, hist.text);
       assert.ok(hist.body.points.length > 150, 'a point a day');
       assert.ok(hist.body.points.every((p, i, all) => !i || p.t > all[i - 1].t), 'oldest first, one per day');
       assert.strictEqual(hist.body.points[hist.body.points.length - 1].p, 63250, 'ending on the current price');
-      assert.match(hist.headers.get('cache-control') || '', /s-maxage/);
+      const long = await anon.get('/api/bank/markets/history?symbol=BTC&days=9000');
+      assert.ok(long.body.points.length <= 1100, 'years of history go out thinned for a chart');
+      assert.ok(long.body.points[0].t >= '2011-01-01' && long.body.points[0].t <= '2011-01-31', 'and reach back to 2011, no further');
+      assert.strictEqual(long.body.points[long.body.points.length - 1].p, 63250, 'still ending today');
 
-      const start = await customer.get('/api/bank/invest');
-      const fundFrom = start.body.accounts.find((a) => a.id === checking.id);
-      assert.ok(fundFrom && fundFrom.available > 0, 'the cash balance can fund a purchase');
-      const balanceOf = async () => (await customer.get('/api/bank/accounts')).body.accounts.find((a) => a.id === checking.id).balance;
-      const before = await balanceOf();
-      const heldBefore = Number(start.body.holdings.find((h) => h.symbol === 'BTC').units);
-
-      // $632.50 of Bitcoin at the fixture's $63,250.00 is exactly 0.01 BTC, held 6 months.
-      const buy = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '632.50', quotedPrice: 63250, termMonths: 6 });
-      assert.strictEqual(buy.status, 201, buy.text);
-      assert.strictEqual(buy.body.trade.units, '0.01', 'units to the satoshi');
-      assert.strictEqual(buy.body.trade.price, 6325000, 'booked at the live price, in cents');
-      assert.strictEqual(buy.body.trade.termMonths, 6);
-      const invest_ = require(path.join(ROOT, 'src/bank/invest'));
-      assert.strictEqual(buy.body.trade.maturesAt, invest_.addMonths(buy.body.trade.createdAt, 6), 'matures six months on');
-      assert.strictEqual(before - await balanceOf(), 63250, 'exactly $632.50 left the cash balance');
-
-      // Without a term, the default; with one not offered, a refusal.
-      const plain = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '10.00' });
-      assert.strictEqual(plain.status, 201, plain.text);
-      assert.strictEqual(plain.body.trade.termMonths, 12, 'the default term');
-      const odd = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '10.00', termMonths: 5 });
-      assert.strictEqual(odd.status, 400, 'a term that is not offered');
-      assert.strictEqual(odd.body.error, 'invalid_term');
+      const day = await markets_.priceAt('BTC', '2013-06-01T10:00:00Z');
+      assert.ok(day.quote.price > 0 && /close on 2013-06-01/.test(day.quote.source), 'a past day is priced at its close');
+      await assert.rejects(markets_.priceAt('BTC', '2010-12-31T12:00:00Z'), (e) => e.code === 'before_earliest');
+      await assert.rejects(markets_.priceAt('BTC', new Date(Date.now() + 2 * 86400000)), (e) => e.code === 'future_date');
+      assert.strictEqual((await markets_.priceAt('BTC', new Date())).quote.price, 63250, 'today is the live price');
       assert.strictEqual(invest_.addMonths('2026-01-31T10:00:00.000Z', 1), '2026-02-28T10:00:00.000Z', 'a month on from the 31st is the end of February');
+      ok('prices: Bitcoin only, daily history back to 2011, and a price for any day since');
+    }
 
-      // The doors.
-      for (const sym of ['SPY', 'AAPL', 'XAU']) {
+    /* ---- 5b. receive: nothing until staff set the vault up, then cash or Bitcoin, confirmed by staff ---- */
+    const admin = client(base);
+    assert.strictEqual((await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' })).body.user.role, 'admin');
+    {
+      const closed = await customer.get('/api/bank/vault');
+      assert.strictEqual(closed.body.address, null, 'no vault address until staff set one');
+      assert.strictEqual(closed.body.otc, null, 'no OTC partner either');
+      const noCash = await customer.post('/api/bank/vault/receive', { kind: 'cash', amount: '100', occurredAt: '2020-01-01', termYears: 10 });
+      assert.strictEqual(noCash.status, 409);
+      assert.strictEqual(noCash.body.error, 'otc_unavailable');
+      const noBtc = await customer.post('/api/bank/vault/receive', { kind: 'bitcoin', units: '0.1', occurredAt: '2020-01-01', termYears: 10 });
+      assert.strictEqual(noBtc.body.error, 'no_vault_address');
+
+      const badAddress = await admin.put('/api/bank/admin/settings', { vaultAddresses: 'not-an-address' });
+      assert.strictEqual(badAddress.status, 400, 'only Bitcoin addresses');
+      const set = await admin.put('/api/bank/admin/settings', {
+        vaultAddresses: `${ADDRESS} Main vault`,
+        otc: { name: 'Northgate OTC Desk', bankName: 'Example Trust', accountName: 'Northgate OTC LLC', accountNumber: '000123456789', routingNumber: '021000021', swift: 'EXAMUS33' },
+      });
+      assert.strictEqual(set.status, 200, set.text);
+
+      const open = await customer.get('/api/bank/vault');
+      assert.deepStrictEqual(open.body.address, { address: ADDRESS, label: 'Main vault' }, 'the vault address, with its label');
+      assert.strictEqual(open.body.otc.accountNumber, '000123456789', 'and where to pay');
+      assert.match(open.body.paymentReference, /^HG\d+$/, 'with the customer number to quote');
+
+      const base_ = { kind: 'cash', amount: '1,250.00', occurredAt: '2016-03-01', termYears: 25 };
+      for (const [patch, code] of [
+        [{ termYears: 9 }, 'invalid_term'], [{ termYears: 101 }, 'invalid_term'], [{ termYears: 12.5 }, 'invalid_term'],
+        [{ occurredAt: '2010-12-31' }, 'before_earliest'], [{ occurredAt: new Date(Date.now() + 3 * 86400000).toISOString() }, 'future_date'],
+        [{ amount: '0.50' }, 'below_minimum'],
+      ]) {
         // eslint-disable-next-line no-await-in-loop
-        const retired = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: sym, amount: '10' });
-        assert.strictEqual(retired.status, 400, `${sym} can no longer be bought`);
-        assert.strictEqual(retired.body.error, 'asset_retired');
+        const refused = await customer.post('/api/bank/vault/receive', { ...base_, ...patch });
+        assert.strictEqual(refused.status, 400, `${JSON.stringify(patch)} is refused`);
+        assert.strictEqual(refused.body.error, code);
       }
-      const moved = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '100', quotedPrice: 50000 });
-      assert.strictEqual(moved.status, 409, 'a price that moved past the tolerance is not booked');
-      assert.strictEqual(moved.body.error, 'price_moved');
-      const tooMuch = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '9000000' });
-      assert.strictEqual(tooMuch.status, 400);
-      const tiny = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'BTC', amount: '0.50' });
-      assert.strictEqual(tiny.status, 400, 'below the minimum');
-      const unknown = await customer.post('/api/bank/invest/convert', { accountId: checking.id, symbol: 'DOGE', amount: '10' });
-      assert.strictEqual(unknown.status, 400, 'only listed assets');
-      const noCsrf = await fetch(`${base}/api/bank/invest/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      assert.ok([401, 403].includes(noCsrf.status), 'signed out, nothing is bought');
+      const paid = await customer.post('/api/bank/vault/receive', base_);
+      assert.strictEqual(paid.status, 201, paid.text);
+      assert.strictEqual(paid.body.request.status, 'pending');
+      assert.strictEqual(paid.body.request.amount, 125000);
+      assert.strictEqual(paid.body.request.termYears, 25);
+      assert.match(paid.body.request.reference, /^OTC-/);
 
-      // The price rises 5%: the newest purchase is worth more than it cost.
-      markets_._setFixture({ BTC: 66412.5 });
-      const later = await customer.get('/api/bank/invest');
-      const newest = later.body.positions.find((p) => p.id === buy.body.trade.id);
-      assert.strictEqual(newest.value, 66412, 'valued at the new price');
-      assert.strictEqual(newest.gain, 66412 - 63250);
-      assert.strictEqual(newest.termMonths, 6);
+      const badTx = await customer.post('/api/bank/vault/receive', { kind: 'bitcoin', units: '0.3', occurredAt: '2020-05-05', termYears: 10, txid: 'abc' });
+      assert.strictEqual(badTx.body.error, 'invalid_txid');
+      const sent = await customer.post('/api/bank/vault/receive', { kind: 'bitcoin', units: '0.3', occurredAt: '2020-05-05', termYears: 10 });
+      assert.strictEqual(sent.status, 201, sent.text);
+      assert.strictEqual(sent.body.request.address, ADDRESS);
+      const cancelled = await customer.post(`/api/bank/vault/requests/${sent.body.request.id}/cancel`);
+      assert.strictEqual(cancelled.body.request.status, 'cancelled', 'a customer can take a request back');
 
-      // Selling comes off the oldest purchase first, before its maturity if need be.
-      const sold = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'BTC', units: '0.01', quotedPrice: 66412.5 });
-      assert.strictEqual(sold.status, 201, sold.text);
-      assert.strictEqual(sold.body.trade.amount, 66412);
+      const queue = await admin.get('/api/bank/admin/vault/requests');
+      assert.ok(queue.body.requests.some((r) => r.id === paid.body.request.id && r.customer.email === 'demo@hedgestonesfinance.com'), 'staff see it, with who asked');
+      assert.ok(!queue.body.requests.some((r) => r.id === sent.body.request.id), 'and not the cancelled one');
+
+      // Staff check it against what arrived: $1,300, not $1,250.
+      const before = await db_.holdings.findOne({ user_id: demoId, symbol: 'BTC' });
+      const done = await admin.post(`/api/bank/admin/vault/requests/${paid.body.request.id}/confirm`, { amount: '1,300.00', note: 'Confirmed by the OTC partner' });
+      assert.strictEqual(done.status, 200, done.text);
+      const pc = cents((await markets_.priceAt('BTC', '2016-03-01')).quote.price);
+      assert.strictEqual(done.body.trade.price, pc, 'booked at the close on the day it was paid');
+      assert.strictEqual(sats(done.body.trade.units), unitsFor(130000, pc), 'the amount that arrived, at that price');
+      assert.strictEqual(done.body.trade.createdAt.slice(0, 10), '2016-03-01', 'dated when it was paid');
+      assert.strictEqual(done.body.trade.termMonths, 300);
+      assert.strictEqual(done.body.trade.maturesAt.slice(0, 10), '2041-03-01', 'maturing 25 years on');
+      assert.strictEqual(done.body.trade.reference, paid.body.request.reference, 'under the reference the customer was given');
+      assert.strictEqual(done.body.request.status, 'completed');
+      const after = await db_.holdings.findOne({ user_id: demoId, symbol: 'BTC' });
+      assert.strictEqual(sats(after.units) - sats(before.units), unitsFor(130000, pc));
+      assert.strictEqual(Number(after.cost_basis) - Number(before.cost_basis), 130000);
+      const twice = await admin.post(`/api/bank/admin/vault/requests/${paid.body.request.id}/confirm`, {});
+      assert.strictEqual(twice.status, 409, 'a request is confirmed once');
+
+      // And the seeded one, as it came.
+      const seeded = queue.body.requests.find((r) => r.note === 'Paid from my bank yesterday');
+      assert.strictEqual((await admin.post(`/api/bank/admin/vault/requests/${seeded.id}/confirm`, {})).status, 200);
+      const told = (await customer.get('/api/bank/alerts')).body.alerts.filter((a) => /added to your vault/.test(a.subject || ''));
+      assert.ok(told.length >= 2, 'the customer is told each time');
+      ok(`receive: closed until set up; refused before 2011, in the future, or outside 10 to 100 years; $1,300 paid on 2016-03-01 booked as ${done.body.trade.units} BTC at $${dollars(pc)}`);
+    }
+
+    /* ---- 5c. send: matured Bitcoin only, a PIN and a code, then a person ---- */
+    {
+      const v = await customer.get('/api/bank/vault');
+      const ready = sats(v.body.ready);
+      const firstLot = (await customer.get('/api/bank/invest')).body.positions[0];
+      assert.strictEqual(ready, sats(firstLot.units), 'only the matured 2015 investment is ready');
+
+      const tooMuch = await customer.post('/api/bank/vault/send', { units: (Number(ready + 1n) / 1e8).toFixed(8), address: ADDRESS, pin: '4417' });
+      assert.strictEqual(tooMuch.status, 409);
+      assert.strictEqual(tooMuch.body.error, 'not_matured', 'nothing beyond what has matured');
+      assert.strictEqual((await customer.post('/api/bank/vault/send', { units: '0.5', address: 'bc1-not-real', pin: '4417' })).body.error, 'invalid_address');
+      assert.strictEqual((await customer.post('/api/bank/vault/send', { units: '0.5', address: ADDRESS, pin: '0000' })).status, 403, 'the PIN is checked');
+
+      const asked = await customer.post('/api/bank/vault/send', { units: '0.5', address: ADDRESS, pin: '4417' });
+      assert.strictEqual(asked.status, 201, asked.text);
+      assert.strictEqual(asked.body.next, 'verify');
+      assert.ok(asked.body.otp.devCode, 'a code is emailed (and shown, with no mail provider)');
+      assert.strictEqual(sats((await customer.get('/api/bank/vault')).body.ready), ready - 50000000n, 'what is asked for is not ready twice');
+      const early = await admin.post(`/api/bank/admin/vault/requests/${asked.body.request.id}/confirm`, { txid: 'a'.repeat(64) });
+      assert.strictEqual(early.status, 409, 'staff cannot send before the customer has confirmed');
+      assert.strictEqual((await customer.post(`/api/bank/vault/requests/${asked.body.request.id}/verify`, { code: '000000' })).status, 400);
+      const verified = await customer.post(`/api/bank/vault/requests/${asked.body.request.id}/verify`, { code: asked.body.otp.devCode });
+      assert.strictEqual(verified.body.request.status, 'pending', 'then it waits for staff');
+
+      const before = await customer.get('/api/bank/invest');
+      const sentOut = await admin.post(`/api/bank/admin/vault/requests/${asked.body.request.id}/confirm`, { txid: 'b'.repeat(64) });
+      assert.strictEqual(sentOut.status, 200, sentOut.text);
+      assert.strictEqual(sentOut.body.trade.kind, 'sent');
+      assert.strictEqual(sentOut.body.request.txid, 'b'.repeat(64), 'with the transaction staff made');
       const after = await customer.get('/api/bank/invest');
-      assert.strictEqual(after.body.positions.length, 5, 'still five purchases, the oldest a little smaller');
-      assert.strictEqual(Math.round((Number(after.body.positions[0].units) - (Number(later.body.positions[0].units) - 0.01)) * 1e8), 0, 'first in, first out');
-      const heldAfter = Number(after.body.holdings.find((h) => h.symbol === 'BTC').units);
-      assert.strictEqual(Math.round((heldAfter - heldBefore) * 1e8), Math.round(Number(plain.body.trade.units) * 1e8), 'what is held is what was bought less what was sold');
-      const oversell = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'BTC', units: '500' });
-      assert.strictEqual(oversell.status, 400, 'you cannot sell what you do not hold');
+      assert.strictEqual(sats(before.body.bitcoin.units) - sats(after.body.bitcoin.units), 50000000n, '0.5 BTC left the vault');
+      assert.strictEqual(sats(before.body.positions[0].units) - sats(after.body.positions[0].units), 50000000n, 'from the matured investment');
+      before.body.positions.slice(1).forEach((p) => {
+        const same = after.body.positions.find((q) => q.id === p.id);
+        assert.strictEqual(same.units, p.units, 'the others untouched');
+      });
+      const costOut = before.body.positions[0].cost - after.body.positions[0].cost;
+      assert.strictEqual(before.body.bitcoin.cost - after.body.bitcoin.cost, costOut, 'invested falls by what that part cost');
 
-      // Holdings of assets no longer offered are converted to Bitcoin the next
-      // time the portfolio is read, at the live price of each, and never shown.
-      const db_ = require(path.join(ROOT, 'src/bank/db')).db;
-      const userId = (await db_.accounts.findById(checking.id)).user_id;
+      const again = await customer.post('/api/bank/vault/send', { units: '0.1', address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2', pin: '4417' });
+      await customer.post(`/api/bank/vault/requests/${again.body.request.id}/verify`, { code: again.body.otp.devCode });
+      assert.strictEqual((await admin.post(`/api/bank/admin/vault/requests/${again.body.request.id}/reject`, {})).status, 400, 'a rejection says why');
+      const rejected = await admin.post(`/api/bank/admin/vault/requests/${again.body.request.id}/reject`, { reason: 'We could not confirm that address belongs to you.' });
+      assert.strictEqual(rejected.body.request.status, 'rejected');
+      assert.strictEqual((await customer.get('/api/bank/vault')).body.ready, after.body.bitcoin.ready, 'nothing left, and it is ready again');
+      const why = (await customer.get('/api/bank/alerts')).body.alerts.find((a) => a.type === 'vault_request' && a.subject === `About your request ${again.body.request.reference}`);
+      assert.ok(why, 'the customer is told why');
+
+      const mara = client(base);
+      const maraUser = await db_.users.findOne({ email: 'mara.velez@example.com' });
+      const security_ = require(path.join(ROOT, 'src/bank/security'));
+      await db_.users.update(maraUser.id, { password_hash: await security_.hashSecret('Mara#Test20261'), must_change_password: false, two_factor_enabled: false });
+      assert.strictEqual((await mara.post('/api/bank/auth/login', { email: 'mara.velez@example.com', password: 'Mara#Test20261' })).status, 200);
+      assert.strictEqual((await mara.post('/api/bank/vault/send', { units: '0.01', address: ADDRESS })).body.error, 'not_matured', 'an empty vault sends nothing');
+      assert.strictEqual((await mara.post(`/api/bank/vault/requests/${again.body.request.id}/cancel`)).status, 404, 'nor touches anyone else\'s request');
+      ok('send: matured only, PIN and code, staff send it with a transaction ID; it comes off the matured investment; a rejection gives it back with a reason');
+    }
+
+    /* ---- 5e. staff back-dating: priced on the day, never before 2011, repriced when moved ---- */
+    {
+      const holding = async () => db_.holdings.findOne({ user_id: demoId, symbol: 'BTC' });
+      const readyNow = async () => sats((await customer.get('/api/bank/vault')).body.ready);
+      for (const [body, code] of [
+        [{ date: '2010-06-01' }, 'before_earliest'], [{ date: new Date(Date.now() + 86400000).toISOString() }, 'future_date'],
+        [{ termYears: 5 }, 'invalid_term'],
+      ]) {
+        // eslint-disable-next-line no-await-in-loop
+        const refused = await admin.post('/api/bank/admin/trades', { customerId: demoId, kind: 'cash', amount: '1000', date: '2013-04-01', termYears: 12, ...body });
+        assert.strictEqual(refused.status, 400, JSON.stringify(body));
+        assert.strictEqual(refused.body.error, code);
+      }
+      assert.strictEqual((await customer.post('/api/bank/admin/trades', { customerId: demoId, kind: 'cash', amount: '5' })).status, 403, 'customers cannot book');
+
+      const readyBefore = await readyNow();
+      const h0 = await holding();
+      const booked = await admin.post('/api/bank/admin/trades', { customerId: demoId, kind: 'cash', amount: '1,000.00', date: '2013-04-01T12:00:00Z', termYears: 12, note: 'Paid by wire in 2013' });
+      assert.strictEqual(booked.status, 201, booked.text);
+      const p2013 = cents((await markets_.priceAt('BTC', '2013-04-01')).quote.price);
+      assert.strictEqual(booked.body.trade.price, p2013, 'at the 2013 price, not today\'s');
+      assert.strictEqual(sats(booked.body.trade.units), unitsFor(100000, p2013));
+      assert.strictEqual(booked.body.trade.maturesAt.slice(0, 10), '2025-04-01');
+      assert.strictEqual(await readyNow(), readyBefore + sats(booked.body.trade.units), 'it matured in 2025, so it is ready to send');
+      const pos = (await customer.get('/api/bank/invest')).body.positions.find((p) => p.id === booked.body.trade.id);
+      assert.strictEqual(pos.gain, pos.value - 100000, 'its growth is from the 2013 price to today\'s');
+
+      const btc = await admin.post('/api/bank/admin/trades', { customerId: demoId, kind: 'bitcoin', units: '0.1', date: '2018-01-01T12:00:00Z', termYears: 10 });
+      const p2018 = cents((await markets_.priceAt('BTC', '2018-01-01')).quote.price);
+      assert.strictEqual(btc.body.trade.amount, Math.floor(0.1 * p2018), 'Bitcoin received is valued on the day it arrived');
+
+      // Moved to 2017: what was paid stays, and buys what it would have then.
+      const moved = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { date: '2017-01-01T12:00:00Z', note: 'Payment date confirmed' });
+      assert.strictEqual(moved.status, 200, moved.text);
+      const p2017 = cents((await markets_.priceAt('BTC', '2017-01-01')).quote.price);
+      assert.strictEqual(moved.body.trade.price, p2017, 'repriced at the new day');
+      assert.strictEqual(sats(moved.body.trade.units), unitsFor(100000, p2017));
+      assert.strictEqual(moved.body.trade.amount, 100000, 'what was paid does not change');
+      assert.strictEqual(moved.body.trade.maturesAt.slice(0, 10), '2029-01-01', 'the maturity moves with it');
+      const h1 = await holding();
+      assert.strictEqual(sats(h1.units) - sats(h0.units), unitsFor(100000, p2017) + sats('0.1'), 'the vault holds the repriced amount');
+      assert.strictEqual(await readyNow(), readyBefore, 'and it has not matured any more');
+      const reterm = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { termYears: 30 });
+      assert.strictEqual(reterm.body.trade.maturesAt.slice(0, 10), '2047-01-01', 'the term can change on its own');
+      assert.strictEqual((await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { date: '2010-01-01' })).body.error, 'before_earliest');
+
+      const reversed = await admin.post(`/api/bank/admin/trades/${btc.body.trade.id}/reverse`, { note: 'Booked twice' });
+      assert.strictEqual(reversed.body.trade.status, 'reversed');
+      assert.strictEqual(sats((await holding()).units), sats(h1.units) - sats('0.1'), 'the 0.1 BTC came off');
+      assert.strictEqual((await admin.post(`/api/bank/admin/trades/${btc.body.trade.id}/reverse`, {})).status, 409, 'once');
+      const audit = (await admin.get('/api/bank/admin/activity?limit=60')).body.activity.map((a) => a.action);
+      ['admin.trade_reversed', 'admin.trade_retimed', 'vault.cash_received', 'vault.bitcoin_received'].forEach((a) => assert.ok(audit.includes(a), `${a} is in the activity log`));
+      ok(`back-dating: $1,000 in 2013 at $${dollars(p2013)} matured in 2025; moved to 2017 it is repriced at $${dollars(p2017)} and matures in 2029; nothing before 2011`);
+    }
+
+    /* ---- 5f. what customers had before the vault becomes Bitcoin ---- */
+    {
       const uuid = () => require('crypto').randomUUID();
       const stamp = new Date().toISOString();
-      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'SPY', units: '2', cost_basis: 100000 });
-      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'AAPL', units: '1.5', cost_basis: 30000 });
-      const btcBefore = await db_.holdings.findOne({ user_id: userId, symbol: 'BTC' });
-      const cashBefore = await balanceOf();
-      const tradesBefore = (await db_.trades.find({ user_id: userId })).length;
+      const accountsLib = require(path.join(ROOT, 'src/bank/accounts'));
+      const ledger_ = require(path.join(ROOT, 'src/bank/ledger'));
+      markets_._setFixture({ BTC: 66412.5 });
+
+      // A cash balance from before the vault.
+      const user = await db_.users.findById(demoId);
+      const cash = await accountsLib.openAccount(user, { productId: 'investment_cash', openingBalance: 250000, createdBy: 'system' });
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: demoId, symbol: 'SPY', units: '2', cost_basis: 100000 });
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: demoId, symbol: 'AAPL', units: '1.5', cost_basis: 30000 });
+      const btcBefore = await db_.holdings.findOne({ user_id: demoId, symbol: 'BTC' });
+      const tradesBefore = (await db_.trades.find({ user_id: demoId })).length;
 
       const converted = await customer.get('/api/bank/invest');
       assert.strictEqual(converted.status, 200, converted.text);
-      const shown = JSON.stringify(converted.body);
-      assert.ok(!/SPY|AAPL|Apple|S&P/.test(shown), 'no other asset appears anywhere in the portfolio');
-      assert.deepStrictEqual(converted.body.holdings.map((h) => h.symbol), ['BTC'], 'Bitcoin is the only holding');
-      assert.deepStrictEqual(converted.body.assets.map((a) => a.symbol), ['BTC'], 'and the only asset');
-      assert.strictEqual(converted.body.converting, false, 'nothing left waiting');
-      assert.ok(!(await db_.holdings.find({ user_id: userId })).some((h) => h.symbol !== 'BTC'), 'the old holdings are gone');
+      assert.ok(!/SPY|AAPL|Apple|S&P/.test(JSON.stringify(converted.body)), 'no other asset appears anywhere');
+      assert.deepStrictEqual(converted.body.holdings.map((h) => h.symbol), ['BTC']);
+      assert.strictEqual(converted.body.converting, false);
+      const expected = unitsFor(2 * 57125, 6641250) + unitsFor(Math.floor(1.5 * 22750), 6641250) + unitsFor(250000, 6641250);
+      const btcAfter = await db_.holdings.findOne({ user_id: demoId, symbol: 'BTC' });
+      assert.strictEqual(sats(btcAfter.units) - sats(btcBefore.units), expected, 'the assets and the cash all bought Bitcoin at the live price');
+      assert.strictEqual(Number(btcAfter.cost_basis) - Number(btcBefore.cost_basis), 130000 + 250000, 'what went in carries over');
+      assert.strictEqual(ledger_.availableFor(await db_.accounts.findById(cash.id)), 0, 'the cash is spent');
 
-      // SPY 2 x $571.25 and AAPL 1.5 x $227.50, each buying Bitcoin at $66,412.50.
-      const sats = (cents) => (BigInt(cents) * 100000000n) / 6641250n;
-      const expected = sats(2 * 57125) + sats(Math.floor(1.5 * 22750));
-      const btcAfter = await db_.holdings.findOne({ user_id: userId, symbol: 'BTC' });
-      const toSats = (u) => BigInt(Math.round(Number(u) * 1e8));
-      assert.strictEqual(toSats(btcAfter.units) - toSats(btcBefore.units), expected, 'their value bought Bitcoin at the live price');
-      assert.strictEqual(Number(btcAfter.cost_basis) - Number(btcBefore.cost_basis), 130000, 'what was originally invested carries over');
-      assert.strictEqual(await balanceOf(), cashBefore, 'no cash moved');
-
-      const conversions = (await db_.trades.find({ user_id: userId })).filter((t) => /^CNV-/.test(t.reference || ''));
-      assert.strictEqual(conversions.length, 4, 'a sale of each old holding and a purchase of Bitcoin for each');
-      const bought = conversions.filter((t) => t.symbol === 'BTC');
-      assert.ok(bought.every((t) => t.side === 'buy' && Number(t.term_months) === 12), 'each a new purchase on the default term');
-      assert.ok(converted.body.trades.some((t) => t.converted && t.symbol === 'BTC'), 'shown as converted in their trades');
-      assert.ok(converted.body.positions.some((p) => bought.some((t) => t.id === p.id)), 'and as purchases on the dashboard');
-
-      const told = (await customer.get('/api/bank/alerts')).body.alerts.find((a) => /now in Bitcoin/.test(a.subject || a.title || ''));
-      assert.ok(told, 'the customer is told');
-      const logged = (await db_.activity.find({ user_id: userId })).filter((r) => r.action === 'invest.converted');
-      assert.strictEqual(logged.length, 2, 'each conversion is in the activity log');
-
+      const conversions = (await db_.trades.find({ user_id: demoId })).filter((t) => /^CNV-/.test(t.reference || ''));
+      assert.strictEqual(conversions.length, 5, 'a sale of each old holding, a purchase for each, and the cash');
+      assert.ok(conversions.filter((t) => t.symbol === 'BTC').every((t) => t.side === 'buy' && Number(t.term_months) === 120), 'each on the default 10-year term');
+      const alerts = (await customer.get('/api/bank/alerts')).body.alerts.map((a) => a.subject);
+      assert.ok(alerts.includes('Your investments are now in Bitcoin') && alerts.includes('Your cash is now in Bitcoin'), 'the customer is told');
       await customer.get('/api/bank/invest');
-      assert.strictEqual((await db_.trades.find({ user_id: userId })).length, tradesBefore + 4, 'converting twice books nothing more');
+      assert.strictEqual((await db_.trades.find({ user_id: demoId })).length, tradesBefore + 5, 'converting twice books nothing more');
 
-      const sellOld = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'SPY', all: true });
-      assert.strictEqual(sellOld.status, 400, 'only Bitcoin can be sold');
-      assert.strictEqual(sellOld.body.error, 'asset_retired');
+      const cashTrade = conversions.find((t) => t.transaction_id);
+      const plain = conversions.find((t) => t.symbol === 'BTC' && !t.transaction_id);
+      assert.strictEqual((await admin.post(`/api/bank/admin/trades/${plain.id}/reverse`, {})).body.error, 'conversion_final', 'a conversion cannot be reversed');
+      assert.strictEqual((await admin.post(`/api/bank/admin/trades/${cashTrade.id}/reverse`, {})).body.error, 'conversion_final');
 
-      const staffer = client(base);
-      assert.strictEqual((await staffer.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' })).status, 200);
-      const undo = await staffer.post(`/api/bank/admin/trades/${bought[0].id}/reverse`, { note: 'test' });
-      assert.strictEqual(undo.status, 409, 'a conversion cannot be reversed');
-      assert.strictEqual(undo.body.error, 'conversion_final');
-
-      // Without a live price for the old asset nothing converts, nothing shows,
-      // and staff are told how many are waiting. With one, the next read converts it.
+      // Without a price for the old asset nothing converts and nothing shows.
       markets_._setFixture({ BTC: 66412.5, XAU: 0 });
-      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'XAU', units: '0.5', cost_basis: 120000 });
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: demoId, symbol: 'XAU', units: '0.5', cost_basis: 120000 });
       const waiting = await customer.get('/api/bank/invest');
-      assert.strictEqual(waiting.body.converting, true, 'the customer is told it is on its way');
+      assert.strictEqual(waiting.body.converting, true);
       assert.ok(!/XAU|Gold/.test(JSON.stringify(waiting.body)), 'without naming it');
-      const desk = await staffer.get('/api/bank/admin/investments');
-      assert.strictEqual(desk.status, 200, desk.text);
+      const desk = await admin.get('/api/bank/admin/investments');
       assert.strictEqual(desk.body.converting, 1, 'staff see one waiting');
-      assert.ok(desk.body.holdings.every((h) => h.symbol === 'BTC') && desk.body.trades.every((t) => t.symbol === 'BTC'), 'and only Bitcoin');
+      assert.ok(desk.body.holdings.every((h) => h.symbol === 'BTC') && desk.body.trades.every((t) => t.symbol === 'BTC'));
       markets_._setFixture({ BTC: 66412.5 });
-      const sweep = await staffer.get('/api/bank/admin/investments');
-      assert.strictEqual(sweep.body.converting, 0, 'with a price, the staff screen converts it');
-      assert.ok(!(await db_.holdings.find({ user_id: userId })).some((h) => h.symbol !== 'BTC'), 'and it is gone');
-
-      // On the ledger as investments.
-      const tx = await customer.get('/api/bank/transactions?limit=10');
-      assert.ok(tx.body.transactions.some((t) => t.category === 'Investments' && /Bitcoin/.test(t.description)));
-
+      assert.strictEqual((await admin.get('/api/bank/admin/investments')).body.converting, 0, 'with a price, the staff screen converts it');
       markets_._setFixture(null);
-      ok(`invest: 0.01 BTC bought for $632.50 on a 6-month term, sold first-in-first-out at $66,412.50; other assets refused, converted to Bitcoin and never shown`);
+      ok('conversion: other assets and cash become Bitcoin at the live price, invested carries over, final, and never shown');
     }
 
     /* ---- 5d. an active session keeps its cookies; an ended one loses them ---- */
@@ -371,9 +474,8 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('sessions: cookies slide while active, are cleared once ended, and never ride on the price feed');
     }
 
-    /* ---- 5c. each price provider is read the way it answers ---- */
+    /* ---- 5g. each price provider is read the way it answers ---- */
     {
-      const markets_ = require(path.join(ROOT, 'src/bank/markets'));
       const realFetch = global.fetch;
       const fixtureWas = process.env.MARKET_DATA_FIXTURE;
       delete process.env.MARKET_DATA_FIXTURE;
@@ -381,24 +483,28 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       let geckoDown = false;
       const respond = (body, status = 200) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
       const day = 86400;
+      // A few days ago at midnight UTC, so every sample falls inside the window asked for.
+      const T = Math.floor(Date.now() / 1000 / day) * day - 5 * day;
       global.fetch = async (url) => {
         const u = String(url);
         calls.push(new URL(u).host);
         if (u.includes('coingecko.com')) {
           if (geckoDown) return respond('rate limited', 429);
-          if (u.includes('/market_chart')) return respond({ prices: [[1760000000000, 60000], [1760000000000 + 3600000, 60500], [1760000000000 + day * 1000, 61000]] });
-          return respond({ bitcoin: { usd: 64000, usd_24h_change: 2.5, last_updated_at: 1760000000 } });
+          if (u.includes('/market_chart')) return respond({ prices: [[T * 1000, 60000], [T * 1000 + 3600000, 60500], [T * 1000 + day * 1000, 61000]] });
+          return respond({ bitcoin: { usd: 64000, usd_24h_change: 2.5, last_updated_at: T } });
         }
         if (u.includes('finance.yahoo.com')) {
           if (u.includes('range=') && !u.includes('range=1d')) {
-            return respond({ chart: { result: [{ timestamp: [1760000000, 1760000000 + day, 1760000000 + 2 * day], indicators: { quote: [{ close: [59000, null, 59500] }] } }] } });
+            return respond({ chart: { result: [{ timestamp: [T, T + day, T + 2 * day], indicators: { quote: [{ close: [59000, null, 59500] }] } }] } });
           }
-          return respond({ chart: { result: [{ meta: { regularMarketPrice: 63800, chartPreviousClose: 63000, regularMarketTime: 1760000000 } }] } });
+          return respond({ chart: { result: [{ meta: { regularMarketPrice: 63800, chartPreviousClose: 63000, regularMarketTime: T } }] } });
         }
         if (u.includes('coinbase.com')) {
-          if (u.includes('/candles')) return respond([[1760000000 + day, 1, 2, 3, 62000, 9], [1760000000, 1, 2, 3, 61500, 9]]);
+          if (u.includes('/candles')) return respond([[T + day, 1, 2, 3, 62000, 9], [T, 1, 2, 3, 61500, 9]]);
           return respond({ data: { amount: '63900.00' } });
         }
+        if (u.includes('blockchain.info')) return respond({ status: 'ok', values: [{ x: 1293840000, y: 0.3 }, { x: 1293840000 + day, y: 0.31 }, { x: 1293840000 + 2 * day, y: 0 }] });
+        if (u.includes('cryptocompare.com')) return respond({ Response: 'Success', Data: { Data: [{ time: 1293840000, close: 0.3 }, { time: 1293840000 + day, close: 0.32 }] } });
         return respond('not found', 404);
       };
       try {
@@ -427,72 +533,16 @@ const dollars = (cents) => (cents / 100).toFixed(2);
         assert.strictEqual(h.source, 'Yahoo Finance');
         const cb = await markets_._history.historyFromCoinbase(markets_.BY_SYMBOL.get('BTC'), 30);
         assert.deepStrictEqual(cb.map((p) => p.p), [61500, 62000], 'Coinbase candles, newest first, turned oldest first');
-        ok('prices: CoinGecko, Coinbase and Yahoo parsed for the price and its history; each takes over when the one before refuses');
+        const bc = await markets_._history.historyFromBlockchain(markets_.BY_SYMBOL.get('BTC'), 6000);
+        assert.deepStrictEqual(bc.map((p) => [p.t, p.p]), [['2011-01-01', 0.3], ['2011-01-02', 0.31]], 'Blockchain.com, with its zero days dropped');
+        const cc = await markets_._history.historyFromCryptoCompare(markets_.BY_SYMBOL.get('BTC'), 6000);
+        assert.deepStrictEqual(cc.map((p) => p.p), [0.3, 0.32], 'CryptoCompare daily closes');
+        ok('prices: CoinGecko, Coinbase, Yahoo, Blockchain.com and CryptoCompare parsed; each takes over when the one before refuses');
       } finally {
         global.fetch = realFetch;
         if (fixtureWas) process.env.MARKET_DATA_FIXTURE = fixtureWas;
         markets_._setFixture(null);
       }
-    }
-
-    /* ---- 6. an outside transfer needs a code, then waits for review ---- */
-    let heldTransferId;
-    {
-      const options = await customer.get('/api/bank/transfers/options');
-      assert.strictEqual(options.status, 200);
-      const beneficiary = options.body.beneficiaries.find((b) => b.type === 'domestic_ach');
-      assert.ok(beneficiary, 'the demo customer has a saved withdrawal account');
-
-      const availableBefore = options.body.accounts.find((a) => a.id === checking.id).availableBalance;
-
-      const res = await customer.post('/api/bank/transfers', {
-        type: 'ach', fromAccountId: checking.id, beneficiaryId: beneficiary.id,
-        amount: '400.00', memo: 'Rent share', pin: '4417',
-      });
-      assert.strictEqual(res.status, 201, res.text);
-      assert.strictEqual(res.body.next, 'verify');
-      const code = res.body.verification.devCode;
-      assert.ok(code, 'a verification code was issued');
-      heldTransferId = res.body.transfer.id;
-
-      const verified = await customer.post(`/api/bank/transfers/${heldTransferId}/verify`, { code });
-      assert.strictEqual(verified.status, 200, verified.text);
-      assert.strictEqual(verified.body.next, 'review', 'it goes to the review queue');
-      assert.strictEqual(verified.body.transfer.status, 'pending_review');
-
-      const accountsNow = await customer.get('/api/bank/accounts');
-      const availableAfter = accountsNow.body.accounts.find((a) => a.id === checking.id).availableBalance;
-      assert.strictEqual(availableBefore - availableAfter, 40000, 'the funds are held while it waits');
-      ok('withdrawal: verified by code, funds held, queued for review');
-    }
-
-    /* ---- 7. the wrong PIN stops a transfer ---- */
-    {
-      const options = await customer.get('/api/bank/transfers/options');
-      const beneficiary = options.body.beneficiaries[0];
-      const res = await customer.post('/api/bank/transfers', {
-        type: 'ach', fromAccountId: checking.id, beneficiaryId: beneficiary.id, amount: '10.00', pin: '0000',
-      });
-      assert.strictEqual(res.status, 403);
-      assert.match(res.body.message, /PIN/i);
-      ok('a wrong withdrawal PIN is refused');
-    }
-
-    /* ---- 8. a recipient needs a routing number that passes the checksum ---- */
-    {
-      const bad = await customer.post('/api/bank/beneficiaries', {
-        name: 'Test Person', accountNumber: '1234567890', routingNumber: '123456789', bankName: 'Nowhere Bank',
-      });
-      assert.strictEqual(bad.status, 400);
-      assert.match(bad.body.message, /routing/i);
-
-      const good = await customer.post('/api/bank/beneficiaries', {
-        nickname: 'Contractor', name: 'Ridge Builders LLC', accountNumber: '778811224466',
-        routingNumber: '021000021', bankName: 'Hudson Savings', accountType: 'checking', type: 'domestic_ach',
-      });
-      assert.strictEqual(good.status, 201, good.text);
-      assert.strictEqual(good.body.beneficiary.accountLast4, '4466');
-      ok('withdrawal accounts: ABA checksum enforced, valid one saved');
     }
 
     /* ---- 10. a photo upload becomes the avatar ---- */
@@ -508,137 +558,79 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('photo upload: stored, linked to the profile and served back');
     }
 
-    /* ---- 11. CSV export ---- */
+    /* ---- 11. the vault's history, and as a file ---- */
     {
-      const csvRes = await customer.get('/api/bank/transactions/export?limit=50');
-      assert.strictEqual(csvRes.status, 200);
+      const all = await customer.get('/api/bank/vault/history');
+      assert.strictEqual(all.status, 200, all.text);
+      const kinds = new Set(all.body.movements.map((t) => t.kind));
+      ['cash', 'bitcoin', 'sent', 'converted'].forEach((k) => assert.ok(kinds.has(k), `history shows ${k}`));
+      assert.ok(all.body.movements.every((t) => t.symbol === 'BTC'), 'Bitcoin only');
+      const out = await customer.get('/api/bank/vault/history?kind=out');
+      assert.ok(out.body.movements.length && out.body.movements.every((t) => t.side !== 'buy'), 'filtered to what left');
+      const ranged = await customer.get('/api/bank/vault/history?from=2015-01-01&to=2015-12-31');
+      assert.ok(ranged.body.movements.length >= 1 && ranged.body.movements.every((t) => t.createdAt.startsWith('2015')), 'and by date');
+      const csvRes = await customer.get('/api/bank/vault/history/export');
       assert.match(csvRes.headers.get('content-type'), /text\/csv/);
-      assert.match(csvRes.text.split('\n')[0], /^Date,Account,Description/);
-      const statements = await customer.get(`/api/bank/accounts/${checking.id}/statements`);
-      assert.strictEqual(statements.status, 404, 'statements are gone');
-      ok('CSV export works; statements are gone');
+      assert.match(csvRes.text.split('\n')[0], /^Date,What,Bitcoin/);
+      ok(`history: ${all.body.movements.length} movements, filterable, downloadable as CSV`);
     }
 
-    /* ---- 12. another customer's account is simply not there ---- */
+    /* ---- 12. another customer's vault is simply not there ---- */
     {
-      const admin = client(base);
-      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' });
-      assert.strictEqual(signIn.status, 200, signIn.text);
-      const list = await admin.get('/api/bank/admin/customers?q=mara');
-      const other = list.body.customers[0];
-      const otherDetail = await admin.get(`/api/bank/admin/customers/${other.id}`);
-      const otherAccountId = otherDetail.body.accounts[0].id;
-
-      const attempt = await customer.get(`/api/bank/transactions?accountId=${otherAccountId}`);
-      assert.strictEqual(attempt.status, 404, 'not 403: the id is not confirmed to exist');
-      const attemptAdmin = await customer.get('/api/bank/admin/customers');
-      assert.strictEqual(attemptAdmin.status, 403, 'a customer is not staff');
-      ok('isolation: another customer’s account is a 404, the console is a 403');
+      const attempt = await customer.get('/api/bank/admin/customers');
+      assert.strictEqual(attempt.status, 403, 'a customer is not staff');
+      const other = await db_.users.findOne({ email: 'mara.velez@example.com' });
+      const theirs = await db_.vaultRequests.insert({ id: require('crypto').randomUUID(), created_at: new Date().toISOString(), user_id: other.id, kind: 'cash_in', status: 'pending', amount: 5000, occurred_at: new Date().toISOString(), term_months: 120, reference: 'OTC-TEST1-TEST1' });
+      assert.strictEqual((await customer.post(`/api/bank/vault/requests/${theirs.id}/cancel`)).status, 404, 'not 403: the id is not confirmed to exist');
+      ok('isolation: another customer\'s request is a 404, the console is a 403');
     }
 
-    /* ---- 13. the console registers a customer, with accounts and a balance ---- */
-    const admin = client(base);
+    /* ---- 13. the console registers a customer, with what they have already paid ---- */
     let newCustomerId;
-    let newAccountId;
     {
-      const signIn = await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' });
-      assert.strictEqual(signIn.body.user.role, 'admin');
-
       const res = await admin.post('/api/bank/admin/customers', {
         email: 'newcustomer@example.com',
         firstName: 'Dana', lastName: 'Whitfield',
         dateOfBirth: '1991-06-08', ssn: '223456789',
         phone: '(614) 555-0133', addressLine1: '77 Quarry Lane', city: 'Columbus', state: 'OH', postalCode: '43201',
         employmentStatus: 'Employed', occupation: 'Nurse', annualIncome: '84000',
-        openingBalance: '3500.00',
+        firstAmount: '3,500.00', firstDate: '2015-06-01', firstTermYears: 12,
       });
       assert.strictEqual(res.status, 201, res.text);
       assert.ok(res.body.temporaryPassword, 'a temporary password is issued');
-      assert.strictEqual(res.body.accounts.length, 1, 'one cash balance');
-      assert.strictEqual(res.body.accounts[0].name, 'Cash balance');
-      assert.strictEqual(res.body.accounts[0].balance, 350000, 'the opening balance posted');
       assert.strictEqual(res.body.customer.ssnMasked.slice(-4), '6789', 'the SSN is stored masked');
-      const db_ = require(path.join(ROOT, 'src/bank/db')).db;
+      const p2015 = cents((await markets_.priceAt('BTC', '2015-06-01')).quote.price);
+      assert.strictEqual(res.body.vault.price, p2015, 'what they paid is booked at that day\'s price');
+      assert.strictEqual(sats(res.body.vault.units), unitsFor(350000, p2015));
+      assert.strictEqual(res.body.vault.maturesAt.slice(0, 10), '2027-06-01');
+      assert.strictEqual((await db_.accounts.find({ user_id: res.body.customer.id })).length, 0, 'no cash balance is opened');
       assert.strictEqual((await db_.cards.find({ user_id: res.body.customer.id })).length, 0, 'and no card');
       newCustomerId = res.body.customer.id;
-      newAccountId = res.body.accounts[0].id;
-      ok(`console: registered ${res.body.customer.fullName} with a cash balance of $3,500.00 and no card`);
-    }
-
-    /* ---- 14. adding a balance writes an entry, not just a number ---- */
-    {
-      const before = await admin.get(`/api/bank/admin/customers/${newCustomerId}`);
-      const balanceBefore = before.body.accounts.find((a) => a.id === newAccountId).balance;
-
-      const res = await admin.post(`/api/bank/admin/accounts/${newAccountId}/adjust`, {
-        amount: '2,400.00', direction: 'credit', description: 'DEPOSIT RECEIVED',
-        method: 'adjustment', category: 'Deposits', note: 'Cleared by ops',
-      });
-      assert.strictEqual(res.status, 201, res.text);
-      assert.strictEqual(res.body.account.balance - balanceBefore, 240000);
-      assert.strictEqual(res.body.transaction.description, 'DEPOSIT RECEIVED');
-
-      const debit = await admin.post(`/api/bank/admin/accounts/${newAccountId}/adjust`, {
-        amount: '150.00', direction: 'debit', description: 'SERVICE CHARGE', method: 'fee', category: 'Fees & Interest',
-      });
-      assert.strictEqual(debit.body.account.balance, balanceBefore + 240000 - 15000);
-      ok('console: credited $2,400.00 and debited $150.00, each as a dated entry');
-    }
-
-    /* ---- 15. the queue: approve one transfer, return another ---- */
-    {
-      const queue = await admin.get('/api/bank/admin/transfers?status=pending_review');
-      assert.ok(queue.body.transfers.length >= 1, 'the held transfer is in the queue');
-      assert.ok(queue.body.transfers[0].customer, 'the queue names the customer');
-
-      const approved = await admin.post(`/api/bank/admin/transfers/${heldTransferId}/approve`, { note: 'Verified by phone' });
-      assert.strictEqual(approved.status, 200, approved.text);
-      assert.strictEqual(approved.body.transfer.status, 'completed');
-      assert.ok(approved.body.transfer.traceNumber, 'a completed standard withdrawal carries a trace reference');
-
-      // And a second one, returned with a reason the customer will see.
-      const options = await customer.get('/api/bank/transfers/options');
-      const beneficiary = options.body.beneficiaries[0];
-      const submitted = await customer.post('/api/bank/transfers', {
-        type: 'wire_domestic', fromAccountId: checking.id, beneficiaryId: beneficiary.id, amount: '900.00', pin: '4417',
-      });
-      const verified = await customer.post(`/api/bank/transfers/${submitted.body.transfer.id}/verify`, {
-        code: submitted.body.verification.devCode,
-      });
-      assert.strictEqual(verified.body.transfer.status, 'pending_review');
-
-      const availableHeld = (await customer.get('/api/bank/accounts')).body.accounts.find((a) => a.id === checking.id).availableBalance;
-      const rejected = await admin.post(`/api/bank/admin/transfers/${submitted.body.transfer.id}/reject`, {
-        reasonCode: 'beneficiary_unverified', note: 'The receiving bank could not confirm the account name.',
-      });
-      assert.strictEqual(rejected.body.transfer.status, 'rejected');
-      const availableBack = (await customer.get('/api/bank/accounts')).body.accounts.find((a) => a.id === checking.id).availableBalance;
-      assert.strictEqual(availableBack - availableHeld, 92500, 'the held funds and the same-day fee come back');
-      ok('queue: one released with a trace number, one returned and the hold released');
+      const list = await admin.get('/api/bank/admin/customers?q=whitfield');
+      assert.strictEqual(list.body.customers[0].btcUnits, res.body.vault.units, 'the customer list shows their Bitcoin');
+      ok(`console: registered ${res.body.customer.fullName} with ${res.body.vault.units} BTC from 2015 and no cash balance or card`);
     }
 
     /* ---- 16. the customer is told, in the app and by email ---- */
     {
       const res = await customer.get('/api/bank/alerts');
-      assert.ok(res.body.alerts.length >= 3, 'alerts were raised');
-      const rejection = res.body.alerts.find((a) => a.type === 'transfer_rejected');
-      assert.ok(rejection, 'the returned withdrawal raised an alert');
-      assert.match(rejection.body, /could not confirm the account name/i, 'the reason reaches the customer');
+      const rejection = res.body.alerts.find((a) => a.type === 'vault_request' && /^About your request SND-/.test(a.subject));
+      assert.ok(rejection, 'the rejected send raised an alert');
+      assert.match(rejection.body, /could not confirm that address/i, 'the reason reaches the customer');
       assert.strictEqual(rejection.status, 'not_configured', 'without Resend it is stored, not sent');
       ok(`alerts: ${res.body.alerts.length} raised, the rejection carries the reason`);
     }
 
     /* ---- 17. everything is in the activity log, with a name against it ---- */
     {
-      const res = await admin.get('/api/bank/admin/activity?limit=200');
+      const res = await admin.get('/api/bank/admin/activity?limit=300');
       const actions = res.body.activity.map((a) => a.action);
-      ['auth.login', 'transfer.submitted', 'transfer.completed', 'transfer.rejected',
-        'admin.customer_created', 'admin.balance_adjusted', 'document.uploaded'].forEach((action) => {
+      ['auth.login', 'vault.cash_in_requested', 'vault.btc_in_requested', 'vault.request_cancelled', 'vault.cash_received', 'vault.send_requested',
+        'vault.sent', 'vault.request_rejected', 'admin.customer_created', 'invest.converted', 'invest.cash_converted', 'document.uploaded'].forEach((action) => {
         assert.ok(actions.includes(action), `the log records ${action}`);
       });
-      const adjust = res.body.activity.find((a) => a.action === 'admin.balance_adjusted');
-      assert.strictEqual(adjust.actorEmail, 'admin@hedgestonesfinance.com', 'the log names who did it');
-      assert.ok(adjust.ip !== undefined && adjust.device, 'with where they did it from');
+      const sent = res.body.activity.find((a) => a.action === 'vault.sent');
+      assert.strictEqual(sent.actorEmail, 'admin@hedgestonesfinance.com', 'the log names who sent it');
       ok(`activity log: ${res.body.total} rows, staff actions attributed`);
     }
 
@@ -652,99 +644,12 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('console: suspend and restore');
     }
 
-    /* ---- 18c. staff back-posting: trades and entries booked after the fact ---- */
-    {
-      const found = await admin.get('/api/bank/admin/customers?q=demo%40hedgestonesfinance.com&limit=5');
-      const jordan = found.body.customers[0];
-      assert.ok(jordan, 'the demo customer is found');
-      const acctOf = async () => (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.accounts.find((a) => a.id === checking.id);
-      const holdingOf = async (sym) => ((await admin.get(`/api/bank/admin/customers/${jordan.id}/investments`)).body.holdings.find((h) => h.symbol === sym) || { units: '0' });
-      // A running balance that adds up: each posted entry's balance_after,
-      // in value-date order, ends at the account balance.
-      const chainHolds = async () => {
-        const rows = (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.transactions
-          .filter((t) => t.accountId === checking.id && ['posted', 'reversed'].includes(t.status));
-        const latest = rows.slice().sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1))[0];
-        return latest && latest.balanceAfter === (await acctOf()).balance;
-      };
-
-      const before = (await acctOf()).balance;
-      const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
-      const booked = await admin.post('/api/bank/admin/trades', {
-        customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'BTC',
-        amount: '1000.00', price: '50000.00', date: twoDaysAgo, note: 'Instruction taken by phone', termMonths: 9,
-      });
-      assert.strictEqual(booked.status, 201, booked.text);
-      assert.strictEqual(booked.body.trade.units, '0.02', 'exactly 0.02 BTC at the agreed $50,000.00');
-      assert.strictEqual(booked.body.trade.price, 5000000);
-      assert.strictEqual(booked.body.trade.createdAt, twoDaysAgo, 'booked at the agreed time');
-      assert.strictEqual(booked.body.trade.termMonths, 9, 'staff may book any whole number of months');
-      assert.strictEqual(booked.body.trade.source, 'Entered by staff');
-      assert.strictEqual(before - (await acctOf()).balance, 100000, '$1,000.00 left checking');
-      assert.ok(await chainHolds(), 'running balances restated around the back-dated entry');
-
-      const asCustomer = await customer.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'BTC', amount: '5' });
-      assert.strictEqual(asCustomer.status, 403, 'customers cannot back-post');
-      const future = await admin.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'BTC', amount: '5', date: new Date(Date.now() + 86400000).toISOString() });
-      assert.strictEqual(future.status, 400, 'nothing dated in the future');
-
-      const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
-      const moved = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { date: threeDaysAgo, note: 'Network down; instruction taken by phone' });
-      assert.strictEqual(moved.status, 200, moved.text);
-      const movedTx = (await admin.get(`/api/bank/admin/customers/${jordan.id}`)).body.transactions.find((t) => t.id === booked.body.trade.transactionId);
-      assert.strictEqual(movedTx.date, threeDaysAgo, 'its ledger entry moved with it');
-      assert.strictEqual(moved.body.trade.maturesAt, require(path.join(ROOT, 'src/bank/invest')).addMonths(threeDaysAgo, 9), 'and its maturity');
-      assert.ok(await chainHolds());
-      const reterm = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { termMonths: 18 });
-      assert.strictEqual(reterm.status, 200, reterm.text);
-      assert.strictEqual(reterm.body.trade.termMonths, 18, 'the term can be changed on its own');
-      assert.strictEqual(reterm.body.trade.createdAt, threeDaysAgo, 'without moving the purchase');
-
-      const fixAmount = await admin.patch(`/api/bank/admin/transactions/${booked.body.trade.transactionId}`, { amount: '900.00' });
-      assert.strictEqual(fixAmount.status, 409, 'a purchase is corrected by reversing, not by editing its amount');
-
-      const btcBefore = Number((await holdingOf('BTC')).units);
-      const reversed = await admin.post(`/api/bank/admin/trades/${booked.body.trade.id}/reverse`, { note: 'Booked to the wrong customer' });
-      assert.strictEqual(reversed.status, 200, reversed.text);
-      assert.strictEqual(reversed.body.trade.status, 'reversed');
-      assert.strictEqual(Math.round((btcBefore - Number((await holdingOf('BTC')).units)) * 1e8), 2e6, 'the 0.02 BTC came off the holding');
-      assert.strictEqual((await acctOf()).balance, before, 'and the $1,000.00 came back');
-      const again = await admin.post(`/api/bank/admin/trades/${booked.body.trade.id}/reverse`, {});
-      assert.strictEqual(again.status, 409, 'a trade reverses once');
-
-      // The console's ordinary Reverse on a purchase's entry undoes the whole trade.
-      const second = await admin.post('/api/bank/admin/trades', { customerId: jordan.id, side: 'buy', accountId: checking.id, symbol: 'BTC', amount: '500.00', price: '50000.00' });
-      assert.strictEqual(second.status, 201, second.text);
-      const btcMid = Number((await holdingOf('BTC')).units);
-      const viaEntry = await admin.post(`/api/bank/admin/transactions/${second.body.trade.transactionId}/settle`, { action: 'reverse', note: 'Duplicate' });
-      assert.strictEqual(viaEntry.status, 200, viaEntry.text);
-      assert.strictEqual(Math.round((btcMid - Number((await holdingOf('BTC')).units)) * 1e8), 1e6, 'units and cash both undone');
-
-      // An ordinary entry: back-dated with a time, then its amount corrected.
-      const yesterday = new Date(Date.now() - 86400000);
-      yesterday.setUTCHours(14, 35, 0, 0);
-      const walkIn = await admin.post(`/api/bank/admin/accounts/${checking.id}/adjust`, {
-        direction: 'credit', amount: '100.00', description: 'DEPOSIT RECEIVED', date: yesterday.toISOString(), notify: false,
-      });
-      assert.strictEqual(walkIn.status, 201, walkIn.text);
-      assert.strictEqual(walkIn.body.transaction.date, yesterday.toISOString(), 'dated to the minute');
-      const balWalkIn = (await acctOf()).balance;
-      const amended = await admin.patch(`/api/bank/admin/transactions/${walkIn.body.transaction.id}`, { amount: '125.00', description: 'DEPOSIT RECEIVED (corrected)' });
-      assert.strictEqual(amended.status, 200, amended.text);
-      assert.strictEqual(amended.body.transaction.amount, 12500);
-      assert.strictEqual((await acctOf()).balance - balWalkIn, 2500, 'the balance moved by the difference');
-      assert.ok(await chainHolds(), 'and the running balances still add up');
-      const audit = (await admin.get('/api/bank/admin/activity?limit=40')).body.activity.map((a) => a.action);
-      ['admin.trade_reversed', 'admin.trade_retimed', 'admin.transaction_updated', 'invest.buy'].forEach((a) => assert.ok(audit.includes(a), `${a} is in the activity log`));
-      ok('back-posting: staff booked 0.02 BTC at $50,000 two days back on a 9-month term, moved it, re-termed it, reversed it; a deposit dated and corrected');
-    }
-
     /* ---- 18b. the console's setup checklist and investments views ---- */
     {
       const setupRes = await admin.get('/api/bank/admin/setup');
       assert.strictEqual(setupRes.status, 200, setupRes.text);
       const ids = setupRes.body.items.map((i) => i.id);
-      ['supabase', '0003_bank.sql', '0005_bank_invest.sql', '0007_invest_term.sql', 'encryption', 'resend', 'prices', 'history'].forEach((id) => assert.ok(ids.includes(id), `checks ${id}`));
+      ['supabase', '0003_bank.sql', '0005_bank_invest.sql', '0007_invest_term.sql', '0008_vault.sql', 'encryption', 'resend', 'prices', 'history'].forEach((id) => assert.ok(ids.includes(id), `checks ${id}`));
       const db = setupRes.body.items.find((i) => i.id === 'supabase');
       assert.strictEqual(db.status, 'todo', 'running on files, the database is a to-do');
       assert.ok(db.fix && /SUPABASE_URL/.test(db.fix), 'and says how to fix it');
@@ -770,32 +675,30 @@ const dollars = (cents) => (cents / 100).toFixed(2);
     {
       const res = await admin.put('/api/bank/admin/settings', {
         announcement: 'Scheduled maintenance on Sunday 02:00-04:00 ET.',
-        fees: { wireDomestic: 3000 },
+        fees: { vaultSend: 1500 },
       });
       assert.strictEqual(res.status, 200, res.text);
-      assert.strictEqual(res.body.settings.fees.wireDomestic, 3000);
-      const options = await customer.get('/api/bank/transfers/options');
-      const wire = options.body.types.find((t) => t.id === 'wire_domestic');
-      assert.strictEqual(wire.fee, 3000, 'the customer sees the new fee');
+      assert.strictEqual(res.body.settings.fees.vaultSend, 1500);
+      assert.strictEqual(res.body.settings.fees.wireDomestic, 2500, 'the other stored fees are left alone');
+      assert.strictEqual((await customer.get('/api/bank/vault')).body.sendFee, 1500, 'the customer sees the fee to send');
+      assert.strictEqual((await admin.put('/api/bank/admin/settings', { fees: { vaultSend: -1 } })).status, 400);
       const config = await client(base).get('/api/bank/config');
       assert.match(config.body.announcement, /maintenance/i);
-      ok('settings: a fee change reaches the withdrawal form and the banner reaches the public page');
+      ok('settings: the fee to send reaches the Send page and the banner reaches the public page');
     }
 
-    /* ---- 19a. the terms on offer are set at the console ---- */
+    /* ---- 19a. the default term is set at the console, within 10 to 100 years ---- */
     {
-      const bad = await admin.put('/api/bank/admin/settings', { investmentTerms: '3, six' });
-      assert.strictEqual(bad.status, 400, 'terms are whole months');
-      const outside = await admin.put('/api/bank/admin/settings', { investmentTerms: '6, 12', investmentTermMonths: 24 });
-      assert.strictEqual(outside.status, 400, 'the default has to be one of them');
-      const res = await admin.put('/api/bank/admin/settings', { investmentTerms: '18, 6, 6, 36', investmentTermMonths: 18 });
+      for (const years of [9, 101, 12.5, 'ten']) {
+        // eslint-disable-next-line no-await-in-loop
+        assert.strictEqual((await admin.put('/api/bank/admin/settings', { investmentTermYears: years })).status, 400, `${years} is refused`);
+      }
+      const res = await admin.put('/api/bank/admin/settings', { investmentTermYears: 25 });
       assert.strictEqual(res.status, 200, res.text);
-      assert.deepStrictEqual(res.body.settings.investmentTerms, [6, 18, 36], 'sorted, without repeats');
-      const inv = await customer.get('/api/bank/invest');
-      assert.deepStrictEqual(inv.body.terms, [6, 18, 36]);
-      assert.strictEqual(inv.body.defaultTerm, 18);
-      await admin.put('/api/bank/admin/settings', { investmentTerms: [3, 6, 12, 24], investmentTermMonths: 12 });
-      ok('settings: the terms offered and the default term are set at the console');
+      assert.strictEqual((await customer.get('/api/bank/invest')).body.terms.default, 25);
+      assert.strictEqual((await customer.get('/api/bank/vault')).body.terms.default, 25);
+      await admin.put('/api/bank/admin/settings', { investmentTermYears: 10 });
+      ok('settings: the default term is a whole number of years from 10 to 100');
     }
 
     /* ---- 19b. the platform's name, set at the console, reaches every page and email ---- */
@@ -865,11 +768,8 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('one-time codes are returned to a laptop and withheld from a deployment');
     }
 
-    /* ---- 22. a credit tells the customer twice, and by text ---- */
+    /* ---- 22. a vault alert goes out by text as well as email ---- */
     {
-      // Money arriving raises two alerts, not one: it has landed, then what
-      // can actually be spent. Those are different numbers whenever any part
-      // of the balance is on hold or the account carries an overdraft line.
       const http_ = require('http');
       const texts = [];
       const pingram = http_.createServer((req, res) => {
@@ -884,51 +784,20 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       await new Promise((r) => pingram.listen(0, '127.0.0.1', r));
       process.env.PINGRAM_API_KEY = 'pingram_sk_test';
       process.env.PINGRAM_SMS_URL = `http://127.0.0.1:${pingram.address().port}/sms`;
-
-      const db_ = require(ROOT + '/src/bank/db').db;
-      const ledger_ = require(ROOT + '/src/bank/ledger');
-      const alerts_ = require(ROOT + '/src/bank/alerts');
-      const users_ = require(ROOT + '/src/bank/users');
-
-      const who = await users_.findByEmail('demo@hedgestonesfinance.com');
-      const acct = (await db_.accounts.find({ user_id: who.id })).find((a) => a.type === 'checking');
-      const before = (await db_.alerts.find({ user_id: who.id })).length;
-
-      const posted = await ledger_.post({
-        accountId: acct.id, direction: 'credit', amount: 250000,
-        description: 'DEPOSIT RECEIVED - TEST', method: 'adjustment', status: 'posted', createdBy: 'admin',
-      });
-      const raised = await alerts_.creditPosted(who, {
-        account: posted.account, transaction: posted.transaction, amount: 250000,
-        balance: posted.account.balance, available: ledger_.availableFor(posted.account),
-      });
-
-      pingram.close();
-      delete process.env.PINGRAM_API_KEY;
-      delete process.env.PINGRAM_SMS_URL;
-
-      assert.strictEqual(raised.length, 2, 'two alerts, not one');
-      assert.strictEqual(raised[0].type, 'deposit_posted');
-      assert.strictEqual(raised[1].type, 'balance_available');
-      const after = (await db_.alerts.find({ user_id: who.id })).length;
-      assert.strictEqual(after, before + 2, 'both are stored, so they show in the app with no provider');
-
-      assert.strictEqual(texts.length, 2, 'and both go out as texts');
+      let booked;
+      try {
+        booked = await admin.post('/api/bank/admin/trades', { customerId: demoId, kind: 'cash', amount: '250.00', termYears: 10 });
+      } finally {
+        pingram.close();
+        delete process.env.PINGRAM_API_KEY;
+        delete process.env.PINGRAM_SMS_URL;
+      }
+      assert.strictEqual(booked.status, 201, booked.text);
+      assert.strictEqual(texts.length, 1, 'the alert goes out as a text');
       assert.strictEqual(texts[0].auth, 'Bearer pingram_sk_test');
       assert.match(texts[0].to.number, /^\+1\d{10}$/, 'the number is normalised to E.164');
-      assert.match(texts[0].sms.message, /credited/i);
-      assert.match(texts[0].sms.message, /Current balance/i);
-      assert.match(texts[1].sms.message, /Available to invest or withdraw/i);
-
-      // The available figure is larger than the balance here, because this
-      // account has an overdraft line. The message has to say so, or it reads
-      // as the bank inventing money.
-      const held = Number(posted.account.hold_amount || 0);
-      if (held > 0) assert.match(texts[1].sms.message, /on hold/i, 'a hold is named');
-      if (Number(posted.account.overdraft_limit || 0) > 0) {
-        assert.match(texts[1].sms.message, /overdraft/i, 'the overdraft line is named');
-      }
-      ok(`a credit raises two alerts and two texts: "${texts[1].sms.message.slice(0, 64)}..."`);
+      assert.match(texts[0].sms.message, /BTC/);
+      ok(`a vault alert is texted too: "${texts[0].sms.message.slice(0, 64)}..."`);
     }
 
     /* ---- 23. an alert still records the email on a database missing 0004 -- */
@@ -977,16 +846,13 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok(`a database without 0004 still records the email: status "${stored.status}"`);
     }
 
-    /* ---- 24. a purchase still books on a database missing 0007 ---- */
+    /* ---- 24. Bitcoin still books into a vault on a database missing 0007 ---- */
     {
       // term_months and matures_at arrived with 0007. PostgREST refuses a row
-      // that names a column it does not have, so the purchase is written
-      // without them and its maturity is worked out from the default term.
-      const db_ = require(ROOT + '/src/bank/db').db;
-      const invest_ = require(ROOT + '/src/bank/invest');
+      // that names a column it does not have, so the trade is written without
+      // them and its maturity is worked out from the default term.
       const users_ = require(ROOT + '/src/bank/users');
       const who = await users_.findByEmail('demo@hedgestonesfinance.com');
-      const cash = (await db_.accounts.find({ user_id: who.id })).find((a) => a.type === 'checking');
       const real = db_.trades.insert;
       let refusals = 0;
       db_.trades.insert = async (row) => {
@@ -998,16 +864,16 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       };
       let result;
       try {
-        result = await invest_.convert(who, { accountId: cash.id, symbol: 'BTC', amount: 1000, termMonths: 24 }, null, { silent: true });
+        result = await invest_.addToVault(who, { kind: 'cash', amount: 1000, termYears: 40 }, null, { silent: true });
       } finally {
         db_.trades.insert = real;
       }
       assert.ok(refusals > 0, 'the stand-in refused the columns the way PostgREST does');
       const stored = await db_.trades.findById(result.trade.id);
-      assert.ok(stored && !('matures_at' in stored), 'the purchase is on record without them');
-      assert.strictEqual(result.trade.termMonths, 12, 'read back on the default term');
-      assert.strictEqual(result.trade.maturesAt, invest_.addMonths(stored.created_at, 12));
-      ok('a database without 0007 still books the purchase, on the default term');
+      assert.ok(stored && !('matures_at' in stored), 'the investment is on record without them');
+      assert.strictEqual(result.trade.termMonths, 120, 'read back on the default term');
+      assert.strictEqual(result.trade.maturesAt, invest_.addMonths(stored.created_at, 120));
+      ok('a database without 0007 still books into the vault, on the default term');
     }
 
     console.log('\n  all platform tests passed');

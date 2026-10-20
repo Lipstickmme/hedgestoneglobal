@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Create the first administrator, a demonstration investor with dated Bitcoin
- * purchases, and a second customer.
+ * Create the first administrator, a demonstration customer with a vault of
+ * dated Bitcoin investments, and a second customer.
  *
  * Idempotent: it does nothing if the platform already has users, unless --force is
  * passed, which is meant for a scratch database and will happily create a
@@ -34,7 +34,7 @@ const { BANK } = require('../src/bank/constants');
   console.log(`  Second customer ${result.secondary.email}`);
   console.log(`                  ${result.secondary.password}`);
   console.log('');
-  console.log(`  Cash balances   ${result.accounts.join(', ')}`);
+  if (result.vault && result.vault.length) console.log(`  Demo vault      ${result.vault.join('\n                  ')}`);
   console.log('');
   console.log('  Sign in at /signin, or the staff console at /console.');
   console.log('');

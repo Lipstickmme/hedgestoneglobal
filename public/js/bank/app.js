@@ -1,85 +1,17 @@
 'use strict';
 
 /**
- * The pages a customer spends their time on: the dashboard, transactions,
- * alerts and secure messages.
+ * The pages a customer spends their time on: the dashboard, alerts and secure
+ * messages. The vault's own screens (My vault, History, Receive, Send) are in
+ * vault.js.
  *
  * One script for all of them, with a small router at the bottom, because they
- * share the same rendering helpers and loading the same script once is
- * cheaper than four files that each redefine a transaction row.
+ * share the same rendering helpers.
  */
 
 (function () {
   const RF = window.RF;
-  const { api, qs, qsa, esc, money, signedMoney, date, datetime, ago, toast, badge } = RF;
-
-  /* ------------------------------------------------------------- shared -- */
-
-  /** The detail sheet for one entry, opened from any transaction table. */
-  async function openTransaction(id) {
-    let data;
-    try {
-      data = await api.get(`/transactions/${id}`);
-    } catch (err) {
-      toast(err.message, 'bad');
-      return;
-    }
-    const tx = data.transaction;
-    const transfer = data.transfer;
-    const rows = [
-      ['Amount', `<span class="rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</span>`],
-      ['Date', datetime(tx.date)],
-      ['Posted', tx.postedAt ? datetime(tx.postedAt) : 'Not yet posted'],
-      ['Status', badge(tx.status)],
-      ['Method', esc(tx.methodLabel)],
-      ['Category', esc(tx.category)],
-      ['Account', `${esc(tx.accountName)} &bull;&bull;${esc(tx.accountLast4)}`],
-      ['Balance after', tx.balanceAfter == null ? '&mdash;' : money(tx.balanceAfter)],
-      ['Reference', `<span class="rf-mono">${esc(tx.reference)}</span>`],
-    ];
-    if (tx.traceNumber) rows.push(['Trace reference', `<span class="rf-mono">${esc(tx.traceNumber)}</span>`]);
-    if (tx.location) rows.push(['Where', esc(tx.location)]);
-    if (tx.memo) rows.push(['Memo', esc(tx.memo)]);
-    if (tx.counterparty && tx.counterparty.name) {
-      rows.push(['Counterparty', esc(tx.counterparty.name)]);
-      if (tx.counterparty.bank) rows.push(['Held at', esc(tx.counterparty.bank)]);
-      if (tx.counterparty.accountMasked || tx.counterparty.account_masked) {
-        rows.push(['Their account', esc(tx.counterparty.accountMasked || tx.counterparty.account_masked)]);
-      }
-    }
-    if (transfer) rows.push(['Confirmation', `<span class="rf-mono">${esc(transfer.confirmation)}</span>`]);
-
-    const el = document.createElement('div');
-    el.className = 'rf-modal-backdrop';
-    el.innerHTML = `
-      <div class="rf-modal">
-        <div class="rf-modal-head">
-          <h3>${esc(tx.description)}</h3>
-          <button type="button" data-close-modal aria-label="Close">&times;</button>
-        </div>
-        <div class="rf-modal-body">
-          <dl class="rf-dl">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
-          <p class="rf-small rf-muted rf-mt">Something wrong with this entry? <a href="/messages">Send us a message</a> and quote the reference.</p>
-        </div>
-      </div>`;
-    document.body.appendChild(el);
-    RF.modal.wire(el);
-    RF.modal.open(el);
-    el.addEventListener('click', (event) => { if (event.target === el) el.remove(); });
-    qsa('[data-close-modal]', el).forEach((b) => b.addEventListener('click', () => el.remove()));
-  }
-
-  /** Every transaction table on the page gets click-to-open, once. */
-  function wireTxTables(root) {
-    qsa('[data-recent-list], [data-rows]', root || document).forEach((tbody) => {
-      if (tbody.dataset.wired) return;
-      tbody.dataset.wired = '1';
-      tbody.addEventListener('click', (event) => {
-        const row = event.target.closest('[data-tx]');
-        if (row) openTransaction(row.getAttribute('data-tx'));
-      });
-    });
-  }
+  const { api, qs, qsa, esc, money, date, datetime, ago, toast, badge } = RF;
 
   /* ---------------------------------------------------------- dashboard -- */
 
@@ -98,6 +30,11 @@
     return `${years} year${years === 1 ? '' : 's'}${rest ? `, ${rest} month${rest === 1 ? '' : 's'}` : ''}`;
   }
 
+  const logo = (px) => (window.HSAssets ? window.HSAssets.logo('BTC', px) : '');
+  const termText = (months) => (months == null ? '' : months % 12 === 0 ? `${months / 12}-year term` : `${months}-month term`);
+  const KIND = { cash: 'Paid in cash', bitcoin: 'Bitcoin received', sent: 'Bitcoin sent', converted: 'Converted to Bitcoin', bought: 'Bought', sold: 'Sold' };
+  const requestAmount = (r) => (r.kind === 'cash_in' ? money(r.amount) : `${esc(r.units)} BTC`);
+
   async function dashboard() {
     const heading = qs('.rf-top h1');
     const overview = api.get('/overview').then((data) => {
@@ -106,25 +43,20 @@
         const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
         heading.textContent = `${part}, ${data.user.preferredName || data.user.firstName || ''}`.trim();
       }
-      qs('[data-stat="cash"]').textContent = money(data.totals.available);
-      if (data.totals.available !== data.totals.deposits) {
-        qs('[data-stat="cashSub"]').textContent = `of ${money(data.totals.deposits)}; the rest is on hold`;
-      }
-      const recent = data.recent.slice(0, 6);
-      qs('[data-recent-list]').innerHTML = recent.length
-        ? recent.map((tx) => `<li class="clickable" data-tx="${esc(tx.id)}">
-            <span class="t"><strong>${esc(tx.description)}</strong><span>${date(tx.date)}${tx.status === 'posted' ? '' : ` &middot; ${esc(tx.status)}`}</span></span>
-            <span class="rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</span>
+      const requests = data.requests.slice(0, 6);
+      qs('[data-requests]').innerHTML = requests.length
+        ? requests.map((r) => `<li>
+            <span class="t"><strong>${esc(r.label)}: ${requestAmount(r)}</strong><span>${date(r.createdAt)} &middot; <span class="rf-mono">${esc(r.reference)}</span></span></span>
+            ${badge(r.status, r.status === 'pending' ? 'With our team' : r.status === 'pending_verification' ? 'Needs your code' : r.status)}
           </li>`).join('')
-        : '<li class="rf-muted rf-small">Nothing yet.</li>';
-      wireTxTables();
+        : '<li class="rf-muted rf-small">Nothing waiting. <a href="/receive">Add to your vault</a> with cash or Bitcoin.</li>';
     });
 
     const inv = await api.get('/invest');
     const btc = inv.bitcoin;
     const positions = inv.positions || [];
 
-    // The headline: what the Bitcoin is worth, what went in, and the difference.
+    // The headline: what the vault is worth, what went in, and the difference.
     qs('[data-hero="value"]').textContent = btc.value == null ? '—' : money(btc.value);
     qs('[data-hero="cost"]').textContent = money(btc.cost);
     const gainEl = qs('[data-hero="gain"]');
@@ -136,57 +68,70 @@
     if (btc.firstPurchasedAt) {
       const held = Math.floor((Date.now() - new Date(btc.firstPurchasedAt).getTime()) / DAY);
       qs('[data-stat="since"]').textContent = longDate(btc.firstPurchasedAt);
-      qs('[data-stat="sinceSub"]').textContent = `${span(held)} invested`;
+      qs('[data-stat="sinceSub"]').textContent = `${span(held)} ago`;
     } else {
       qs('[data-stat="since"]').textContent = 'Not yet';
-      qs('[data-stat="sinceSub"]').textContent = 'Buy Bitcoin to start';
+      qs('[data-stat="sinceSub"]').innerHTML = '<a href="/receive">Add to your vault</a> to start';
     }
     if (btc.nextMaturity) {
       const left = Math.max(0, Math.ceil((new Date(btc.nextMaturity).getTime() - Date.now()) / DAY));
       qs('[data-stat="maturity"]').textContent = longDate(btc.nextMaturity);
-      qs('[data-stat="maturitySub"]').textContent = `${span(left)} to go`;
+      qs('[data-stat="maturitySub"]').textContent = `in ${span(left)}`;
     } else {
       qs('[data-stat="maturity"]').textContent = positions.length ? 'All matured' : '—';
-      qs('[data-stat="maturitySub"]').textContent = positions.length ? 'Every purchase has reached its term' : 'Chosen when you buy';
+      qs('[data-stat="maturitySub"]').textContent = positions.length ? 'Everything in your vault can be sent' : 'Chosen when you add to your vault';
     }
     if (btc.price) {
       qs('[data-stat="price"]').textContent = money(btc.price);
       qs('[data-stat="priceSub"]').innerHTML = `${btc.dayChangePct == null ? '' : `<span class="rf-amt ${btc.dayChangePct >= 0 ? 'credit' : 'debit'}">${pct(btc.dayChangePct)}</span> today &middot; `}${esc(btc.source)}`;
     }
+    qs('[data-stat="ready"]').textContent = `${btc.ready} BTC`;
+    qs('[data-stat="readySub"]').innerHTML = Number(btc.ready) > 0
+      ? `worth ${money(btc.readyValue || 0)} &middot; <a href="/send">Send</a>`
+      : 'Nothing has matured yet';
 
-    // Each purchase, as a row: what went in, what it is worth now.
-    qs('[data-positions]').innerHTML = positions.length
-      ? positions.slice().reverse().map((p) => `<tr>
-          <td class="rf-nowrap">${longDate(p.purchasedAt)}<span class="sub">${money(p.cost)} &middot; ${esc(p.units)} BTC</span></td>
-          <td class="num opt">${money(p.cost)}</td>
-          <td class="num opt">${p.price ? money(p.price) : '&mdash;'}</td>
-          <td class="num">${p.value == null ? '&mdash;' : money(p.value)}</td>
-          <td class="num rf-amt ${(p.gain || 0) >= 0 ? 'credit' : 'debit'}">${p.gain == null ? '&mdash;' : `${signed(p.gain)}<span class="sub">${p.gainPct == null ? '' : pct(p.gainPct)}</span>`}</td>
-        </tr>`).join('')
-      : '<tr><td colspan="5" class="rf-center rf-muted">No Bitcoin yet. <a href="/invest?buy=1">Buy your first</a> and it appears here.</td></tr>';
-
-    // How far through its term each purchase is.
-    qs('[data-terms]').innerHTML = positions.length
-      ? positions.slice().sort((a, b) => (a.maturesAt < b.maturesAt ? -1 : 1)).map((p) => {
+    // Each investment as a line from the day it went in to the day it matures.
+    const now = Date.now();
+    qs('[data-timeline]').innerHTML = positions.length
+      ? positions.map((p) => {
         const share = Math.round(p.progress * 100);
-        return `<li class="hs-term${p.matured ? ' is-matured' : ''}">
-          <span class="t">
-            <strong>${p.matured ? 'Matured' : `${span(p.daysToMaturity)} to go`}</strong>
-            <span>${money(p.cost)} bought ${longDate(p.purchasedAt)} &middot; ${p.termMonths}-month term &middot; matures ${longDate(p.maturesAt)}</span>
-            <span class="hs-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${share}" aria-label="${share}% of the term has passed"><i style="width:${share}%"></i></span>
-          </span>
-          <span class="rf-small rf-muted rf-nowrap">${share}%</span>
+        const held = Math.floor((now - new Date(p.purchasedAt).getTime()) / DAY);
+        return `<li class="hs-tl${p.matured ? ' is-matured' : ''}">
+          <span class="hs-tl-coin">${logo(36)}</span>
+          <div class="hs-tl-body">
+            <div class="hs-tl-top">
+              <span class="hs-tl-what"><strong>${esc(p.units)} BTC</strong><span>${esc(KIND[p.kind] || 'Added')} &middot; ${money(p.cost)} at ${money(p.price)} per Bitcoin</span></span>
+              <span class="hs-tl-value"><strong>${p.value == null ? '—' : money(p.value)}</strong><span class="rf-amt ${(p.gain || 0) >= 0 ? 'credit' : 'debit'}">${p.gain == null ? '' : `${signed(p.gain)}${p.gainPct == null ? '' : ` (${pct(p.gainPct)})`}`}</span></span>
+            </div>
+            <div class="hs-tl-track">
+              <span class="hs-tl-date is-in"><small>Invested</small><b>${longDate(p.purchasedAt)}</b></span>
+              <span class="hs-tl-bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${share}" aria-label="${share}% of the term has passed">
+                <i style="width:${share}%"></i>
+                <em>${span(held)} held &middot; ${p.matured ? 'matured' : `${span(p.daysToMaturity)} to go`} &middot; ${esc(termText(p.termMonths))}</em>
+              </span>
+              <span class="hs-tl-date is-out"><small>${p.matured ? 'Matured' : 'Matures'}</small><b>${longDate(p.maturesAt)}</b></span>
+            </div>
+          </div>
         </li>`;
       }).join('')
-      : '<li class="rf-muted rf-small">You choose a term when you buy: 3, 6, 12 or 24 months. Its maturity date is counted down here.</li>';
+      : '<li class="rf-muted rf-small hs-tl-empty">Nothing in your vault yet. <a href="/receive">Pay with cash or send Bitcoin</a> and each investment appears here, with the day it went in and the day it matures.</li>';
+
+    const trades = (inv.trades || []).slice(0, 6);
+    qs('[data-recent-list]').innerHTML = trades.length
+      ? trades.map((t) => `<li>
+          ${logo(28)}
+          <span class="t"><strong>${esc(KIND[t.kind] || t.kind)}</strong><span>${date(t.createdAt)}${t.status === 'reversed' ? ' &middot; reversed' : ''}</span></span>
+          <span class="hs-mv-amt"><b class="rf-amt ${t.side === 'buy' ? 'credit' : 'debit'}">${t.side === 'buy' ? '+' : '−'}${esc(t.units)} BTC</b><small>${money(t.amount)}</small></span>
+        </li>`).join('')
+      : '<li class="rf-muted rf-small">Nothing yet.</li>';
 
     await overview;
 
     // The chart: what the Bitcoin held now has been worth on each day since
-    // the first purchase, against what was paid for it.
+    // the first went in, against what was paid for it.
     const host = qs('[data-growth-chart]');
     if (!positions.length) {
-      host.innerHTML = '<div class="hs-chart-empty"><strong>Your chart starts the day you buy.</strong><span>It shows what your Bitcoin is worth on every day since, against what you paid.</span><a class="rf-btn sm" href="/invest?buy=1">Buy Bitcoin</a></div>';
+      host.innerHTML = '<div class="hs-chart-empty"><strong>Your chart starts the day you first invest.</strong><span>It shows what your vault is worth on every day since, against what went in.</span><a class="rf-btn sm" href="/receive">Add to your vault</a></div>';
       return;
     }
     const first = new Date(positions[0].purchasedAt).getTime();
@@ -203,8 +148,8 @@
       resized = setTimeout(() => drawGrowth(host, series, positions), 150);
     });
     qs('[data-chart-note]').textContent = history.points.length
-      ? `Daily closing prices from ${history.source}; today's point is the live price. The value is of the Bitcoin you hold now, on each day since you bought it.`
-      : 'The price history could not be loaded just now, so the chart joins each purchase to today\'s value. Reload to try again.';
+      ? `Daily closing prices from ${history.source}; today's point is the live price. The value is of the Bitcoin in your vault now, on each day since it went in.`
+      : 'The price history could not be loaded just now, so the chart joins each investment to today\'s value. Reload to try again.';
     paintChartTable(series);
   }
 
@@ -342,7 +287,7 @@
       tip.textContent = '';
       const head = document.createElement('div');
       head.className = 'd';
-      head.textContent = d.live ? 'Now' : longDate(new Date(d.t).toISOString()) + (d.buy ? ' · purchase' : '');
+      head.textContent = d.live ? 'Now' : longDate(new Date(d.t).toISOString()) + (d.buy ? ' · added to the vault' : '');
       tip.appendChild(head);
       [['value', money(d.value), 'Value'], ['cost', money(d.cost), 'Invested'], ['', `${signed(gain)}${d.cost ? ` (${pct((gain / d.cost) * 100)})` : ''}`, 'Growth'], ['', money(d.price), 'Bitcoin price']].forEach(([key, val, label]) => {
         const row = document.createElement('div');
@@ -379,7 +324,7 @@
       index = Math.max(0, Math.min(series.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)));
       show(series[index]);
     });
-    host.setAttribute('aria-label', `Your Bitcoin was worth ${money(last.value)} against ${money(last.cost)} invested, across ${positions.length} purchase${positions.length === 1 ? '' : 's'} since ${longDate(positions[0].purchasedAt)}.`);
+    host.setAttribute('aria-label', `Your vault was worth ${money(last.value)} against ${money(last.cost)} invested, across ${positions.length} investment${positions.length === 1 ? '' : 's'} since ${longDate(positions[0].purchasedAt)}.`);
   }
 
   /** The chart's figures as a table: the first of each month, each purchase, and today. */
@@ -392,83 +337,12 @@
       return keep;
     });
     qs('[data-chart-rows]').innerHTML = rows.map((d) => `<tr>
-      <td class="rf-nowrap">${d.live ? 'Now' : longDate(new Date(d.t).toISOString())}${d.buy ? '<span class="sub">Purchase</span>' : ''}</td>
+      <td class="rf-nowrap">${d.live ? 'Now' : longDate(new Date(d.t).toISOString())}${d.buy ? '<span class="sub">Added to the vault</span>' : ''}</td>
       <td class="num">${money(d.price)}</td>
       <td class="num">${money(d.cost)}</td>
       <td class="num">${money(d.value)}</td>
       <td class="num rf-amt ${d.value >= d.cost ? 'credit' : 'debit'}">${signed(d.value - d.cost)}</td>
     </tr>`).join('');
-  }
-
-  /* ------------------------------------------------------- transactions -- */
-
-  async function transactionsPage() {
-    const form = qs('[data-filters]');
-    const tbody = qs('[data-rows]');
-    let offset = 0;
-    const limit = 50;
-
-    const query = () => {
-      const data = RF.formData(form);
-      const params = new URLSearchParams();
-      Object.entries(data).forEach(([k, v]) => { if (v) params.set(k, v); });
-      params.set('limit', String(limit));
-      params.set('offset', String(offset));
-      return params;
-    };
-
-    async function load() {
-      tbody.innerHTML = '<tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr>';
-      const params = query();
-      const data = await api.get(`/transactions?${params.toString()}`);
-
-      const accountSelect = qs('#f-account');
-      if (accountSelect && accountSelect.options.length <= 1) {
-        data.filters.accounts.forEach((a) => {
-          const opt = document.createElement('option');
-          opt.value = a.id;
-          opt.textContent = a.label;
-          accountSelect.appendChild(opt);
-        });
-        const preset = new URLSearchParams(location.search).get('account');
-        if (preset) accountSelect.value = preset;
-      }
-
-      tbody.innerHTML = data.transactions.length
-        ? data.transactions.map((tx) => `<tr class="clickable" data-tx="${esc(tx.id)}">
-            <td class="rf-nowrap">${date(tx.date, { month: 'short', day: 'numeric' })}<span class="sub">${new Date(tx.date).getFullYear()}</span></td>
-            <td><strong>${esc(tx.description)}</strong>${tx.memo ? `<span class="sub">${esc(tx.memo)}</span>` : ''}</td>
-            <td class="rf-small opt">${esc(tx.category)}</td>
-            <td class="rf-small rf-nowrap opt">${esc(tx.accountName)}<span class="sub">&bull;&bull;${esc(tx.accountLast4)}</span></td>
-            <td>${badge(tx.status)}</td>
-            <td class="num rf-amt ${tx.direction}">${signedMoney(tx.amount, tx.direction)}</td>
-            <td class="num rf-muted opt">${tx.balanceAfter == null ? '&mdash;' : money(tx.balanceAfter)}</td>
-          </tr>`).join('')
-        : '<tr><td colspan="7" class="rf-center rf-muted">Nothing matches those filters.</td></tr>';
-
-      qs('[data-count]').textContent = `${data.total} entr${data.total === 1 ? 'y' : 'ies'}`;
-      qs('[data-range]').textContent = data.total
-        ? `Showing ${offset + 1} to ${Math.min(offset + limit, data.total)} of ${data.total}`
-        : '';
-      qs('[data-prev]').disabled = offset === 0;
-      qs('[data-next]').disabled = offset + limit >= data.total;
-
-      const exportLink = qs('[data-export]');
-      const exportParams = query();
-      exportParams.delete('limit');
-      exportParams.delete('offset');
-      exportLink.href = `/api/bank/transactions/export?${exportParams.toString()}`;
-      wireTxTables();
-    }
-
-    form.addEventListener('submit', (event) => { event.preventDefault(); offset = 0; load(); });
-    form.addEventListener('reset', () => { setTimeout(() => { offset = 0; load(); }, 0); });
-    qs('[data-prev]').addEventListener('click', () => { offset = Math.max(0, offset - limit); load(); });
-    qs('[data-next]').addEventListener('click', () => { offset += limit; load(); });
-
-    const preset = new URLSearchParams(location.search).get('account');
-    if (preset) qs('#f-account').value = preset;
-    await load();
   }
 
   /* ------------------------------------------------------------- alerts -- */
@@ -529,18 +403,11 @@
           <input type="checkbox" name="${esc(type.id)}" ${prefs.preferences[type.id] ? 'checked' : ''} ${type.locked ? 'disabled' : ''} />
         </div>`).join('')}`).join('');
 
-    qs('#a-threshold').value = (prefs.alertThreshold / 100).toFixed(2);
-    qs('#a-low').value = (prefs.lowBalanceThreshold / 100).toFixed(2);
-
     qs('[data-save-prefs]').addEventListener('click', async () => {
       const preferences = {};
       qsa('input[type="checkbox"]', prefsForm).forEach((input) => { preferences[input.name] = input.checked; });
       try {
         await api.put('/me/alert-preferences', { preferences });
-        await api.patch('/me/security', {
-          alertThreshold: Number(qs('#a-threshold').value || 0),
-          lowBalanceThreshold: Number(qs('#a-low').value || 0),
-        });
         toast('Alert preferences saved.', 'ok');
       } catch (err) {
         toast(err.message, 'bad');
@@ -620,7 +487,6 @@
 
   const ROUTES = {
     '/dashboard': dashboard,
-    '/transactions': transactionsPage,
     '/alerts': alertsPage,
     '/messages': messagesPage,
   };

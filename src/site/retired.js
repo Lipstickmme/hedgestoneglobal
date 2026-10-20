@@ -3,9 +3,8 @@
 /**
  * Old addresses, and where each now goes.
  *
- * The first five are the signed-in pages retired when the platform became
- * Bitcoin only (src/bank/site/pages-app.js); the rest are the public pages'
- * older names. src/app.js redirects them, and vercel.json carries the same
+ * First the signed-in pages retired as the platform became a Bitcoin vault
+ * (src/bank/site/pages-app.js), then the public pages' older names. src/app.js redirects them, and vercel.json carries the same
  * list for the deployment - test/api.test.js keeps the two in step.
  */
 module.exports = {
@@ -14,4 +13,5 @@ module.exports = {
   '/business': '/bitcoin',
   '/services': '/bitcoin',
   '/projects': '/bitcoin',
+  '/digital': '/',
 };

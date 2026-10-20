@@ -5,7 +5,7 @@
  *
  * Each tab loads when it is first opened and refreshes on demand rather than
  * on a timer: a console that re-renders under a cursor is how the wrong
- * transfer gets approved.
+ * request gets approved.
  */
 
 (function () {
@@ -24,20 +24,30 @@
    * button inside such a modal would match it, and that handler calls
    * preventDefault() - so the form would never submit.
    */
-  const acting = { accountId: null, customerId: null, transferId: null };
+  const acting = { customerId: null, transferId: null };
+
+  /* ------------------------------------------------------------- vaults -- */
+
+  const KIND_LABEL = { cash: 'Paid in cash', bitcoin: 'Received', sent: 'Sent', converted: 'Converted to', bought: 'Bought', sold: 'Sold' };
+  const btc = (units) => `${esc(String(units))} BTC`;
+  const termText = (months) => (months == null ? '' : months % 12 === 0 ? `${months / 12}-year term` : `${months}-month term`);
+  const requestAmount = (r) => (r.kind === 'cash_in' ? money(r.amount) : btc(r.units));
+  const requestDetail = (r) => (r.kind === 'btc_out'
+    ? `to ${r.address}`
+    : `${r.kind === 'cash_in' ? 'paid' : 'sent'} ${date(r.occurredAt)}${r.termMonths ? `, ${termText(r.termMonths)}` : ''}`);
 
   /* ---------------------------------------------------------------- tabs -- */
 
   const TITLES = {
     overview: ['Today', 'What needs a decision, and how the platform stands.'],
-    queue: ['Withdrawals', 'Withdrawals held for review.'],
+    queue: ['Requests', 'Bitcoin to receive into vaults and to send out of them.'],
     messages: ['Messages', 'Secure messages from customers.'],
     customers: ['Customers', 'Search, open and act on any customer.'],
-    register: ['Register a customer', 'Open a customer and their cash balance.'],
-    investments: ['Bitcoin investments', 'What customers hold, valued at the live price.'],
+    register: ['Register a customer', 'Open a customer and their vault.'],
+    investments: ['Vaults', 'What customers hold, valued at the live price.'],
     alerts: ['Email alerts', 'Everything we have sent, and to whom.'],
     activity: ['Activity log', 'Every action, by customers and staff.'],
-    settings: ['Settings', 'Limits, fees, contact details and switches.'],
+    settings: ['Settings', 'Vault addresses, the OTC partner, terms, contact details and switches.'],
     setup: ['Setup checklist', 'What the backend needs, checked live.'],
   };
 
@@ -75,12 +85,12 @@
 
     qs('[data-stats]').innerHTML = [
       ['Customers', String(s.customers), `${esc(String(s.newCustomers30d))} joined in 30 days &middot; ${s.suspended} suspended`],
-      ['Cash held', money(s.deposits), `${esc(String(s.accounts))} cash balances`],
+      ['Requests done', String(s.requestsDone30d), 'in the last 30 days'],
     ].map(([k, v, d]) => `<div class="rf-card rf-stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div><div class="d">${d}</div></div>`).join('');
 
     // What needs a person, first and largest. Each tile opens its section.
     const attention = [
-      ['queue', 'Withdrawals to review', s.pendingTransfers, s.pendingTransferValue ? `${money(s.pendingTransferValue)} held` : 'nothing held'],
+      ['queue', 'Requests to confirm', s.pendingRequests + s.pendingTransfers, `${s.pendingReceives} to receive, ${s.pendingSends} to send${s.pendingTransfers ? `, ${s.pendingTransfers} older withdrawal${s.pendingTransfers === 1 ? '' : 's'}` : ''}`],
       ['customers?kyc=pending', 'Identity checks', s.pendingKyc, 'customers to verify'],
       ['messages', 'Unanswered messages', s.unansweredMessages, 'from customers'],
     ];
@@ -91,7 +101,7 @@
         <span class="go" aria-hidden="true">&rarr;</span>
       </a>`).join('');
 
-    const pips = { queue: s.pendingTransfers, messages: s.unansweredMessages };
+    const pips = { queue: s.pendingRequests + s.pendingTransfers, messages: s.unansweredMessages };
     Object.entries(pips).forEach(([key, n]) => {
       qsa(`[data-staff-pip="${key}"]`).forEach((pip) => {
         pip.textContent = String(n || '');
@@ -103,7 +113,7 @@
     api.get('/admin/investments').then((inv) => {
       const host = qs('[data-stats]');
       if (!host || qs('[data-stat-invested]', host)) return;
-      host.insertAdjacentHTML('beforeend', `<a class="rf-card rf-stat hs-stat-link" href="#investments" data-goto-tab="investments" data-stat-invested><div class="k">Bitcoin held by customers</div><div class="v">${money(inv.totals.value)}</div><div class="d">${inv.totals.investors} investor${inv.totals.investors === 1 ? '' : 's'} &middot; ${inv.totals.trades24h} trade${inv.totals.trades24h === 1 ? '' : 's'} today</div></a>`);
+      host.insertAdjacentHTML('beforeend', `<a class="rf-card rf-stat hs-stat-link" href="#investments" data-goto-tab="investments" data-stat-invested><div class="k">Bitcoin in vaults</div><div class="v">${money(inv.totals.value)}</div><div class="d">${inv.totals.investors} investor${inv.totals.investors === 1 ? '' : 's'} &middot; ${inv.totals.trades24h} trade${inv.totals.trades24h === 1 ? '' : 's'} today</div></a>`);
     }).catch(() => {});
     api.get('/admin/setup').then((setupData) => {
       const left = setupData.counts.todo || 0;
@@ -115,13 +125,13 @@
       }
     }).catch(() => {});
 
-    qs('[data-queue-preview]').innerHTML = data.queue.length ? data.queue.map((t) => `
+    qs('[data-queue-preview]').innerHTML = data.queue.length ? data.queue.map((r) => `
       <tr>
-        <td>${esc((t.customer && t.customer.fullName) || '')}</td>
-        <td class="rf-small">${esc(t.typeLabel)}</td>
-        <td class="rf-small">${esc((t.recipient && (t.recipient.nickname || t.recipient.name)) || '&mdash;')}</td>
-        <td class="num rf-amt">${money(t.total)}</td>
-        <td class="rf-small rf-muted">${ago(t.createdAt)}</td>
+        <td>${esc((r.customer && r.customer.fullName) || '')}</td>
+        <td class="rf-small">${esc(r.label)}</td>
+        <td class="rf-small">${esc(requestDetail(r))}</td>
+        <td class="num rf-amt">${requestAmount(r)}</td>
+        <td class="rf-small rf-muted">${ago(r.createdAt)}</td>
       </tr>`).join('') : '<tr><td colspan="5" class="rf-center rf-muted">Nothing waiting. Good.</td></tr>';
 
     qs('[data-activity-preview]').innerHTML = data.activity.slice(0, 8).map((row) => `
@@ -161,8 +171,8 @@
           <td class="rf-mono rf-small">${esc(c.customerNumber)}</td>
           <td>${badge(c.status)}${c.role === 'admin' ? ' ' + badge('info', 'staff') : ''}</td>
           <td>${badge(c.kycStatus)}</td>
-          <td class="num">${c.accountCount}</td>
-          <td class="num rf-amt">${money(c.totalBalance)}</td>
+          <td class="num rf-mono">${c.btcUnits && Number(c.btcUnits) ? btc(c.btcUnits) : '&mdash;'}</td>
+          <td class="num rf-amt">${money(c.invested || 0)}</td>
           <td class="rf-small rf-muted">${date(c.createdAt)}</td>
         </tr>`).join('') : '<tr><td colspan="7" class="rf-center rf-muted">Nobody matches that search.</td></tr>';
     }
@@ -211,45 +221,9 @@
           </dl>
         </div>
         <div>
-          <h4 class="rf-label">Accounts</h4>
-          <table class="rf-table">
-            <tbody>
-              ${data.accounts.map((a) => `<tr>
-                <td><strong>${esc(a.nickname || a.name)}</strong><span class="sub rf-mono">${esc(a.accountMask)} &middot; ${esc(a.typeLabel)}</span></td>
-                <td class="num rf-amt">${money(a.balance)}<span class="sub">${money(a.availableBalance)} avail.</span></td>
-                <td class="rf-right rf-nowrap">
-                  <button class="rf-btn sm" data-adjust="${esc(a.id)}" data-account-label="${esc(`${a.nickname || a.name} ${a.accountMask}`)}">Adjust</button>
-                  <button class="rf-btn ghost sm" data-account-status="${esc(a.id)}" data-current="${esc(a.status)}">${a.status === 'active' ? 'Freeze' : 'Activate'}</button>
-                </td>
-              </tr>`).join('') || '<tr><td class="rf-muted rf-small">No accounts.</td></tr>'}
-            </tbody>
-          </table>
-          ${data.accounts.some((a) => !a.isCredit && a.status !== 'closed') ? '' : `<button class="rf-btn ghost sm rf-mt" data-open-account="${esc(c.id)}">Open a cash balance</button>`}
-
-          <h4 class="rf-label rf-mt">Bitcoin</h4>
+          <h4 class="rf-label">Vault</h4>
           <ul class="rf-list" data-sheet-investments><li class="rf-muted rf-small">Loading&hellip;</li></ul>
         </div>
-      </div>
-
-      <h4 class="rf-label rf-mt">Recent entries</h4>
-      <div class="rf-table-wrap">
-        <table class="rf-table">
-          <thead><tr><th>Date</th><th>Description</th><th>Status</th><th class="num">Amount</th><th class="num">Balance</th><th></th></tr></thead>
-          <tbody>
-            ${data.transactions.slice(0, 14).map((tx) => `<tr>
-              <td class="rf-nowrap rf-small">${date(tx.date)}<span class="sub">${new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></td>
-              <td>${esc(tx.description)}<span class="sub">${esc(tx.accountName)} &middot; ${esc(tx.methodLabel)}</span></td>
-              <td>${badge(tx.status)}</td>
-              <td class="num rf-amt ${tx.direction}">${RF.signedMoney(tx.amount, tx.direction)}</td>
-              <td class="num rf-muted">${tx.balanceAfter == null ? '—' : money(tx.balanceAfter)}</td>
-              <td class="rf-right rf-nowrap">
-                ${tx.status === 'pending' ? `<button class="rf-btn ghost sm" data-settle="${esc(tx.id)}" data-settle-action="post">Post</button>` : ''}
-                <button class="rf-btn link sm" data-edit-tx="${esc(tx.id)}">Edit</button>
-                ${tx.status === 'posted' ? `<button class="rf-btn link sm" data-settle="${esc(tx.id)}" data-settle-action="reverse">Reverse</button>` : ''}
-              </td>
-            </tr>`).join('') || '<tr><td colspan="6" class="rf-muted rf-small">Nothing yet.</td></tr>'}
-          </tbody>
-        </table>
       </div>
 
       <div class="rf-grid cols-2 rf-mt">
@@ -263,13 +237,12 @@
           </ul>
         </div>
         <div>
-          <h4 class="rf-label">Withdrawal accounts</h4>
+          <h4 class="rf-label">Requests</h4>
           <ul class="rf-list">
-            ${data.beneficiaries.map((b) => `<li>
-              <span class="t"><strong>${esc(b.nickname || b.name)}</strong><span>${esc(b.bankName || '')} ${esc(b.accountMask)}</span></span>
-              ${badge(b.status)}
-              ${b.status !== 'verified' ? `<button class="rf-btn link sm" data-verify-beneficiary="${esc(b.id)}">Verify</button>` : ''}
-            </li>`).join('') || '<li class="rf-muted rf-small">None saved.</li>'}
+            ${(data.requests || []).slice(0, 8).map((r) => `<li>
+              <span class="t"><strong>${esc(r.label)}: ${requestAmount(r)}</strong><span>${esc(requestDetail(r))} &middot; ${esc(r.reference)}</span></span>
+              ${badge(r.status)}
+            </li>`).join('') || '<li class="rf-muted rf-small">None yet.</li>'}
           </ul>
         </div>
       </div>
@@ -298,24 +271,24 @@
       const list = qs('[data-sheet-investments]', customerModal);
       if (!list) return;
       const holdings = inv.holdings.length ? inv.holdings.map((h) => `<li>
-        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)} &middot; cost ${money(h.costBasis)}</span></span>
+        <span class="t"><strong>${btc(h.units)}</strong><span>invested ${money(h.costBasis)} &middot; ${btc(inv.bitcoin.ready)} matured</span></span>
         <span class="rf-nowrap"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></span>
-      </li>`).join('') + `<li class="rf-small"><span class="t"><strong>Total</strong></span><strong>${money(inv.totals.value)}</strong></li>` : '<li class="rf-muted rf-small">No Bitcoin yet.</li>';
+      </li>`).join('') : '<li class="rf-muted rf-small">Nothing in the vault yet.</li>';
       const positions = (inv.positions || []).map((p) => `<li>
-        <span class="t"><strong>${esc(p.units)} BTC bought ${date(p.purchasedAt)}</strong><span>${money(p.cost)} &middot; ${p.termMonths}-month term &middot; ${p.matured ? 'matured' : `matures ${date(p.maturesAt)}`}</span></span>
+        <span class="t"><strong>${btc(p.units)} added ${date(p.purchasedAt)}</strong><span>${money(p.cost)} at ${money(p.price)} &middot; ${termText(p.termMonths)} &middot; ${p.matured ? 'matured' : `matures ${date(p.maturesAt)}`}</span></span>
         <span class="rf-nowrap">${p.value == null ? '&mdash;' : money(p.value)}</span>
       </li>`).join('');
       const trades = inv.trades.slice(0, 8).map((t) => `<li class="${t.status === 'reversed' ? 'is-reversed' : ''}">
-        <span class="t"><strong>${t.converted ? 'Converted to' : t.side === 'buy' ? 'Bought' : 'Sold'} ${esc(t.units)} ${esc(t.symbol)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${t.termMonths}-month term` : ''}${t.bookedByStaff ? ' &middot; booked by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
-        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths || '')}">Change date or term</button>${t.converted ? '' : ` <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${t.side === 'buy' ? 'Bought' : 'Sold'} ${t.units} ${t.symbol} for ${money(t.amount)}`)}">Reverse</button>`}</span>`}
+        <span class="t"><strong>${esc(KIND_LABEL[t.kind] || t.kind)} ${btc(t.units)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${termText(t.termMonths)}` : ''}${t.bookedByStaff ? ' &middot; by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
+        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths && t.termMonths % 12 === 0 ? t.termMonths / 12 : '')}">Change date or term</button>${t.converted || t.transactionId ? '' : ` <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${KIND_LABEL[t.kind] || t.kind} ${t.units} BTC (${money(t.amount)})`)}">Reverse</button>`}</span>`}
       </li>`).join('');
       list.innerHTML = `${holdings}
-        ${positions ? `<li class="rf-label" style="border:0;padding-bottom:0">Purchases and maturity</li>${positions}` : ''}
-        <li class="hs-sheet-actions"><button class="rf-btn sm" data-book-trade>Book a purchase or sale</button><span class="rf-small rf-muted">For instructions taken by phone or while the network was down.</span></li>
-        ${trades ? `<li class="rf-label" style="border:0;padding-bottom:0">Purchases and sales</li>${trades}` : ''}`;
+        ${positions ? `<li class="rf-label" style="border:0;padding-bottom:0">What is in it, and when each part matures</li>${positions}` : ''}
+        <li class="hs-sheet-actions"><button class="rf-btn sm" data-book-trade>Add to this vault</button><span class="rf-small rf-muted">Cash paid to the OTC partner or Bitcoin received, dated when it happened.</span></li>
+        ${trades ? `<li class="rf-label" style="border:0;padding-bottom:0">Everything that moved</li>${trades}` : ''}`;
     }).catch(() => {
       const list = qs('[data-sheet-investments]', customerModal);
-      if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load their Bitcoin.</li>';
+      if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load their vault.</li>';
     });
     paintInvestments();
     acting.paintInvestments = paintInvestments;
@@ -326,31 +299,6 @@
 
   function wireCustomerSheet(customer, data) {
     const root = customerModal;
-
-    qsa('[data-adjust]', root).forEach((button) => button.addEventListener('click', () => {
-      openAdjust(button.getAttribute('data-adjust'), button.getAttribute('data-account-label'), customer.id);
-    }));
-
-    qsa('[data-account-status]', root).forEach((button) => button.addEventListener('click', async () => {
-      const id = button.getAttribute('data-account-status');
-      const next = button.getAttribute('data-current') === 'active' ? 'frozen' : 'active';
-      try {
-        await api.patch(`/admin/accounts/${id}`, { status: next });
-        toast(`Account ${next}.`, 'ok');
-        openCustomer(customer.id);
-      } catch (err) { toast(err.message, 'bad'); }
-    }));
-
-    qsa('[data-settle]', root).forEach((button) => button.addEventListener('click', async () => {
-      const action = button.getAttribute('data-settle-action');
-      const note = action === 'reverse' ? prompt('Why is this being reversed? The customer sees this.') : '';
-      if (action === 'reverse' && note == null) return;
-      try {
-        await api.post(`/admin/transactions/${button.getAttribute('data-settle')}/settle`, { action, note });
-        toast(action === 'post' ? 'Entry posted.' : 'Entry reversed.', 'ok');
-        openCustomer(customer.id);
-      } catch (err) { toast(err.message, 'bad'); }
-    }));
 
     const ssnButton = qs('[data-reveal-ssn]', root);
     if (ssnButton) {
@@ -363,20 +311,6 @@
         } catch (err) { toast(err.message, 'bad'); }
       });
     }
-
-    qsa('[data-verify-beneficiary]', root).forEach((button) => button.addEventListener('click', async () => {
-      try {
-        await api.post(`/admin/beneficiaries/${button.getAttribute('data-verify-beneficiary')}/review`, { status: 'verified' });
-        toast('Withdrawal account verified.', 'ok');
-        openCustomer(customer.id);
-      } catch (err) { toast(err.message, 'bad'); }
-    }));
-
-    const openAccountModal = qs('[data-account-modal]');
-    qsa('[data-open-account]', root).forEach((button) => button.addEventListener('click', () => {
-      acting.customerId = customer.id;
-      RF.modal.open(openAccountModal);
-    }));
 
     qsa('[data-customer-action]', root).forEach((button) => button.addEventListener('click', async () => {
       const action = button.getAttribute('data-customer-action');
@@ -471,132 +405,67 @@
     return { el, form: qs('form', el), close };
   }
 
+  // Nothing in a vault can be dated before Bitcoin had a daily price.
+  const EARLIEST = '2011-01-01';
+  const TERM = { min: 10, max: 100 };
   const localDate = (iso) => { const d = new Date(iso); const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
   const localTime = (iso) => { const d = new Date(iso); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
   const whenFields = (iso, hint) => `<div class="rf-row">
-      <div class="rf-field"><label>Date</label><input class="rf-input" type="date" name="date" value="${iso ? localDate(iso) : ''}" max="${localDate(new Date().toISOString())}" /></div>
+      <div class="rf-field"><label>Date</label><input class="rf-input" type="date" name="date" value="${iso ? localDate(iso) : ''}" min="${EARLIEST}" max="${localDate(new Date().toISOString())}" /></div>
       <div class="rf-field"><label>Time</label><input class="rf-input" type="time" name="time" value="${iso ? localTime(iso) : ''}" step="60" /></div>
     </div>${hint ? `<p class="rf-small rf-muted" style="margin-top:-6px">${hint}</p>` : ''}`;
 
   document.addEventListener('click', async (event) => {
-    /* Edit an entry: when, how much, what it says. */
-    const editBtn = event.target.closest('[data-edit-tx]');
-    if (editBtn) {
-      event.preventDefault();
-      const data = acting.customerData;
-      const tx = data && data.transactions.find((t) => t.id === editBtn.getAttribute('data-edit-tx'));
-      if (!tx) return;
-      const isTrade = tx.method === 'investment';
-      const { form, close } = staffSheet('Edit entry', `
-        <p class="rf-small rf-muted">${esc(tx.reference || '')} &middot; ${esc(tx.accountName || '')} &middot; ${badge(tx.status)}</p>
-        <div class="rf-field"><label>Description on the statement</label><input class="rf-input" name="description" value="${esc(tx.description)}" maxlength="140" /></div>
-        ${whenFields(tx.date, 'Moving an entry restates the running balances after it. The account balance itself does not change.')}
-        <div class="rf-row">
-          <div class="rf-field"><label>Amount</label><input class="rf-input money" name="amount" value="${(tx.amount / 100).toFixed(2)}" inputmode="decimal" ${tx.status !== 'posted' || isTrade ? 'disabled' : ''} />
-            <div class="hint">${isTrade ? 'A Bitcoin purchase or sale is corrected by reversing it and booking it again.' : tx.status !== 'posted' ? 'Post it first to change the amount.' : 'The balance moves by the difference.'}</div></div>
-          <div class="rf-field"><label>Category</label><input class="rf-input" name="category" value="${esc(tx.category || '')}" /></div>
-        </div>
-        <div class="rf-field"><label>Memo shown to the customer</label><input class="rf-input" name="memo" value="${esc(tx.memo || '')}" /></div>
-        <div class="rf-field"><label>Internal note (why)</label><input class="rf-input" name="note" placeholder="Deposit confirmed by the customer's bank" /></div>`, 'Save changes');
-      onSubmit(form, async (values) => {
-        const body = { description: values.description, category: values.category, memo: values.memo, note: values.note };
-        const when = whenOf(values.date, values.time);
-        if (when && when !== new Date(tx.date).toISOString() && localDate(when) + localTime(when) !== localDate(tx.date) + localTime(tx.date)) body.date = when;
-        if (values.amount !== undefined && Math.round(Number(String(values.amount).replace(/[^0-9.]/g, '')) * 100) !== tx.amount) body.amount = values.amount;
-        await api.patch(`/admin/transactions/${tx.id}`, body);
-        close();
-        toast('Entry updated.', 'ok');
-        openCustomer(acting.customerId);
-      });
-      return;
-    }
-
-    /* Book a Bitcoin purchase or sale for the customer, at a price, time and term. */
+    /* Add to a customer's vault: cash paid to the OTC partner, or Bitcoin received. */
     if (event.target.closest('[data-book-trade]')) {
       event.preventDefault();
-      const data = acting.customerData;
-      const accounts = data.accounts.filter((a) => !a.isCredit && a.status === 'active');
-      if (!accounts.length) { toast('This customer has no active cash balance.', 'bad'); return; }
-      let assets = [];
-      try { assets = (await api.get('/markets')).assets; } catch (err) { assets = []; }
       if (!state.meta) { try { state.meta = await api.get('/admin/settings'); } catch (err) { /* default term below */ } }
-      const terms = (state.meta && state.meta.settings.investmentTerms) || [3, 6, 12, 24];
-      const defaultTerm = (state.meta && state.meta.settings.investmentTermMonths) || 12;
-      const { el, form, close } = staffSheet('Book a purchase or sale', `
-        <div class="rf-segment rf-mb" data-side><button type="button" class="is-active" data-side-value="buy">Buy Bitcoin with cash</button><button type="button" data-side-value="sell">Sell Bitcoin to cash</button></div>
-        <input type="hidden" name="side" value="buy" />
+      const defaultTerm = (state.meta && state.meta.settings.investmentTermYears) || TERM.min;
+      const { el, form, close } = staffSheet('Add to this vault', `
+        <div class="rf-segment rf-mb" data-side><button type="button" class="is-active" data-side-value="cash">Cash paid to the OTC partner</button><button type="button" data-side-value="bitcoin">Bitcoin received</button></div>
+        <input type="hidden" name="kind" value="cash" />
         <div class="rf-row">
-          <div class="rf-field"><label>Cash balance</label><select class="rf-select" name="accountId">${accounts.map((a) => `<option value="${esc(a.id)}">${esc(a.nickname || a.name)} ${esc(a.accountMask)} - ${money(a.availableBalance)}</option>`).join('')}</select></div>
-          <div class="rf-field"${assets.length > 1 ? '' : ' hidden'}><label>Asset</label><select class="rf-select" name="symbol">${assets.map((a) => `<option value="${esc(a.symbol)}" data-price="${a.quote ? a.quote.price : ''}" data-decimals="${a.decimals}">${esc(a.name)} (${esc(a.symbol)})</option>`).join('')}</select></div>
-          <div class="rf-field" data-buy-only><label>Term (months)</label><input class="rf-input" name="termMonths" inputmode="numeric" list="hs-terms" value="${esc(defaultTerm)}" /><datalist id="hs-terms">${terms.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist></div>
+          <div class="rf-field" data-cash-only><label>Amount paid</label><input class="rf-input money" name="amount" inputmode="decimal" placeholder="0.00" /></div>
+          <div class="rf-field" data-btc-only hidden><label>Bitcoin received</label><input class="rf-input money" name="units" inputmode="decimal" placeholder="0.00000000" /></div>
+          <div class="rf-field"><label>Term (years)</label><input class="rf-input" type="number" name="termYears" min="${TERM.min}" max="${TERM.max}" step="1" value="${esc(defaultTerm)}" /></div>
         </div>
-        <div class="rf-row">
-          <div class="rf-field" data-buy-only><label>Cash amount</label><input class="rf-input money" name="amount" inputmode="decimal" placeholder="0.00" /></div>
-          <div class="rf-field" data-sell-only hidden><label>Bitcoin to sell</label><input class="rf-input money" name="units" inputmode="decimal" placeholder="0" /></div>
-          <div class="rf-field"><label>Price per Bitcoin</label><input class="rf-input money" name="price" inputmode="decimal" /><div class="hint" data-live-hint></div></div>
-        </div>
-        ${whenFields('', 'Leave blank for now. Set it to the time the customer gave the instruction.')}
-        <div class="rf-field"><label>Note (why it was booked by staff)</label><input class="rf-input" name="note" placeholder="Instruction taken by phone" /></div>
-        <div class="hs-preview" data-book-preview></div>`, 'Book it');
-      const sideInput = qs('[name="side"]', form);
-      const symbol = qs('[name="symbol"]', form);
-      const price = qs('[name="price"]', form);
-      const fillPrice = () => {
-        const live = symbol.selectedOptions[0] && symbol.selectedOptions[0].getAttribute('data-price');
-        price.value = live || '';
-        qs('[data-live-hint]', form).textContent = live ? `Live price $${Number(live).toFixed(2)}. Change it to the agreed price.` : 'No live price: enter the agreed price.';
-        preview();
-      };
-      const preview = () => {
-        const p = Number(String(price.value).replace(/[^0-9.]/g, ''));
-        const out = qs('[data-book-preview]', form);
-        if (sideInput.value === 'buy') {
-          const amt = Number(String(qs('[name="amount"]', form).value).replace(/[^0-9.]/g, ''));
-          const dp = Number(symbol.selectedOptions[0] && symbol.selectedOptions[0].getAttribute('data-decimals')) || 6;
-          out.innerHTML = p > 0 && amt > 0 ? `<div><span>Units</span><strong>${(Math.floor((amt / p) * 10 ** dp) / 10 ** dp).toLocaleString('en-US', { maximumFractionDigits: dp })} ${esc(symbol.value)}</strong></div>` : '';
-        } else {
-          const u = Number(String(qs('[name="units"]', form).value).replace(/[^0-9.]/g, ''));
-          out.innerHTML = p > 0 && u > 0 ? `<div><span>Proceeds</span><strong>${money(Math.floor(u * p * 100))}</strong></div>` : '';
-        }
-      };
+        ${whenFields('', `When it was paid or arrived. Leave blank for now. Not before ${EARLIEST}. Booked at Bitcoin's closing price that day.`)}
+        <div class="rf-field"><label>Note</label><input class="rf-input" name="note" placeholder="Payment confirmed by the OTC partner" /></div>`, 'Add it');
+      const kindInput = qs('[name="kind"]', form);
       qsa('[data-side-value]', el).forEach((b) => b.addEventListener('click', () => {
         qsa('[data-side-value]', el).forEach((x) => x.classList.toggle('is-active', x === b));
-        sideInput.value = b.getAttribute('data-side-value');
-        qsa('[data-buy-only]', form).forEach((f) => { f.hidden = sideInput.value !== 'buy'; });
-        qs('[data-sell-only]', form).hidden = sideInput.value !== 'sell';
-        preview();
+        kindInput.value = b.getAttribute('data-side-value');
+        qs('[data-cash-only]', form).hidden = kindInput.value !== 'cash';
+        qs('[data-btc-only]', form).hidden = kindInput.value !== 'bitcoin';
       }));
-      symbol.addEventListener('change', fillPrice);
-      ['amount', 'units', 'price'].forEach((n) => qs(`[name="${n}"]`, form).addEventListener('input', preview));
-      fillPrice();
       onSubmit(form, async (values) => {
-        const body = { customerId: acting.customerId, side: values.side, accountId: values.accountId, symbol: values.symbol, price: values.price, note: values.note, date: whenOf(values.date, values.time) || undefined };
-        if (values.side === 'sell') body.units = values.units; else { body.amount = values.amount; body.termMonths = values.termMonths; }
+        const body = { customerId: acting.customerId, kind: values.kind, termYears: values.termYears, note: values.note, date: whenOf(values.date, values.time) || undefined };
+        if (values.kind === 'bitcoin') body.units = values.units; else body.amount = values.amount;
         const res = await api.post('/admin/trades', body);
         close();
-        toast(`${res.trade.side === 'buy' ? 'Booked' : 'Sold'} ${res.trade.units} ${res.trade.symbol} at ${money(res.trade.price)}.`, 'ok');
+        toast(`Added ${res.trade.units} BTC at ${money(res.trade.price)}, maturing ${date(res.trade.maturesAt)}.`, 'ok');
         openCustomer(acting.customerId);
       });
       return;
     }
 
-    /* Move a purchase or sale to when it really happened, or change a purchase's term. */
+    /* Move something to when it really happened (repriced at that day), or change its term. */
     const timeBtn = event.target.closest('[data-trade-time]');
     if (timeBtn) {
       event.preventDefault();
       const isBuy = timeBtn.getAttribute('data-trade-side') === 'buy';
-      const { form, close } = staffSheet(isBuy ? 'Change the date or term of this purchase' : 'Change the date of this sale', `
-        ${whenFields(timeBtn.getAttribute('data-trade-at'), 'Its ledger entry moves with it, and the running balances are restated.')}
-        ${isBuy ? `<div class="rf-field"><label>Term (months)</label><input class="rf-input" name="termMonths" inputmode="numeric" value="${esc(timeBtn.getAttribute('data-trade-term'))}" /><div class="hint">The maturity date is always the purchase date plus the term.</div></div>` : ''}
-        <div class="rf-field"><label>Reason</label><input class="rf-input" name="note" placeholder="Instruction taken by phone during the outage" /></div>`, 'Save');
+      const { form, close } = staffSheet(isBuy ? 'Change the date or term' : 'Change the date', `
+        ${whenFields(timeBtn.getAttribute('data-trade-at'), isBuy ? `Not before ${EARLIEST}. A new date reprices it at Bitcoin's closing price that day: cash paid buys what it would have bought then; Bitcoin received is valued at that day.` : '')}
+        ${isBuy ? `<div class="rf-field"><label>Term (years)</label><input class="rf-input" type="number" name="termYears" min="${TERM.min}" max="${TERM.max}" step="1" value="${esc(timeBtn.getAttribute('data-trade-term'))}" /><div class="hint">${TERM.min} to ${TERM.max} years. It matures on its date plus its term.</div></div>` : ''}
+        <div class="rf-field"><label>Reason</label><input class="rf-input" name="note" placeholder="Payment date confirmed by the OTC partner" /></div>`, 'Save');
       onSubmit(form, async (values) => {
         const when = whenOf(values.date, values.time);
-        if (!when) throw new Error('Enter a date and time.');
+        if (!when) throw new Error('Enter a date.');
         const body = { date: when, note: values.note };
-        if (isBuy && values.termMonths) body.termMonths = values.termMonths;
-        await api.patch(`/admin/trades/${timeBtn.getAttribute('data-trade-time')}`, body);
+        if (isBuy && values.termYears) body.termYears = values.termYears;
+        const res = await api.patch(`/admin/trades/${timeBtn.getAttribute('data-trade-time')}`, body);
         close();
-        toast(isBuy ? 'Purchase updated.' : 'Sale re-dated.', 'ok');
+        toast(isBuy ? `Updated: ${res.trade.units} BTC at ${money(res.trade.price)}, maturing ${date(res.trade.maturesAt)}.` : 'Re-dated.', 'ok');
         openCustomer(acting.customerId);
       });
       return;
@@ -606,7 +475,7 @@
     const revBtn = event.target.closest('[data-trade-reverse]');
     if (revBtn) {
       event.preventDefault();
-      const note = prompt(`Reverse this?\n\n${revBtn.getAttribute('data-trade-label')}\n\nThe Bitcoin comes off (or goes back on) the holding and the cash goes back. Why? (the customer sees this)`);
+      const note = prompt(`Reverse this?\n\n${revBtn.getAttribute('data-trade-label')}\n\nWhat came in comes off the vault; what was sent goes back on. Why? (the customer sees this)`);
       if (note == null) return;
       try {
         await api.post(`/admin/trades/${revBtn.getAttribute('data-trade-reverse')}/reverse`, { note });
@@ -616,47 +485,12 @@
     }
   });
 
-  /* -------------------------------------------------------- adjust modal -- */
-
-  const adjustModal = qs('[data-adjust-modal]');
-  RF.modal.wire(adjustModal);
-
-  function openAdjust(accountId, label, customerId) {
-    acting.accountId = accountId;
-    acting.customerId = customerId || null;
-    qs('[data-adjust-account]', adjustModal).textContent = `Posting to ${label}`;
-    qs('#rf-adjust-form').reset();
-    RF.modal.open(adjustModal);
-    qs('#ad-amount').focus();
-  }
-
-  /** A value date and an optional time, read in the operator's own time zone. */
+  /** A date and an optional time, read in the operator's own time zone. */
   function whenOf(dateValue, timeValue) {
     if (!dateValue) return '';
     const d = new Date(`${dateValue}T${timeValue || '12:00'}`);
     return Number.isNaN(d.getTime()) ? '' : d.toISOString();
   }
-
-  onSubmit(qs('#rf-adjust-form'), async (values) => {
-    values.date = whenOf(values.date, values.time);
-    delete values.time;
-    const res = await api.post(`/admin/accounts/${acting.accountId}/adjust`, values);
-    RF.modal.close(adjustModal);
-    toast(`${res.transaction.direction === 'credit' ? 'Credited' : 'Debited'} ${money(res.transaction.amount)}. New balance ${money(res.account.balance)}.`, 'ok');
-    if (acting.customerId) openCustomer(acting.customerId);
-  });
-
-  /* -------------------------------------------------- open-account modal -- */
-
-  const accountModal = qs('[data-account-modal]');
-  RF.modal.wire(accountModal);
-  onSubmit(qs('#rf-open-account-form'), async (values) => {
-    const customerId = acting.customerId;
-    const res = await api.post(`/admin/customers/${customerId}/accounts`, values);
-    RF.modal.close(accountModal);
-    toast(`${res.account.name} opened, ${res.account.accountMask}, with ${money(res.account.balance)}.`, 'ok');
-    openCustomer(customerId);
-  });
 
   /* ------------------------------------------------------------ register -- */
 
@@ -690,9 +524,9 @@
 
   /**
    * What was just created, in something an operator can read out or copy: the
-   * customer number, the username, the temporary password and the cash
-   * balance with what it opened with. A native alert() would block the page and could
-   * not be copied from.
+   * customer number, the username, the temporary password and anything put
+   * into their vault. A native alert() would block the page and could not be
+   * copied from.
    */
   function showRegistration(result) {
     const el = document.createElement('div');
@@ -709,7 +543,7 @@
             <dt>Customer number</dt><dd class="mono">${esc(result.customer.customerNumber)}</dd>
             <dt>Username</dt><dd>${esc(result.customer.email)}</dd>
             ${result.temporaryPassword ? `<dt>Temporary password</dt><dd class="mono">${esc(result.temporaryPassword)}</dd>` : ''}
-            ${result.accounts.map((a) => `<dt>${esc(a.name)}</dt><dd class="mono">${esc(a.accountMask)} &middot; ${money(a.balance)}</dd>`).join('')}
+            ${result.vault ? `<dt>In the vault</dt><dd class="mono">${btc(result.vault.units)} &middot; ${money(result.vault.amount)} at ${money(result.vault.price)} &middot; matures ${date(result.vault.maturesAt)}</dd>` : ''}
           </dl>
         </div>
         <div class="rf-modal-foot">
@@ -727,7 +561,7 @@
         `${result.customer.fullName} — ${result.customer.customerNumber}`,
         `Username: ${result.customer.email}`,
         result.temporaryPassword ? `Temporary password: ${result.temporaryPassword}` : '',
-        ...result.accounts.map((a) => `${a.name} ${a.accountMask} — ${money(a.balance)}`),
+        result.vault ? `In the vault: ${result.vault.units} BTC (${money(result.vault.amount)}), matures ${date(result.vault.maturesAt)}` : '',
       ].filter(Boolean).join('\n'), 'Registration details copied');
     });
   }
@@ -742,35 +576,74 @@
     const statusSelect = qs('[data-queue-status]');
 
     async function load() {
-      const status = statusSelect.value;
-      const data = await api.get(`/admin/transfers${status ? `?status=${encodeURIComponent(status)}` : ''}`);
-      tbody.innerHTML = data.transfers.length ? data.transfers.map((t) => `
+      const data = await api.get(`/admin/vault/requests?status=${encodeURIComponent(statusSelect.value)}`);
+      tbody.innerHTML = data.requests.length ? data.requests.map((r) => `
         <tr>
-          <td class="rf-nowrap rf-small">${date(t.createdAt)}<span class="sub">${new Date(t.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span></td>
-          <td>${t.customer ? `<button class="rf-btn link sm" data-customer="${esc(t.customer.id)}">${esc(t.customer.fullName)}</button>` : '&mdash;'}</td>
-          <td class="rf-small">${esc(t.typeLabel)}</td>
-          <td class="rf-small">${esc((t.recipient && (t.recipient.nickname || t.recipient.name)) || '&mdash;')}<span class="sub rf-mono">${esc((t.recipient && t.recipient.accountMasked) || '')}</span></td>
-          <td class="rf-mono rf-small">${esc(t.confirmation)}</td>
-          <td>${badge(t.status, t.statusLabel)}${t.reasonNote ? `<span class="sub">${esc(t.reasonNote)}</span>` : ''}</td>
-          <td class="num rf-amt">${money(t.total)}${t.fee ? `<span class="sub">incl. ${money(t.fee)} fee</span>` : ''}</td>
+          <td class="rf-nowrap rf-small">${date(r.createdAt)}<span class="sub">${new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span></td>
+          <td><button class="rf-btn link sm" data-customer="${esc(r.customer.id)}">${esc(r.customer.fullName)}</button><span class="sub">${esc(r.customer.email)}</span></td>
+          <td class="rf-small">${esc(r.label)}<span class="sub rf-mono">${esc(r.reference)}</span></td>
+          <td class="rf-small">${r.kind === 'btc_out'
+    ? `<span class="rf-mono">${esc(r.address)}</span><span class="sub">${r.ready != null ? `${btc(r.ready)} matured besides this` : ''}</span>`
+    : `${r.kind === 'cash_in' ? 'Paid' : 'Sent'} ${date(r.occurredAt)} &middot; ${esc(termText(r.termMonths))}${r.txid ? `<span class="sub rf-mono">${esc(r.txid.slice(0, 16))}&hellip;</span>` : ''}`}${r.note ? `<span class="sub">&ldquo;${esc(r.note)}&rdquo;</span>` : ''}${r.decisionNote ? `<span class="sub">${esc(r.decisionNote)}</span>` : ''}</td>
+          <td>${badge(r.status)}</td>
+          <td class="num rf-amt">${requestAmount(r)}</td>
           <td class="rf-right rf-nowrap">
-            ${['pending_review', 'pending_verification', 'processing', 'scheduled'].includes(t.status) ? `
-              <button class="rf-btn sm" data-approve="${esc(t.id)}">Release</button>
-              <button class="rf-btn ghost sm" data-reject="${esc(t.id)}" data-summary="${esc(`${money(t.total)} to ${(t.recipient && (t.recipient.nickname || t.recipient.name)) || 'their account'}`)}">Return</button>` : ''}
+            ${r.status === 'pending' ? `
+              <button class="rf-btn sm" data-confirm-request="${esc(r.id)}">${r.kind === 'btc_out' ? 'Mark sent' : 'Confirm'}</button>
+              <button class="rf-btn ghost sm" data-reject-request="${esc(r.id)}">Reject</button>` : ''}
           </td>
-        </tr>`).join('') : '<tr><td colspan="8" class="rf-center rf-muted">Nothing here.</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="7" class="rf-center rf-muted">Nothing here.</td></tr>';
+      state.requests = data.requests;
+      await loadLegacy();
     }
 
-    tbody.addEventListener('click', async (event) => {
+    /* Withdrawals asked for before the vault: shown only while any wait. */
+    async function loadLegacy() {
+      const wrap = qs('[data-legacy-wrap]');
+      let rows = [];
+      try { rows = (await api.get('/admin/transfers?status=pending_review')).transfers; } catch (err) { rows = []; }
+      wrap.hidden = !rows.length;
+      qs('[data-legacy-queue]').innerHTML = rows.map((t) => `
+        <tr>
+          <td class="rf-nowrap rf-small">${date(t.createdAt)}</td>
+          <td>${t.customer ? `<button class="rf-btn link sm" data-customer="${esc(t.customer.id)}">${esc(t.customer.fullName)}</button>` : '&mdash;'}</td>
+          <td class="rf-small">${esc((t.recipient && (t.recipient.nickname || t.recipient.name)) || '&mdash;')}<span class="sub rf-mono">${esc((t.recipient && t.recipient.accountMasked) || '')}</span></td>
+          <td class="rf-mono rf-small">${esc(t.confirmation)}</td>
+          <td>${badge(t.status, t.statusLabel)}</td>
+          <td class="num rf-amt">${money(t.total)}</td>
+          <td class="rf-right rf-nowrap">
+            <button class="rf-btn sm" data-approve="${esc(t.id)}">Release</button>
+            <button class="rf-btn ghost sm" data-reject="${esc(t.id)}" data-summary="${esc(`${money(t.total)} to ${(t.recipient && (t.recipient.nickname || t.recipient.name)) || 'their account'}`)}">Return</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    const panel = qs('[data-panel="queue"]');
+    panel.addEventListener('click', async (event) => {
+      const confirmBtn = event.target.closest('[data-confirm-request]');
+      const rejectBtn = event.target.closest('[data-reject-request]');
       const approve = event.target.closest('[data-approve]');
       const reject = event.target.closest('[data-reject]');
+      if (confirmBtn) {
+        const r = (state.requests || []).find((x) => x.id === confirmBtn.getAttribute('data-confirm-request'));
+        if (r) confirmRequest(r);
+      }
+      if (rejectBtn) {
+        const reason = prompt('Why can this not be done? The customer reads this.');
+        if (!reason) return;
+        try {
+          await api.post(`/admin/vault/requests/${rejectBtn.getAttribute('data-reject-request')}/reject`, { reason });
+          toast('Rejected, and the customer told why.', 'ok');
+          load();
+          loaded.delete('overview');
+        } catch (err) { toast(err.message, 'bad'); }
+      }
       if (approve) {
-        if (!confirm('Release this withdrawal? The money leaves the customer’s cash balance now.')) return;
+        if (!confirm('Release this withdrawal? The money leaves the customer’s cash now.')) return;
         try {
           await api.post(`/admin/transfers/${approve.getAttribute('data-approve')}/approve`, { note: '' });
           toast('Withdrawal released and the customer emailed.', 'ok');
           load();
-          loaded.delete('overview');
         } catch (err) { toast(err.message, 'bad'); }
       }
       if (reject) {
@@ -781,19 +654,45 @@
       }
     });
 
+    /* Confirm what arrived (correcting it if need be), or record a send that was made. */
+    function confirmRequest(r) {
+      const body = r.kind === 'btc_out'
+        ? `<p class="rf-small">Send <strong>${btc(r.units)}</strong> from the vault wallet to:</p>
+          <p class="rf-mono" style="word-break:break-all">${esc(r.address)}</p>
+          <p class="rf-small rf-muted">${r.ready != null ? `${btc(r.ready)} of this customer&rsquo;s Bitcoin has matured besides this request.` : ''} Once the transfer is made, enter its transaction ID and mark it sent. The Bitcoin then leaves their vault.</p>
+          <div class="rf-field"><label>Transaction ID</label><input class="rf-input mono" name="txid" placeholder="64 letters and numbers" /></div>
+          <div class="rf-field"><label>Note</label><input class="rf-input" name="note" /></div>`
+        : `<p class="rf-small rf-muted">Check it against what actually arrived and correct anything that differs. It is booked at Bitcoin&rsquo;s closing price on the date below.</p>
+          <div class="rf-row">
+            ${r.kind === 'cash_in'
+    ? `<div class="rf-field"><label>Amount received</label><input class="rf-input money" name="amount" inputmode="decimal" value="${(r.amount / 100).toFixed(2)}" /></div>`
+    : `<div class="rf-field"><label>Bitcoin received</label><input class="rf-input money" name="units" inputmode="decimal" value="${esc(r.units)}" /></div>`}
+            <div class="rf-field"><label>Term (years)</label><input class="rf-input" type="number" name="termYears" min="${TERM.min}" max="${TERM.max}" step="1" value="${esc(r.termYears || '')}" /></div>
+          </div>
+          ${whenFields(r.occurredAt, `When it was ${r.kind === 'cash_in' ? 'paid' : 'sent'}, as the customer gave it.`)}
+          ${r.kind === 'btc_in' ? `<div class="rf-field"><label>Transaction ID</label><input class="rf-input mono" name="txid" value="${esc(r.txid || '')}" /></div>` : ''}
+          <div class="rf-field"><label>Note</label><input class="rf-input" name="note" placeholder="Confirmed by the OTC partner" /></div>`;
+      const { form, close } = staffSheet(`${r.label}: ${r.customer.fullName}`, body, r.kind === 'btc_out' ? 'Mark sent' : 'Confirm and book');
+      onSubmit(form, async (values) => {
+        const payload = { note: values.note, txid: values.txid || undefined };
+        if (r.kind !== 'btc_out') {
+          Object.assign(payload, { amount: values.amount, units: values.units, termYears: values.termYears, occurredAt: whenOf(values.date, values.time) || undefined });
+        }
+        const res = await api.post(`/admin/vault/requests/${r.id}/confirm`, payload);
+        close();
+        toast(r.kind === 'btc_out' ? `${res.trade.units} BTC sent and taken off the vault.` : `${res.trade.units} BTC added at ${money(res.trade.price)}.`, 'ok');
+        load();
+        loaded.delete('overview');
+      });
+    }
+
     statusSelect.addEventListener('change', load);
-    qs('[data-run-scheduled]').addEventListener('click', async () => {
-      const res = await api.post('/admin/scheduled/run');
-      toast(`${res.processed.length} scheduled withdrawal(s) processed.`, 'ok');
-      load();
-    });
 
     onSubmit(qs('#rf-reject-form'), async (values) => {
       await api.post(`/admin/transfers/${acting.transferId}/reject`, values);
       RF.modal.close(rejectModal);
-      toast('Withdrawal returned, funds released and the customer told why.', 'ok');
+      toast('Withdrawal returned. The cash is converted to Bitcoin when the customer next signs in.', 'ok');
       load();
-      loaded.delete('overview');
     });
 
     await load();
@@ -955,8 +854,10 @@
     };
 
     set('bankName', s.bankName);
-    set('investmentTerms', (s.investmentTerms || []).join(', '));
-    set('investmentTermMonths', s.investmentTermMonths);
+    set('investmentTermYears', s.investmentTermYears);
+    set('vaultAddresses', s.vaultAddresses);
+    set('vaultSendFee', ((s.fees && s.fees.vaultSend) / 100 || 0).toFixed(2));
+    Object.entries(s.otc || {}).forEach(([key, value]) => set(`otc.${key}`, value));
     set('supportEmail', s.supportEmail);
     set('supportPhone', s.supportPhone);
     set('fraudPhone', s.fraudPhone);
@@ -968,46 +869,21 @@
     set('sessionMinutes', s.sessionMinutes);
     set('requireOtpForTransfers', s.requireOtpForTransfers);
     set('requirePinForTransfers', s.requirePinForTransfers);
-    set('holdTransfersForReview', s.holdTransfersForReview);
     set('maintenanceMode', s.maintenanceMode);
-    set('holdThresholdCents', (s.holdThresholdCents / 100).toFixed(2));
-
-    // Only what still applies: withdrawals, and the ceiling on any one
-    // purchase or withdrawal. The rest stay stored, untouched.
-    const LIMIT_LABELS = {
-      achDaily: 'Standard withdrawals', wireDaily: 'Same-day and international withdrawals', singleTransactionMax: 'Any single purchase or withdrawal',
-    };
-    qs('[data-limits]').innerHTML = Object.entries(s.limits).filter(([key]) => LIMIT_LABELS[key]).map(([key, value]) => `
-      <div class="rf-field">
-        <label for="lim-${key}">${esc(LIMIT_LABELS[key] || key)}</label>
-        <input class="rf-input" id="lim-${key}" data-limit="${key}" inputmode="decimal" value="${(value / 100).toFixed(2)}" />
-      </div>`).join('');
-
-    const FEE_LABELS = {
-      achOutgoing: 'Standard withdrawal', wireDomestic: 'Same-day withdrawal', wireInternational: 'International withdrawal',
-    };
-    qs('[data-fees]').innerHTML = Object.entries(s.fees).filter(([key]) => FEE_LABELS[key]).map(([key, value]) => `
-      <div class="rf-field">
-        <label for="fee-${key}">${esc(FEE_LABELS[key] || key)}</label>
-        <input class="rf-input" id="fee-${key}" data-fee="${key}" inputmode="decimal" value="${key === 'foreignTransactionPct' ? value : (value / 100).toFixed(2)}" />
-      </div>`).join('');
 
     qs('[data-mail-configured]').textContent = data.emailConfigured
       ? 'Email is configured: alerts are delivered.'
       : 'No mail provider configured: alerts show when customers sign in but are not emailed.';
 
     onSubmit(form, async (values) => {
-      const limits = {};
-      qsa('[data-limit]', form).forEach((el) => { limits[el.getAttribute('data-limit')] = Math.round(Number(el.value || 0) * 100); });
-      const fees = {};
-      qsa('[data-fee]', form).forEach((el) => {
-        const key = el.getAttribute('data-fee');
-        fees[key] = key === 'foreignTransactionPct' ? Number(el.value || 0) : Math.round(Number(el.value || 0) * 100);
-      });
+      const otc = {};
+      Object.keys(values).filter((k) => k.startsWith('otc.')).forEach((k) => { otc[k.slice(4)] = (values[k] || '').trim(); });
       await api.put('/admin/settings', {
         bankName: (values.bankName || '').trim(),
-        investmentTerms: values.investmentTerms,
-        investmentTermMonths: Number(values.investmentTermMonths),
+        investmentTermYears: Number(values.investmentTermYears),
+        vaultAddresses: values.vaultAddresses || '',
+        otc,
+        fees: { vaultSend: Math.round(Number(String(values.vaultSendFee || 0).replace(/[^0-9.]/g, '')) * 100) || 0 },
         supportEmail: values.supportEmail,
         // Trimmed, and sent even when empty: clearing a field at the console
         // has to be able to take the detail back off the site.
@@ -1021,11 +897,7 @@
         sessionMinutes: Number(values.sessionMinutes) || 30,
         requireOtpForTransfers: Boolean(values.requireOtpForTransfers),
         requirePinForTransfers: Boolean(values.requirePinForTransfers),
-        holdTransfersForReview: Boolean(values.holdTransfersForReview),
         maintenanceMode: Boolean(values.maintenanceMode),
-        holdThresholdCents: Math.round(Number(values.holdThresholdCents || 0) * 100),
-        limits,
-        fees,
       });
       if (window.HSName) window.HSName.apply(values.bankName);
       toast('Settings saved. Every page shows them from the next one opened.', 'ok');

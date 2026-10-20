@@ -18,9 +18,8 @@ const site = require('../data/site.json');
 const images = require('./images');
 const { page } = require('./layout');
 const { marketingPage, icon, brand, RISK } = require('../bank/site/layout');
-const { BANK, DEFAULT_SETTINGS } = require('../bank/constants');
+const { BANK, VAULT } = require('../bank/constants');
 
-const money = (cents) => `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /* ------------------------------------------------------------- components -- */
 
@@ -66,9 +65,9 @@ function enquiryForm(id = 'contact-form', { heading, note } = {}) {
           <div class="rf-field field"><label for="${id}-service">What is this about?</label>
             <select class="rf-select" id="${id}-service" name="service">
               <option value="">Select</option>
-              <option>Starting to invest in Bitcoin</option>
-              <option>My Bitcoin investment</option>
-              <option>A withdrawal</option>
+              <option>Opening a vault</option>
+              <option>My vault</option>
+              <option>Sending or receiving Bitcoin</option>
               <option>Something looks wrong</option>
               <option>Careers</option>
               <option>Something else</option>
@@ -114,56 +113,89 @@ ui.shield30 = svg('<path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-
 
 /* ===================================================================== home == */
 
+/*
+ * The landing page is the dashboard page it grew out of: the vault, shown as
+ * the customer will see it, then how it works and how to reach us.
+ */
 const homeContent = `
-  <section class="hs-band hs-band-hero">
-    <img class="hs-band-photo" src="${images.homeMobile}" alt="" aria-hidden="true" fetchpriority="high" />
-    <div class="wrap">
-      <div class="hs-band-copy">
-        <span class="rf-eyebrow hs-in" style="--d:0ms">Bitcoin investing, on your phone</span>
-        <h1 class="hs-in" style="--d:90ms">One investment. <mark class="hs-hl">Bitcoin only.</mark></h1>
-        <p class="hs-in" style="--d:180ms">Buy Bitcoin at the live price from as little as $1, choose how long you plan to hold it, and follow it from the day you bought it to the day it matures. <strong>We invest in Bitcoin and nothing else</strong> &mdash; no cards, no current accounts, no other products to sell you.</p>
-        <div class="hs-actions hs-in" style="--d:270ms">
-          <a class="rf-btn lg hs-cta" href="/open-account">Start investing in Bitcoin ${ui.arrow}</a>
-          <a class="hs-textlink light" href="/bitcoin">How it works</a>
+  <section class="hs-home">
+    <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
+    <div class="wrap hs-home-grid">
+      <div class="hs-home-copy">
+        <span class="hs-kicker hs-in" style="--d:0ms">The ${BANK.name} vault</span>
+        <h1 class="hs-home-title hs-in" style="--d:80ms">Secure your Bitcoin<br /><span class="hs-grad">for the decades ahead.</span></h1>
+        <p class="hs-lede hs-in" style="--d:160ms">Place Bitcoin in a <mark class="hs-hl">vault</mark> on a term you set, from ten years to a hundred. Every investment is priced on the day it went in, followed every day after, and released to you when it matures.</p>
+        <div class="hs-actions hs-in" style="--d:240ms">
+          <a class="rf-btn lg hs-cta" href="/open-account">Open your vault ${ui.arrow}</a>
+          <a class="hs-textlink" href="/signin">Sign in to your vault</a>
         </div>
-        <p class="hs-live-price hs-in" style="--d:340ms" data-btc-live hidden>
-          <span class="hs-ticker-live"><i></i>Live</span>
-          <span>Bitcoin now <b data-btc-price></b> <em data-btc-change></em></span>
-        </p>
+        <ul class="hs-features">
+          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.bars}</span><h3>Growth since day one</h3><p>Value against what went in, every day.</p></li>
+          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.clock}</span><h3>Your maturity date</h3><p>Ten to a hundred years, set by you.</p></li>
+          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.coin}</span><h3>Priced on the day</h3><p>Each investment at that day&rsquo;s price.</p></li>
+          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Verified release</h3><p>A code and a person on every send.</p></li>
+        </ul>
+      </div>
+
+      <div class="hs-home-visual" aria-hidden="true">
+        <span class="hs-slab hs-slab-a"></span>
+        <span class="hs-slab hs-slab-b"></span>
+        <div class="hs-phone">
+          <div class="hs-notch"></div>
+          <div class="hs-screen">
+            <div class="hs-screen-top">
+              <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
+              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span data-brand-name><b>${BANK.name.split(/\s+/)[0]}</b>${BANK.name.split(/\s+/).length > 1 ? `<small>${BANK.name.split(/\s+/).slice(1).join(' ')}</small>` : ''}</span></div>
+              <div class="hs-balance">$<span data-hs-count="24318">24,318</span>.40</div>
+              <div class="hs-delta"><span>${ui.up} +62.8%</span> since day one</div>
+            </div>
+            <div class="hs-sheet">
+              <svg class="hs-mini-chart" viewBox="0 0 240 64" preserveAspectRatio="none"><path d="M0 56 L24 52 L48 54 L72 44 L96 46 L120 36 L144 38 L168 26 L192 30 L216 18 L240 12" fill="none" stroke="#0e8a62" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 56 L60 56 L60 42 L150 42 L150 34 L240 34" fill="none" stroke="#7a5cd6" stroke-width="2" stroke-dasharray="5 4"/></svg>
+              <div class="hs-quick">
+                <span><i>${ui.request}</i>Receive</span><span><i>${ui.send}</i>Send</span><span><i>${ui.coin}</i>Vault</span><span><i>${ui.more}</i>More</span>
+              </div>
+              <div class="hs-tx-head"><strong>Your investments</strong><em>See all</em></div>
+              <ul class="hs-tx">
+                <li><i>${ui.coin}</i><span>0.0456 BTC &middot; 10 years<small>Matures Jul 2036</small></span><b class="in">+5.3%</b></li>
+                <li><i>${ui.coin}</i><span>0.0745 BTC &middot; 15 years<small>Matures Aug 2040</small></span><b class="in">+57.1%</b></li>
+                <li><i>${ui.coin}</i><span>0.0612 BTC &middot; 10 years<small>Matured &middot; ready to send</small></span><b class="in">+412%</b></li>
+              </ul>
+              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.coin}Vault</span><span>${ui.request}Receive</span><span>${ui.send}Send</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hs-toast"><i>${ui.check}</i><span><strong>Added to your vault</strong><small>0.0158 BTC &middot; 20-year term</small></span></div>
       </div>
     </div>
+    <div class="wrap"><p class="rf-small rf-muted" style="margin:18px 0 0">Illustration with example figures. Your dashboard shows your own vault at the live price.</p></div>
   </section>
 
   <section class="hs-trust-band">
     <div class="hs-trust">
       <div class="wrap">
-        <p class="hs-trust-k">One thing, done properly: <mark class="hs-hl">investment in Bitcoin only</mark></p>
+        <p class="hs-trust-k">Built for the long term: <mark class="hs-hl">a vault for your Bitcoin</mark></p>
         <div class="hs-trust-row">
-          <div><span class="hs-ic">${ui.coin}</span><span><b class="sm">Bitcoin only</b><small>The one asset we invest in</small></span></div>
-          <div><span class="hs-ic">${ui.bars}</span><span><b class="sm">From $1</b><small>Buy a fraction at the live price</small></span></div>
-          <div><span class="hs-ic">${ui.clock}</span><span><b class="sm">3 to 24 months</b><small>You choose the term</small></span></div>
-          <div><span class="hs-ic">${ui.shield30}</span><span><b class="sm">Sell any time</b><small>Back to cash, then withdraw</small></span></div>
+          <div><span class="hs-ic">${ui.clock}</span><span><b class="sm">${VAULT.termYears.min} to ${VAULT.termYears.max} years</b><small>Your term, your maturity date</small></span></div>
+          <div><span class="hs-ic">${ui.coin}</span><span><b class="sm">Priced on the day</b><small>Cash or Bitcoin, valued as it went in</small></span></div>
+          <div><span class="hs-ic">${ui.send}</span><span><b class="sm">Released at maturity</b><small>Sent to a wallet of yours</small></span></div>
+          <div><span class="hs-ic">${ui.shield30}</span><span><b class="sm">Checked by people</b><small>Every movement confirmed by our team</small></span></div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="rf-section hs-split">
-    <div class="wrap hs-split-grid">
-      <figure class="hs-photo hs-photo-family">
-        <img src="${images.hero}" alt="A family of four standing together outside, smiling" loading="lazy" width="1024" height="1024" />
-        <figcaption class="hs-float-note"><i>${ui.coin}</i><span><strong>Bitcoin &middot; 12-month term</strong><span class="hs-bar"><span style="--w:72%"></span></span><small>72% of the way to maturity</small></span></figcaption>
-      </figure>
-      <div>
-        <span class="rf-eyebrow">Invest with a plan</span>
-        <h2>Every purchase has a start date and a maturity date.</h2>
-        <p class="section-lede">When you buy, you choose how long you mean to hold: 3, 6, 12 or 24 months. Your dashboard then shows each purchase from the day you bought it &mdash; what it cost, what it is worth today, and how long it has left to run.</p>
-        <ul class="hs-checks">
-          <li>${tick}<span>A chart of your Bitcoin&rsquo;s value since the day you bought it</span></li>
-          <li>${tick}<span>Growth so far, in dollars and per cent, for every purchase</span></li>
-          <li>${tick}<span>A countdown to each maturity date &mdash; and you can still sell before it</span></li>
-        </ul>
-        <p style="margin-top:26px"><a class="rf-btn" href="/bitcoin">Invest in Bitcoin</a></p>
+  <section class="rf-section">
+    <div class="wrap">
+      <span class="rf-eyebrow">Everything on your dashboard</span>
+      <h2>Your vault, on the device in your hand.</h2>
+      <p class="section-lede">There is no app to download. Sign in from the browser on your phone, tablet or laptop and you get the same dashboard, the same protections and the same people behind them, wherever you are.</p>
+      <div class="rf-grid cols-3">
+        <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Value since day one</h3><p>A chart from your first investment to today, with each one marked and what went in drawn alongside.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.coin}</span><h3 class="hs-card-h">Growth, investment by investment</h3><p>What each one cost, Bitcoin&rsquo;s price that day, what it is worth now and how much it has grown or fallen.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.clock}</span><h3 class="hs-card-h">The day it went in, the day it matures</h3><p>Both dates side by side for every investment, with the years held and the time still to run.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.request}</span><h3 class="hs-card-h">Add to it two ways</h3><p>Pay cash through our OTC partner, or send Bitcoin you already own to your vault address.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Send when it matures</h3><p>Once an investment reaches its date, send it to a wallet of yours. A code and our team confirm every send.</p></div>
+        <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, Bitcoin added and Bitcoin sent, the moment they happen, by email and text.</p></div>
       </div>
     </div>
   </section>
@@ -171,50 +203,13 @@ const homeContent = `
   <section class="rf-section alt">
     <div class="wrap">
       <span class="rf-eyebrow">How it works</span>
-      <h2>Three steps, and only one of them is a decision.</h2>
-      <p class="section-lede">There is no product menu to work through, because there is only one thing to buy.</p>
+      <h2>Three steps, decades apart.</h2>
       <div class="rf-grid cols-3 hs-steps">
-        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">1</span><h3 class="hs-card-h">Open your account</h3><p class="rf-muted">Tell us about yourself and someone from our team verifies your identity and opens your cash balance &mdash; usually the same business day.</p></div></article>
-        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">2</span><h3 class="hs-card-h">Buy Bitcoin, choose a term</h3><p class="rf-muted">Pick an amount from $1 upwards and how long to hold it. You see exactly how much Bitcoin it buys at the live price before you confirm.</p></div></article>
-        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">3</span><h3 class="hs-card-h">Follow it to maturity</h3><p class="rf-muted">Your dashboard charts its value since the day you bought it and counts down to the day it matures. Sell back to cash whenever you choose.</p></div></article>
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">1</span><h3 class="hs-card-h">Open your vault</h3><p class="rf-muted">Tell us about yourself and someone from our team verifies your identity and opens your vault, usually the same business day.</p></div></article>
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">2</span><h3 class="hs-card-h">Add Bitcoin, set the term</h3><p class="rf-muted">Pay cash through our OTC partner or send Bitcoin you hold, and choose how long it stays: ${VAULT.termYears.min} to ${VAULT.termYears.max} years. It is priced on the day it goes in.</p></div></article>
+        <article class="rf-card"><div class="rf-card-body"><span class="hs-step-n">3</span><h3 class="hs-card-h">Follow it to maturity</h3><p class="rf-muted">Your dashboard charts its value every day and counts down to its maturity date. From that day it can be sent to a wallet of yours.</p></div></article>
       </div>
-      <p style="margin-top:26px"><a class="rf-btn lg hs-cta" href="/open-account">Start investing in Bitcoin ${ui.arrow}</a></p>
-    </div>
-  </section>
-
-  <section class="rf-section">
-    <div class="wrap">
-      <span class="rf-eyebrow">Why only Bitcoin</span>
-      <h2>We do <mark class="hs-hl">one thing</mark>, so you always know what you hold.</h2>
-      <p class="section-lede">Most investment apps want to sell you a dozen things. We decided to offer one, and to show it to you clearly: what you paid, what it is worth now, and where it stands against the term you chose.</p>
-      <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">Assets on offer</div><div class="v">1</div><div class="d">Bitcoin, and only Bitcoin</div></div>
-        <div class="rf-card rf-stat"><div class="k">Commission to buy or sell</div><div class="v">$0</div><div class="d">You pay the live price shown when you confirm</div></div>
-        <div class="rf-card rf-stat"><div class="k">Smallest purchase</div><div class="v">$1.00</div><div class="d">Bitcoin is held to the satoshi, a hundred-millionth</div></div>
-      </div>
-      <p style="margin-top:26px"><a class="rf-btn ghost" href="/rates">Every fee we charge</a></p>
-    </div>
-  </section>
-
-  <section class="rf-section alt">
-    <div class="wrap">
-      <div class="rf-grid side" style="gap:44px;align-items:center">
-        <div>
-          <span class="rf-eyebrow">Security</span>
-          <h2>Your account, guarded like it matters.</h2>
-          <p class="section-lede">A one-time code on every sign-in and every withdrawal. A withdrawal PIN of your own. New withdrawal accounts checked by a person before the first payment reaches them. Alerts within seconds, whatever moved.</p>
-          <div class="rf-grid cols-2" style="gap:22px">
-            <div class="rf-feature"><span class="ic">${icon('lock', 18)}</span><div><h3>Two-step verification</h3><p>On every sign-in, and again before a withdrawal is accepted.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('bell', 18)}</span><div><h3>Instant alerts</h3><p>Sign-ins, purchases, sales and withdrawals, as they happen.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('withdraw', 18)}</span><div><h3>Withdrawals to you only</h3><p>Money leaves only for a bank account in your own name.</p></div></div>
-            <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Every action logged</h3><p>Who did what, from which device, in your own activity history.</p></div></div>
-          </div>
-          <p style="margin-top:26px"><a class="rf-btn ghost" href="/security-center">Visit the security centre</a></p>
-        </div>
-        <div>
-          <img src="${images.homeSecurity}" alt="" loading="lazy" style="width:100%;border-radius:var(--rf-radius-lg);box-shadow:var(--rf-shadow-lg)" />
-        </div>
-      </div>
+      <div class="hs-actions" style="margin-top:26px"><a class="rf-btn lg hs-cta" href="/open-account">Open your vault ${ui.arrow}</a><a class="hs-textlink" href="/bitcoin">How the vault works</a></div>
     </div>
   </section>
 
@@ -240,7 +235,7 @@ const homeContent = `
             <dt data-site-row="address" hidden>Post</dt><dd data-site-row="address" data-site="address" hidden></dd>
           </dl>
           <div class="rf-notice warn" style="margin-top:22px">
-            <div><strong>We will never ask for a code.</strong>Not by phone, text or email. Signed-in customers can use secure messages for anything about their account.</div>
+            <div><strong>We will never ask for a code.</strong>Not by phone, text or email. Signed-in customers can use secure messages for anything about their vault.</div>
           </div>
         </div>
         ${enquiryForm('home-contact-form', { heading: 'Send us a message', note: 'Someone from our team replies the same business day.' })}
@@ -250,13 +245,14 @@ const homeContent = `
 
 /* ================================================================== bitcoin == */
 
-const TERMS = DEFAULT_SETTINGS.investmentTerms;
+const TERM_CHOICES = [10, 20, 30, 50, 100].filter((y) => y >= VAULT.termYears.min && y <= VAULT.termYears.max);
+const THIS_YEAR = new Date().getFullYear();
 
 const bitcoinContent = `
   ${header({
-    eyebrow: 'Invest in Bitcoin',
-    title: 'Bitcoin only. Bought simply, followed clearly.',
-    lede: 'What you are buying, how long you hold it, and what you will see every day until it matures.',
+    eyebrow: 'How the vault works',
+    title: 'Bitcoin, held for the long term.',
+    lede: 'How Bitcoin goes into your vault, how it is priced, and how it comes back to you when it matures.',
     image: images.bitcoinHeader,
   })}
 
@@ -264,13 +260,13 @@ const bitcoinContent = `
     <div class="wrap">
       <div class="rf-grid side" style="gap:44px;align-items:start">
         <div>
-          <span class="rf-eyebrow">What you are buying</span>
-          <h2>A share of a Bitcoin, at the live price.</h2>
-          <p class="section-lede">Bitcoin divides into a hundred million parts, so $1 buys a real amount of it. When you confirm, we book the purchase at the live price shown on your screen and the Bitcoin appears in your account straight away, to the satoshi.</p>
+          <span class="rf-eyebrow">Two ways in</span>
+          <h2>Cash or Bitcoin, priced on the day it arrives.</h2>
+          <p class="section-lede">However it comes in, each investment is booked at Bitcoin&rsquo;s price on the day it was made, so the growth you see is the growth since that day.</p>
           <ul class="hs-checks">
-            <li>${tick}<span>Bitcoin is the only asset we invest in. There is nothing else to choose between.</span></li>
-            <li>${tick}<span>No commission to buy or sell. The price you see is the price you pay.</span></li>
-            <li>${tick}<span>If the price moves more than 2% while you decide, we show you the new one and ask again.</span></li>
+            <li>${tick}<span><strong>Pay cash through our OTC partner.</strong> Pay from a bank in your name, quoting your reference. When the partner confirms, the payment buys Bitcoin at that day&rsquo;s price.</span></li>
+            <li>${tick}<span><strong>Send Bitcoin you already hold.</strong> Send it to your vault address. When it arrives it is added at its value that day.</span></li>
+            <li>${tick}<span><strong>Held to the satoshi.</strong> Bitcoin divides into a hundred million parts, so every amount is exact.</span></li>
           </ul>
         </div>
         <div class="rf-card hs-live-card">
@@ -278,7 +274,7 @@ const bitcoinContent = `
             <span class="rf-eyebrow">Bitcoin now</span>
             <div class="hs-live-card-v" data-btc-price>&mdash;</div>
             <div class="rf-small rf-muted"><span data-btc-change></span> <span data-btc-source></span></div>
-            <a class="rf-btn block rf-mt" href="/open-account">Start investing</a>
+            <a class="rf-btn block rf-mt" href="/open-account">Open your vault</a>
           </div>
         </div>
       </div>
@@ -288,10 +284,10 @@ const bitcoinContent = `
   <section class="rf-section alt">
     <div class="wrap">
       <span class="rf-eyebrow">Choose your term</span>
-      <h2>How long do you mean to hold it?</h2>
-      <p class="section-lede">Every purchase carries a term you choose when you buy. It sets the maturity date your dashboard counts down to. Choosing one costs nothing, and you can still sell before it.</p>
-      <div class="rf-grid cols-${Math.min(4, TERMS.length)} hs-terms-grid">
-        ${TERMS.map((m) => `<div class="rf-card rf-stat"><div class="k">Term</div><div class="v">${m % 12 === 0 ? `${m / 12} year${m === 12 ? '' : 's'}` : `${m} months`}</div><div class="d">Matures ${m} months after the day you buy</div></div>`).join('')}
+      <h2>How long should it stay in the vault?</h2>
+      <p class="section-lede">Every investment carries a term of ${VAULT.termYears.min} to ${VAULT.termYears.max} years, in whole years, chosen when it goes in. It matures on that date, and from then it can be sent to a wallet of yours.</p>
+      <div class="rf-grid cols-${Math.min(5, TERM_CHOICES.length)} hs-terms-grid">
+        ${TERM_CHOICES.map((y) => `<div class="rf-card rf-stat"><div class="k">Term</div><div class="v">${y} years</div><div class="d">In today, matures in ${THIS_YEAR + y}</div></div>`).join('')}
       </div>
     </div>
   </section>
@@ -299,117 +295,41 @@ const bitcoinContent = `
   <section class="rf-section">
     <div class="wrap">
       <span class="rf-eyebrow">Your dashboard</span>
-      <h2>Everything about your investment, on the first screen.</h2>
+      <h2>Everything about your vault, on the first screen.</h2>
       <div class="rf-grid cols-2" style="gap:24px">
-        <div class="rf-feature"><span class="ic">${icon('chart', 18)}</span><div><h3>Value since you bought</h3><p>A chart of what your Bitcoin has been worth on every day since your first purchase, against what you paid.</p></div></div>
-        <div class="rf-feature"><span class="ic">${icon('bitcoin', 18)}</span><div><h3>Growth so far</h3><p>For the whole investment and for each purchase, in dollars and per cent, at today&rsquo;s live price.</p></div></div>
-        <div class="rf-feature"><span class="ic">${icon('hourglass', 18)}</span><div><h3>Time to maturity</h3><p>How many days each purchase has left to run, and how far through its term it is.</p></div></div>
-        <div class="rf-feature"><span class="ic">${icon('withdraw', 18)}</span><div><h3>Sell and withdraw</h3><p>Sell any part of your Bitcoin back to cash at the live price, then withdraw it to a bank account in your name.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('chart', 18)}</span><div><h3>Value since day one</h3><p>A chart of what your vault has been worth on every day since your first investment, against what went in.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('bitcoin', 18)}</span><div><h3>Growth so far</h3><p>For the whole vault and for each investment, in dollars and per cent, at today&rsquo;s live price.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('hourglass', 18)}</span><div><h3>Time to maturity</h3><p>The day each investment went in, the day it matures, and how far through its term it is.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('send', 18)}</span><div><h3>Send when it matures</h3><p>Matured Bitcoin can be sent to a wallet of yours: confirmed by a code, checked by our team, then sent.</p></div></div>
       </div>
-      <p style="margin-top:28px"><a class="rf-btn ghost" href="/digital">See the dashboard</a></p>
+      <p style="margin-top:28px"><a class="rf-btn lg hs-cta" href="/open-account">Open your vault ${ui.arrow}</a></p>
     </div>
   </section>
 
   <section class="rf-section alt">
     <div class="wrap" style="max-width:860px">
       <div class="rf-notice warn hs-risk">
-        <div><strong>Know the risk</strong>${RISK} A maturity date marks the end of your chosen term; it does not lock your Bitcoin and it does not promise a value on that day.</div>
+        <div><strong>Know the risk</strong>${RISK} A maturity date marks the end of your chosen term. Bitcoin can be sent out of your vault only after it, and it does not promise a value on that day.</div>
       </div>
     </div>
   </section>`;
 
-/* ================================================================ dashboard == */
-
-const digitalContent = `
-  <section class="hs-home">
-    <div class="hs-home-bg" aria-hidden="true"><span></span><span></span></div>
-    <div class="wrap hs-home-grid">
-      <div class="hs-home-copy">
-        <span class="hs-kicker hs-in" style="--d:0ms">Your dashboard &middot; on your phone and computer</span>
-        <h1 class="hs-home-title hs-in" style="--d:80ms">Your Bitcoin,<br /><span class="hs-grad">from day one to maturity.</span></h1>
-        <p class="hs-lede hs-in" style="--d:160ms">${BANK.name} shows you one investment, clearly: <mark class="hs-hl">Bitcoin only</mark>, what you paid, what it is worth today, and how long each purchase has left to run.</p>
-        <div class="hs-actions hs-in" style="--d:240ms">
-          <a class="rf-btn lg hs-cta" href="/open-account">Start investing ${ui.arrow}</a>
-          <a class="hs-textlink" href="/signin">Log in to your dashboard</a>
-        </div>
-        <ul class="hs-features">
-          <li class="hs-in" style="--d:320ms"><span class="hs-ic">${ui.bars}</span><h3>Growth chart</h3><p>Value since the day you bought.</p></li>
-          <li class="hs-in" style="--d:390ms"><span class="hs-ic">${ui.clock}</span><h3>Time to maturity</h3><p>A countdown for every purchase.</p></li>
-          <li class="hs-in" style="--d:460ms"><span class="hs-ic">${ui.coin}</span><h3>Live price</h3><p>Buy and sell at the price you see.</p></li>
-          <li class="hs-in" style="--d:530ms"><span class="hs-ic">${ui.shield}</span><h3>Two-step security</h3><p>On every sign-in and withdrawal.</p></li>
-        </ul>
-      </div>
-
-      <div class="hs-home-visual" aria-hidden="true">
-        <span class="hs-slab hs-slab-a"></span>
-        <span class="hs-slab hs-slab-b"></span>
-        <div class="hs-phone">
-          <div class="hs-notch"></div>
-          <div class="hs-screen">
-            <div class="hs-screen-top">
-              <div class="hs-status"><span>9:41</span><span class="hs-sig"><i></i><i></i><i></i></span></div>
-              <div class="hs-app-brand"><img src="/assets/bank/logomark-light.png" alt="" width="17" height="21" /><span data-brand-name><b>${BANK.name.split(/\s+/)[0]}</b>${BANK.name.split(/\s+/).length > 1 ? `<small>${BANK.name.split(/\s+/).slice(1).join(' ')}</small>` : ''}</span></div>
-              <div class="hs-balance">$<span data-hs-count="16642">16,642</span>.60</div>
-              <div class="hs-delta"><span>${ui.up} +27.4%</span> since you bought</div>
-            </div>
-            <div class="hs-sheet">
-              <svg class="hs-mini-chart" viewBox="0 0 240 64" preserveAspectRatio="none"><path d="M0 56 L24 52 L48 54 L72 44 L96 46 L120 36 L144 38 L168 26 L192 30 L216 18 L240 12" fill="none" stroke="#0e8a62" stroke-width="2.5" stroke-linejoin="round"/><path d="M0 56 L60 56 L60 42 L150 42 L150 34 L240 34" fill="none" stroke="#7a5cd6" stroke-width="2" stroke-dasharray="5 4"/></svg>
-              <div class="hs-quick">
-                <span><i>${ui.coin}</i>Buy</span><span><i>${ui.send}</i>Sell</span><span><i>${ui.request}</i>Withdraw</span><span><i>${ui.more}</i>More</span>
-              </div>
-              <div class="hs-tx-head"><strong>Your purchases</strong><em>See all</em></div>
-              <ul class="hs-tx">
-                <li><i>${ui.coin}</i><span>$3,000.00 &middot; 24 months<small>636 days to maturity</small></span><b class="in">+15.4%</b></li>
-                <li><i>${ui.coin}</i><span>$6,000.00 &middot; 12 months<small>95 days to maturity</small></span><b class="in">+52.6%</b></li>
-                <li><i>${ui.coin}</i><span>$2,500.00 &middot; 12 months<small>Matured</small></span><b class="in">+60.5%</b></li>
-              </ul>
-              <div class="hs-tabs"><span class="on">${ui.home}Home</span><span>${ui.coin}Bitcoin</span><span>${ui.bars}History</span><span>${ui.more}More</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="hs-toast"><i>${ui.check}</i><span><strong>Bitcoin bought</strong><small>0.0158 BTC &middot; 12-month term</small></span></div>
-      </div>
-    </div>
-    <div class="wrap"><p class="rf-small rf-muted" style="margin:18px 0 0">Illustration with example figures. Your dashboard shows your own purchases at the live price.</p></div>
-  </section>
-
-  <section class="rf-section">
-    <div class="wrap">
-      <span class="rf-eyebrow">Everything on your dashboard</span>
-      <h2>Your investment, on the device in your hand.</h2>
-      <p class="section-lede">There is no app to download. Sign in from the browser on your phone, tablet or laptop and you get the same dashboard, the same protections and the same people behind them, wherever you are.</p>
-      <div class="rf-grid cols-3">
-        <div class="rf-card"><span class="hs-ic">${ui.bars}</span><h3 class="hs-card-h">Value since you bought</h3><p>A chart from your first purchase to today, with every purchase marked and what you paid drawn alongside.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.coin}</span><h3 class="hs-card-h">Growth, purchase by purchase</h3><p>What each purchase cost, the price you paid, what it is worth now and how much it has grown or fallen.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.clock}</span><h3 class="hs-card-h">Time to maturity</h3><p>The date each purchase matures, the days left, and how far through its term it is.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.send}</span><h3 class="hs-card-h">Buy and sell in a tap</h3><p>See how much Bitcoin an amount buys at the live price before you confirm, and sell back to cash any time.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.shield}</span><h3 class="hs-card-h">Two-step security</h3><p>A one-time code on every sign-in and every withdrawal, plus a withdrawal PIN of your own.</p></div>
-        <div class="rf-card"><span class="hs-ic">${ui.check}</span><h3 class="hs-card-h">Instant alerts</h3><p>Sign-ins, purchases, sales and withdrawals, the moment they happen, by email and text.</p></div>
-      </div>
-      <p style="margin-top:28px"><a class="rf-btn lg hs-cta" href="/open-account">Start investing ${ui.arrow}</a></p>
-    </div>
-  </section>
-`;
-
 /* ===================================================================== fees == */
 
-const fee = (key) => DEFAULT_SETTINGS.fees[key] ? money(DEFAULT_SETTINGS.fees[key]) : 'None';
 const FEES = [
-  ['Opening an account', 'None'],
+  ['Opening a vault', 'None'],
   ['Monthly or annual fee', 'None'],
-  ['Buying Bitcoin', 'No commission: you pay the live price shown when you confirm'],
-  ['Selling Bitcoin', 'No commission: you receive the live price shown when you confirm'],
-  ['Choosing or changing a term', 'None'],
-  ['Selling before a purchase matures', 'No penalty'],
-  ['Standard withdrawal (1 to 3 business days)', fee('achOutgoing')],
-  ['Same-day withdrawal', fee('wireDomestic')],
-  ['International withdrawal', fee('wireInternational')],
+  ['Holding Bitcoin in your vault', 'None'],
+  ['Sending Bitcoin you already hold into your vault', 'None from us; the Bitcoin network fee is paid by the sender'],
+  ['Paying cash through our OTC partner', 'The partner&rsquo;s rate, which they quote before you pay'],
+  ['Choosing your term', 'None'],
+  ['Sending matured Bitcoin to your wallet', 'The Bitcoin network fee, plus our fee if any, shown on the Send page before you confirm'],
 ];
 
 const ratesContent = `
   ${header({
     eyebrow: 'Fees',
-    title: 'What it costs to invest in Bitcoin.',
+    title: 'What a vault costs.',
     lede: 'Everything we charge, on one page. Most of it is nothing.',
     image: images.ratesHeader,
   })}
@@ -417,7 +337,7 @@ const ratesContent = `
   <section class="rf-section">
     <div class="wrap">
       <span class="rf-eyebrow">Every fee we charge</span>
-      <h2>No commission. No account fee.</h2>
+      <h2>No fee to open. No fee to hold.</h2>
       <div class="rf-card">
         <div class="rf-table-wrap">
           <table class="rf-table">
@@ -429,9 +349,9 @@ const ratesContent = `
 
       <h2 style="margin-top:48px">The limits.</h2>
       <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">Smallest purchase</div><div class="v">$1.00</div><div class="d">Bitcoin is held to the satoshi</div></div>
-        <div class="rf-card rf-stat"><div class="k">Largest single purchase</div><div class="v">${money(DEFAULT_SETTINGS.limits.singleTransactionMax)}</div><div class="d">Contact us to invest more at once</div></div>
-        <div class="rf-card rf-stat"><div class="k">Terms</div><div class="v">${TERMS.join(', ')}</div><div class="d">months, chosen when you buy</div></div>
+        <div class="rf-card rf-stat"><div class="k">Smallest cash payment</div><div class="v">$1.00</div><div class="d">Bitcoin is held to the satoshi</div></div>
+        <div class="rf-card rf-stat"><div class="k">Terms</div><div class="v">${VAULT.termYears.min} to ${VAULT.termYears.max}</div><div class="d">years, chosen as it goes in</div></div>
+        <div class="rf-card rf-stat"><div class="k">Sending out</div><div class="v">At maturity</div><div class="d">Only Bitcoin that has matured can be sent</div></div>
       </div>
 
       <p class="rf-disclosure" style="margin-top:24px">
@@ -445,7 +365,7 @@ const ratesContent = `
 const securityCentreContent = `
   ${header({
     eyebrow: 'Security centre',
-    title: 'How we protect your account, and how you can.',
+    title: 'How we protect your vault, and how you can.',
     lede: 'What runs on our side, what to switch on for yours, and what to do the moment something looks wrong.',
     image: images.securityHeader,
   })}
@@ -459,7 +379,7 @@ const securityCentreContent = `
 
       <h2 style="margin-top:34px">What runs whether you think about it or not.</h2>
       <div class="rf-grid cols-2" style="gap:24px">
-        <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Withdrawals checked</h3><p>A withdrawal to an account that is new to us is read by our team before the money leaves.</p></div></div>
+        <div class="rf-feature"><span class="ic">${icon('shield', 18)}</span><div><h3>Every send checked</h3><p>Bitcoin leaves a vault only after our team has checked the request against what has matured.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('lock', 18)}</span><div><h3>Encrypted at rest</h3><p>Social Security numbers and identity documents are encrypted with keys the application cannot print.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('activity', 18)}</span><div><h3>Every action logged</h3><p>Who did what, from which device and address. You can read your own history under Activity.</p></div></div>
         <div class="rf-feature"><span class="ic">${icon('user', 18)}</span><div><h3>Sessions you control</h3><p>See every signed-in device and sign any of them out, from anywhere.</p></div></div>
@@ -469,15 +389,15 @@ const securityCentreContent = `
       <div class="rf-card"><div class="rf-card-body">
         <ol style="margin:0;padding-left:20px;line-height:2.1">
           <li>Turn on two-step verification, and leave it on.</li>
-          <li>Set a withdrawal PIN that you use nowhere else.</li>
-          <li>Set the alert threshold low enough to be slightly annoying.</li>
-          <li>Add your own bank account as a withdrawal account before you need it.</li>
+          <li>Set a PIN for sending Bitcoin that you use nowhere else.</li>
+          <li>Only send Bitcoin to the vault address on your Receive page, and check it every time.</li>
+          <li>Check your own wallet address twice before you ask us to send to it.</li>
         </ol>
       </div></div>
 
       <h2 style="margin-top:48px">If something is wrong, call first.</h2>
       <div class="rf-grid cols-3">
-        <div class="rf-card rf-stat"><div class="k">Security line, 24/7</div><div class="v" style="font-size:20px" data-site="fraudPhone">Open around the clock</div><div class="d">Anything urgent about your account</div></div>
+        <div class="rf-card rf-stat"><div class="k">Security line, 24/7</div><div class="v" style="font-size:20px" data-site="fraudPhone">Open around the clock</div><div class="d">Anything urgent about your vault</div></div>
         <div class="rf-card rf-stat"><div class="k">General support</div><div class="v" style="font-size:20px" data-site="phone">Six days a week</div><div class="d" data-site="hours">${site.hours}</div></div>
         <div class="rf-card rf-stat"><div class="k">Report a phishing email</div><div class="v" style="font-size:16px">${BANK.securityEmail}</div><div class="d">Forward it; do not click anything in it</div></div>
       </div>
@@ -488,9 +408,9 @@ const securityCentreContent = `
 
 const openAccountContent = `
   ${header({
-    eyebrow: 'Start investing',
-    title: 'Start investing in Bitcoin.',
-    lede: 'Tell us a little about yourself and someone from our team comes back to you the same business day to open your account.',
+    eyebrow: 'Open your vault',
+    title: 'Open your Bitcoin vault.',
+    lede: 'Tell us a little about yourself and someone from our team comes back to you the same business day to open your vault.',
     image: images.openAccountHeader,
   })}
 
@@ -503,11 +423,11 @@ const openAccountContent = `
             <dt>Identity</dt><dd>A driver&rsquo;s licence, state ID or passport</dd>
             <dt>Tax</dt><dd>Your Social Security number or ITIN</dd>
             <dt>Address</dt><dd>Where you live now</dd>
-            <dt>To invest</dt><dd>From $1, in Bitcoin only</dd>
+            <dt>To add to it</dt><dd>Cash through our OTC partner, or Bitcoin you already hold</dd>
           </dl>
           <div class="rf-notice" style="margin-top:22px">
             <div><strong>Why this is a message and not a form full of secrets.</strong>
-            Accounts at ${BANK.name} are opened by our team, who verify your identity properly. Never send a Social Security number or a password through a web form.</div>
+            Vaults at ${BANK.name} are opened by our team, who verify your identity properly. Never send a Social Security number or a password through a web form.</div>
           </div>
           <p style="margin-top:22px"><a class="rf-btn ghost" href="/rates">See the fees first</a></p>
         </div>
@@ -532,7 +452,7 @@ const careersContent = `
         <div>
           <span class="rf-eyebrow">Life at ${BANK.name}</span>
           <h2>Small enough to know what you changed.</h2>
-          <p class="section-lede">We do one thing &mdash; Bitcoin investing &mdash; and nobody here is four layers from a customer. Whoever changes the ledger sits close enough to support to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
+          <p class="section-lede">We do one thing &mdash; keep Bitcoin safe for the long term &mdash; and nobody here is four layers from a customer. Whoever changes the ledger sits close enough to support to hear when it went wrong. We pay at market, promote from inside, and do not run a graduate scheme that keeps people away from real work for a year.</p>
         </div>
         <div class="rf-card"><div class="rf-card-body">
           <h3 style="font-family:var(--rf-display);margin:0 0 10px">What we offer</h3>
@@ -628,9 +548,9 @@ const contactContent = `
             <dt data-site-row="address" hidden>Post</dt><dd data-site-row="address" data-site="address" hidden></dd>
           </dl>
 
-          <h3 style="font-family:var(--rf-display);margin:30px 0 10px">Already investing with us?</h3>
-          <p class="rf-muted rf-small">Secure messages inside your account are the safe place for anything about your investment. They sit inside your session, so account details are fine to include.</p>
-          <p><a class="rf-btn ghost" href="/signin">Sign in to your account</a></p>
+          <h3 style="font-family:var(--rf-display);margin:30px 0 10px">Already have a vault?</h3>
+          <p class="rf-muted rf-small">Once you are signed in, secure messages are the safe place for anything about your vault. They sit inside your session, so personal details are fine to include.</p>
+          <p><a class="rf-btn ghost" href="/signin">Sign in to your vault</a></p>
 
           <div class="rf-notice warn" style="margin-top:22px">
             <div><strong>Never send a secret here.</strong>No passwords and no one-time codes. We will never ask for them.</div>
@@ -644,27 +564,27 @@ const contactContent = `
 /* ===================================================================== legal == */
 
 const legalContent = `
-  ${header({ eyebrow: 'Legal', title: 'Terms, privacy and risk.', lede: `The notices that govern an account at ${BANK.name}.` })}
+  ${header({ eyebrow: 'Legal', title: 'Terms, privacy and risk.', lede: `The notices that govern a vault at ${BANK.name}.` })}
 
   <section class="rf-section">
     <div class="wrap" style="max-width:820px">
       <article class="rf-card"><div class="rf-card-body">
         <h2 id="privacy" style="font-family:var(--rf-display);margin-top:0;font-size:21px">Privacy notice</h2>
-        <p class="rf-muted">${BANK.legalName} collects the information needed to open and run your account: your name, address, date of birth, Social Security number, identification documents, your purchases, sales and withdrawals, and the devices you use to reach us. We share it only with the service providers who help us run the platform, and with regulators and law enforcement where the law requires it. We do not sell it.</p>
+        <p class="rf-muted">${BANK.legalName} collects the information needed to open and run your vault: your name, address, date of birth, Social Security number, identification documents, what goes into and out of your vault, and the devices you use to reach us. We share it only with the service providers who help us run the platform, and with regulators and law enforcement where the law requires it. We do not sell it.</p>
         <p class="rf-muted">You may limit marketing at any time under Alerts once you are signed in, or by calling <span data-site="phone">our support team</span>.</p>
 
         <h2 id="terms" style="font-family:var(--rf-display);font-size:21px">Terms of use</h2>
-        <p class="rf-muted">Access to your account is personal to you. Keep your password and one-time codes to yourself, tell us immediately if you think someone else has them, and review your activity. We may hold, delay or decline a withdrawal where we reasonably suspect fraud, where it would breach a limit, or where a manual check is required. Where we decline one, the funds return to your cash balance and you are told why.</p>
-        <p class="rf-muted">Purchases and sales of Bitcoin are booked at the live price shown when you confirm. Each purchase carries the term you chose and a maturity date; the maturity date does not lock your Bitcoin, and you may sell before it.</p>
+        <p class="rf-muted">Access to your vault is personal to you. Keep your password and one-time codes to yourself, tell us immediately if you think someone else has them, and review your activity. We may hold, delay or decline a request to send Bitcoin where we reasonably suspect fraud, where it would breach a limit, or where a manual check is required. Where we decline one, the Bitcoin stays in your vault and you are told why.</p>
+        <p class="rf-muted">Everything added to your vault is booked at Bitcoin&rsquo;s price on the day the payment was made or the Bitcoin arrived. Each investment carries the term you chose, from ${VAULT.termYears.min} to ${VAULT.termYears.max} years, and a maturity date; it can be sent out of your vault only once that date has passed.</p>
 
         <h2 id="risk" style="font-family:var(--rf-display);font-size:21px">Risk warning</h2>
-        <p class="rf-muted">${RISK} The growth shown on your dashboard is calculated from the market price and is not a forecast. Bitcoin held with us is not a bank deposit and is not covered by deposit insurance.</p>
+        <p class="rf-muted">${RISK} The growth shown on your dashboard is calculated from the market price and is not a forecast. Bitcoin in your vault is not a deposit and is not covered by any deposit insurance scheme.</p>
 
         <h2 id="accessibility" style="font-family:var(--rf-display);font-size:21px">Accessibility</h2>
-        <p class="rf-muted">We aim to meet WCAG 2.2 AA across the site and your account. If any part of it is difficult to use, tell us on <span data-site="phone">our support line</span> or <a href="mailto:${site.email}" data-site="email">${site.email}</a> and we will help you complete what you were doing and fix the underlying problem.</p>
+        <p class="rf-muted">We aim to meet WCAG 2.2 AA across the site and your vault. If any part of it is difficult to use, tell us on <span data-site="phone">our support line</span> or <a href="mailto:${site.email}" data-site="email">${site.email}</a> and we will help you complete what you were doing and fix the underlying problem.</p>
 
         <h2 id="demo" style="font-family:var(--rf-display);font-size:21px">About this application</h2>
-        <p class="rf-muted">${BANK.legalName} is a fictional company. This site is a demonstration of an investment application: the accounts, balances and customer records used throughout are synthetic, and no real money moves through it.</p>
+        <p class="rf-muted">${BANK.legalName} is a fictional company. This site is a demonstration of a Bitcoin vault application: the vaults, balances and customer records used throughout are synthetic, and no real money or Bitcoin moves through it.</p>
       </div></article>
     </div>
   </section>`;
@@ -781,33 +701,28 @@ const marketing = (file, opts) => ({ file, build: marketingPage, opts });
 
 module.exports = [
   marketing('index.html', {
-    title: `${BANK.name} | Invest in Bitcoin, and only Bitcoin`,
-    description: `${BANK.name}: invest in Bitcoin only. Buy from $1 at the live price, choose a 3 to 24 month term, and follow your investment from purchase to maturity.`,
+    title: `${BANK.name} | A vault for your Bitcoin`,
+    description: `${BANK.name} keeps your Bitcoin in a vault on a term you choose, from ten years to a hundred: priced on the day it goes in, followed every day, and released to you when it matures.`,
     active: '', content: homeContent,
   }),
   marketing('bitcoin.html', {
-    title: `Invest in Bitcoin | ${BANK.name}`,
-    description: 'What you are buying, the terms you can choose, and what your dashboard shows until each purchase matures.',
+    title: `How the vault works | ${BANK.name}`,
+    description: 'How Bitcoin goes into your vault, how it is priced, the terms you can choose, and how it comes back to you when it matures.',
     active: 'bitcoin', content: bitcoinContent,
-  }),
-  marketing('digital.html', {
-    title: `Your dashboard | ${BANK.name}`,
-    description: `Your ${BANK.name} dashboard on your phone or computer, with nothing to download: value since you bought, growth so far and time to maturity.`,
-    active: 'digital', content: digitalContent,
   }),
   marketing('rates.html', {
     title: `Fees | ${BANK.name}`,
-    description: `Every fee ${BANK.name} charges for investing in Bitcoin.`,
+    description: `Every fee ${BANK.name} charges for a Bitcoin vault.`,
     active: 'rates', content: ratesContent,
   }),
   marketing('security-center.html', {
     title: `Security centre | ${BANK.name}`,
-    description: `How ${BANK.name} protects your account, and what to do if something looks wrong.`,
+    description: `How ${BANK.name} protects your vault, and what to do if something looks wrong.`,
     active: 'security-center', content: securityCentreContent,
   }),
   marketing('open-account.html', {
-    title: `Start investing | ${BANK.name}`,
-    description: `Start investing in Bitcoin with ${BANK.name}.`,
+    title: `Open your vault | ${BANK.name}`,
+    description: `Open a Bitcoin vault with ${BANK.name}.`,
     active: '', content: openAccountContent,
   }),
   marketing('careers.html', {

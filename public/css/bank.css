@@ -2053,3 +2053,81 @@ mark.hs-hl {
 .hs-app-brand [data-brand-name] b { display: block; font-size: 11px; letter-spacing: .06em; font-weight: 800; text-transform: uppercase; }
 .hs-app-brand [data-brand-name] small { display: block; font-size: 6.5px; letter-spacing: .26em; opacity: .85; text-transform: uppercase; }
 .hs-mini-chart { display: block; width: 100%; height: 56px; margin: 0 0 12px; }
+
+/* ==========================================================================
+   The vault: the dashboard's headline card with the growth chart inside it,
+   each investment dated from the day it went in to the day it matures, and
+   the Receive and Send screens. Invested is green and maturity is Bitcoin
+   orange wherever a date appears, so the two read apart at a glance; each
+   also carries its word ("Invested", "Matures"), never colour alone.
+   ========================================================================== */
+.hs-vault {
+  border-radius: 22px; overflow: hidden; background: var(--rf-surface);
+  border: 1px solid var(--rf-line); box-shadow: 0 24px 50px -34px rgba(11, 107, 80, .55);
+}
+.hs-vault .hs-vault-head { border-radius: 0; box-shadow: none; }
+.hs-vault-chart { padding: 18px 22px 16px; }
+.hs-vault-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 18px; flex-wrap: wrap; margin-bottom: 8px; }
+.hs-vault-chart-head h3 { margin: 0; font-size: 16px; }
+.hs-vault .hs-chart { height: 320px; }
+
+.hs-dates .rf-stat .k { display: inline-flex; align-items: center; gap: 7px; }
+.hs-date.is-in { box-shadow: inset 4px 0 0 var(--hs-chart-value), var(--rf-shadow); }
+.hs-date.is-out { box-shadow: inset 4px 0 0 #f7931a, var(--rf-shadow); }
+
+.hs-chip { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hs-chip.is-in { background: #e1f3eb; color: #0a5a44; }
+.hs-chip.is-out { background: #fdf0dc; color: #8a4b00; }
+
+.hs-timeline { list-style: none; margin: 0; padding: 0; }
+.hs-tl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; padding: 16px 20px; border-top: 1px solid var(--rf-line); }
+.hs-tl:first-child { border-top: 0; }
+.hs-timeline > .rf-muted { padding: 18px 20px; }
+.hs-tl-coin { padding-top: 2px; }
+.hs-tl-body { min-width: 0; display: grid; gap: 12px; }
+.hs-tl-top { display: flex; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; }
+.hs-tl-what, .hs-tl-value { display: grid; gap: 2px; }
+.hs-tl-what strong, .hs-tl-value strong { font-size: 16px; font-variant-numeric: tabular-nums; color: var(--rf-ink); }
+.hs-tl-what span { font-size: 13px; color: var(--rf-ink-3); }
+.hs-tl-value { text-align: right; }
+.hs-tl-value .rf-amt { font-size: 13px; }
+.hs-tl-track { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding-bottom: 18px; }
+.hs-tl-date { display: grid; gap: 2px; padding: 6px 11px; border-radius: 12px; }
+.hs-tl-date small { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.hs-tl-date b { font-size: 13.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hs-tl-date.is-in { background: #e1f3eb; color: #0a5a44; }
+.hs-tl-date.is-out { background: #fdf0dc; color: #8a4b00; text-align: right; }
+.hs-tl.is-matured .hs-tl-date.is-out { background: #0a5a44; color: #fff; }
+.hs-tl-bar { position: relative; display: block; height: 10px; border-radius: 999px; background: #e7ece9; }
+.hs-tl-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--hs-chart-value), #f7931a); }
+.hs-tl-bar em { position: absolute; left: 0; right: 0; top: 15px; font-style: normal; font-size: 12px; color: var(--rf-ink-3); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hs-term-input { display: flex; align-items: center; gap: 10px; }
+.hs-term-input .rf-input { max-width: 120px; }
+.hs-term-input span { color: var(--rf-ink-2); font-weight: 600; }
+.rf-field .hs-chips { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); }
+.hs-chips button.is-on { background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; }
+
+.hs-address { display: grid; gap: 8px; padding: 14px; border-radius: 14px; background: var(--rf-surface-3); border: 1px solid var(--rf-line); }
+.hs-address .k { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--rf-ink-2); }
+.hs-address code { font: 600 14px/1.5 var(--rf-mono); word-break: break-all; color: var(--rf-ink); }
+.hs-address .rf-btn { justify-self: start; }
+.hs-otc dd { word-break: break-word; }
+
+.hs-ready { display: grid; gap: 4px; padding: 16px 18px; border-radius: 16px; background: linear-gradient(135deg, #fff7ea, #fdf0dc); border: 1px solid #f5d9ad; }
+.hs-ready .k { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #8a4b00; }
+.hs-ready .v { font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--rf-ink); }
+.hs-ready .d { font-size: 13px; color: var(--rf-ink-2); }
+.hs-cell-asset.is-right { justify-content: flex-end; }
+tr.is-reversed td { opacity: .55; }
+
+@media (max-width: 620px) {
+  .hs-vault-chart { padding: 14px 14px 12px; }
+  .hs-vault .hs-chart { height: 250px; }
+  .hs-tl { padding: 14px 16px; gap: 10px; }
+  .hs-tl-track { grid-template-columns: 1fr 1fr; padding-bottom: 20px; }
+  .hs-tl-bar { grid-column: 1 / -1; grid-row: 2; }
+  .hs-tl-date.is-out { justify-self: end; }
+}
+.hs-mv-amt { display: grid; justify-items: end; gap: 2px; white-space: nowrap; }
+.hs-mv-amt small { font-size: 12px; color: var(--rf-ink-3); font-variant-numeric: tabular-nums; }

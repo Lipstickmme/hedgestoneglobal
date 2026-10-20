@@ -16,6 +16,8 @@ const ledger = require('../../bank/ledger');
 const usersLib = require('../../bank/users');
 const accountsLib = require('../../bank/accounts');
 const transfersLib = require('../../bank/transfers');
+const investLib = require('../../bank/invest');
+const vaultLib = require('../../bank/vault');
 const security = require('../../bank/security');
 const settingsLib = require('../../bank/settings');
 const contact = require('../../bank/contact');
@@ -28,7 +30,7 @@ const money_ = require('./moneyController');
 const { asyncHandler, fail, toCents, trimmed, money, page, csv } = require('../../bank/http');
 const {
   BANK, PRODUCTS, ACCOUNT_TYPES, CATEGORIES, TRANSACTION_METHODS,
-  US_STATES, SECURITY_QUESTIONS, DOCUMENT_KINDS, REJECTION_REASONS, ALERT_TYPES,
+  US_STATES, SECURITY_QUESTIONS, DOCUMENT_KINDS, REJECTION_REASONS, ALERT_TYPES, VAULT,
 } = require('../../bank/constants');
 
 const nowIso = () => new Date().toISOString();
@@ -45,20 +47,18 @@ async function customerOr404(id) {
 /* ------------------------------------------------------------- overview --- */
 
 const overview = asyncHandler(async (req, res) => {
-  const [allUsers, accounts, transfers, activity, alertRows, messages] = await Promise.all([
+  const [allUsers, requests, transfers, activity, alertRows, messages] = await Promise.all([
     db.users.find({}, { order: 'created_at.desc' }),
-    db.accounts.find({}),
-    db.transfers.find({}, { order: 'created_at.desc', limit: 200 }),
+    db.vaultRequests.find({}, { order: 'created_at.desc', limit: 500 }).catch(() => []),
+    db.transfers.find({ status: 'pending_review' }, { order: 'created_at.desc', limit: 200 }),
     db.activity.find({}, { order: 'created_at.desc', limit: 15 }),
     db.alerts.find({}, { order: 'created_at.desc', limit: 100 }),
     db.messages.find({ from_side: 'customer' }, { order: 'created_at.desc', limit: 50 }),
   ]);
 
   const customers = allUsers.filter((u) => u.role === 'customer');
-  const deposit = accounts.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1);
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
-
-  const pendingTransfers = transfers.filter((t) => ['pending_review', 'pending_verification', 'processing'].includes(t.status));
+  const waiting = requests.filter((r) => r.status === 'pending');
 
   res.json({
     stats: {
@@ -66,15 +66,17 @@ const overview = asyncHandler(async (req, res) => {
       newCustomers30d: customers.filter((u) => u.created_at >= since).length,
       pendingKyc: customers.filter((u) => u.kyc_status === 'pending').length,
       suspended: customers.filter((u) => u.status === 'suspended').length,
-      accounts: accounts.length,
-      deposits: deposit.reduce((s, a) => s + Number(a.balance || 0), 0),
-      pendingTransfers: pendingTransfers.length,
-      pendingTransferValue: pendingTransfers.reduce((s, t) => s + Number(t.total || 0), 0),
+      pendingRequests: waiting.length,
+      pendingReceives: waiting.filter((r) => r.kind !== 'btc_out').length,
+      pendingSends: waiting.filter((r) => r.kind === 'btc_out').length,
+      requestsDone30d: requests.filter((r) => r.status === 'completed' && (r.decided_at || r.created_at) >= since).length,
+      // Cash withdrawals asked for before the vault, still to release or return.
+      pendingTransfers: transfers.length,
       unansweredMessages: messages.length,
       alertsSent30d: alertRows.filter((a) => a.created_at >= since).length,
       alertsFailed: alertRows.filter((a) => a.status === 'failed').length,
     },
-    queue: pendingTransfers.slice(0, 8).map(transfersLib.publicTransfer),
+    queue: (await vaultLib.queue({ status: 'pending', limit: 8 }).catch(() => [])),
     activity: activity.map(publicActivity),
     recentCustomers: customers.slice(0, 6).map((u) => usersLib.publicUser(u, 'summary')),
   });
@@ -102,7 +104,7 @@ const listCustomers = asyncHandler(async (req, res) => {
   const { limit, offset } = page(req.query);
   const q = String(req.query.q || '').trim().toLowerCase();
   const rows = await db.users.find({}, { order: 'created_at.desc' });
-  const accounts = await db.accounts.find({});
+  const holdings = await db.holdings.find({ symbol: 'BTC' });
 
   const filtered = rows.filter((u) => {
     if (req.query.role && u.role !== req.query.role) return false;
@@ -113,17 +115,13 @@ const listCustomers = asyncHandler(async (req, res) => {
       .filter(Boolean).join(' ').toLowerCase().includes(q);
   });
 
-  const balances = new Map();
-  accounts.forEach((a) => {
-    const sign = (ACCOUNT_TYPES[a.type] || {}).sign === -1 ? -1 : 1;
-    balances.set(a.user_id, (balances.get(a.user_id) || 0) + sign * Number(a.balance || 0));
-  });
+  const vaults = new Map(holdings.map((h) => [h.user_id, h]));
 
   res.json({
     customers: filtered.slice(offset, offset + limit).map((u) => ({
       ...usersLib.publicUser(u, 'admin'),
-      totalBalance: balances.get(u.id) || 0,
-      accountCount: accounts.filter((a) => a.user_id === u.id).length,
+      btcUnits: vaults.has(u.id) ? String(vaults.get(u.id).units) : '0',
+      invested: vaults.has(u.id) ? Number(vaults.get(u.id).cost_basis || 0) : 0,
     })),
     total: filtered.length,
     limit,
@@ -144,6 +142,7 @@ const customerDetail = asyncHandler(async (req, res) => {
     db.alerts.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
   ]);
   const transactions = await db.transactions.find({ user_id: user.id }, { order: 'date.desc', limit: 60 });
+  const requests = await db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }).catch(() => []);
   const byId = new Map(accounts.map((a) => [a.id, a]));
 
   res.json({
@@ -156,15 +155,17 @@ const customerDetail = asyncHandler(async (req, res) => {
     sessions: sessions.map((s) => ({ id: s.id, device: s.device, ip: s.ip, lastSeenAt: s.last_seen_at, createdAt: s.created_at })),
     beneficiaries: beneficiaries.map(money_.publicBeneficiary),
     alerts: alertRows.map((a) => ({ id: a.id, subject: a.subject, type: a.type, status: a.status, createdAt: a.created_at, readAt: a.read_at })),
+    requests: requests.map(vaultLib.publicRequest),
   });
 });
 
 /**
  * Register a customer.
  *
- * One call does the whole opening: the person, their identity file, their
- * cash balance and the money they start with. Splitting it across several
- * requests would only invite half-made customers.
+ * One call does the whole opening: the person, their identity file, and
+ * anything they have already paid the OTC partner, booked into their vault.
+ * Splitting it across several requests would only invite half-made
+ * customers.
  */
 const createCustomer = asyncHandler(async (req, res) => {
   const body = req.body || {};
@@ -206,32 +207,23 @@ const createCustomer = asyncHandler(async (req, res) => {
     }
   }
 
-  // The cash balance. Older console forms sent a list of accounts; every
-  // entry opens a cash balance now, so their opening amounts still land.
-  const requested = Array.isArray(body.accounts) && body.accounts.length
-    ? body.accounts
-    : [{ openingBalance: body.openingBalance, nickname: body.nickname }];
-
-  const opened = [];
-  for (const [index, spec] of requested.entries()) {
-    const account = await accountsLib.openAccount(user, {
-      productId: 'investment_cash',
-      nickname: trimmed(spec.nickname, 40),
-      openingBalance: spec.openingBalance ? toCents(spec.openingBalance) : 0,
-      openingDescription: trimmed(spec.openingDescription, 120) || 'Opening deposit',
-      openingMethod: spec.openingMethod || 'adjustment',
-      isPrimary: index === 0,
-      createdBy: 'admin',
-      createdById: req.bankUser.id,
-    });
-    opened.push(account);
+  // What they have already paid the OTC partner, priced on the day they paid.
+  // Refused before the customer exists would be better, but the price is only
+  // known once the date is checked, and a failure here leaves a customer with
+  // an empty vault that staff can add to from their record.
+  let first = null;
+  const firstAmount = body.firstAmount != null && body.firstAmount !== '' ? toCents(body.firstAmount) : 0;
+  if (firstAmount > 0) {
+    const booked = await investLib.addToVault(user, {
+      kind: 'cash', amount: firstAmount, at: body.firstDate || null, termYears: body.firstTermYears, note: 'Paid before registration',
+    }, req, { staff: req.bankUser, silent: true });
+    first = booked.trade;
   }
 
   await audit.log({
     action: 'admin.customer_created', category: 'admin', userId: user.id, req, severity: 'notice',
     actor: actorOf(req),
-    detail: `Registered ${usersLib.fullName(user)} (${email}) with ${opened.length} account(s)`,
-    meta: { accounts: opened.map((a) => a.account_number) },
+    detail: `Registered ${usersLib.fullName(user)} (${email})${first ? ` with ${first.units} BTC in their vault` : ''}`,
   });
 
   // The welcome email carries the temporary password when we generated one.
@@ -240,15 +232,12 @@ const createCustomer = asyncHandler(async (req, res) => {
     force: true,
     subject: `Welcome to ${cfg.bankName || BANK.name}`,
     heading: `Welcome to ${cfg.bankName || BANK.name}`,
-    intro: `Your account is ready, ${user.first_name}. Sign in to buy Bitcoin and follow your investment.`,
+    intro: `Your vault is ready, ${user.first_name}. Sign in to follow your Bitcoin and add to it.`,
     rows: [
       { label: 'Customer number', value: user.customer_number },
       { label: 'Username', value: user.email },
       ...(temporaryPassword ? [{ label: 'Temporary password', value: temporaryPassword }] : []),
-      ...opened.map((a) => ({
-        label: `${a.name} ${ids.maskAccount(a.account_number)}`,
-        value: money(a.balance),
-      })),
+      ...(first ? [{ label: 'In your vault', value: `${first.units} BTC (${money(first.amount)})` }] : []),
     ],
     body: temporaryPassword
       ? 'Sign in with the temporary password above. You will be asked to choose your own the first time.'
@@ -258,7 +247,7 @@ const createCustomer = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     customer: usersLib.publicUser(fresh, 'admin'),
-    accounts: opened.map(accountsLib.publicAccount),
+    vault: first,
     documents: documents.map(profile.publicDocument),
     temporaryPassword: temporaryPassword || null,
   });
@@ -928,24 +917,30 @@ const updateSettings = asyncHandler(async (req, res) => {
   if (incoming.routingNumber && !ids.validateRouting(incoming.routingNumber)) {
     throw fail(400, 'That routing number does not pass the ABA checksum.');
   }
-  // Terms are whole months. The list is what a customer chooses from; the
-  // default is preselected, so it has to be one of them.
-  const months = (v) => Number(v);
-  const valid = (n) => Number.isInteger(n) && n >= 1 && n <= 120;
-  if (incoming.investmentTerms !== undefined) {
-    const list = (Array.isArray(incoming.investmentTerms) ? incoming.investmentTerms : String(incoming.investmentTerms).split(/[\s,]+/))
-      .filter((v) => String(v).trim() !== '').map(months);
-    if (!list.length || !list.every(valid)) throw fail(400, 'Terms are whole numbers of months between 1 and 120, separated by commas.');
-    incoming.investmentTerms = Array.from(new Set(list)).sort((a, b) => a - b);
+  // Retired with the vault: terms in months, and cash limits.
+  ['investmentTerms', 'investmentTermMonths', 'routingNumber'].forEach((key) => { delete incoming[key]; });
+  if (incoming.investmentTermYears !== undefined) {
+    const n = Number(incoming.investmentTermYears);
+    const { min, max } = VAULT.termYears;
+    if (!Number.isInteger(n) || n < min || n > max) throw fail(400, `The default term is a whole number of years from ${min} to ${max}.`);
+    incoming.investmentTermYears = n;
   }
-  if (incoming.investmentTermMonths !== undefined) {
-    const n = months(incoming.investmentTermMonths);
-    if (!valid(n)) throw fail(400, 'The default term is a whole number of months between 1 and 120.');
-    incoming.investmentTermMonths = n;
+  if (incoming.vaultAddresses !== undefined) {
+    const lines = String(incoming.vaultAddresses || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    const bad = lines.find((line) => !vaultLib.isBitcoinAddress(line.split(/\s+/)[0]));
+    if (bad) throw fail(400, `${bad.split(/\s+/)[0]} is not a Bitcoin address. Use one address a line, optionally followed by a label.`);
+    incoming.vaultAddresses = lines.join('\n');
   }
-  const terms = incoming.investmentTerms || (await settingsLib.get()).investmentTerms || [];
-  const fallback = incoming.investmentTermMonths != null ? incoming.investmentTermMonths : (await settingsLib.get()).investmentTermMonths;
-  if (terms.length && !terms.includes(fallback)) throw fail(400, `The default term (${fallback} months) must be one of the terms offered.`);
+  if (incoming.otc !== undefined) {
+    const o = incoming.otc && typeof incoming.otc === 'object' ? incoming.otc : {};
+    incoming.otc = Object.fromEntries(['name', 'bankName', 'accountName', 'accountNumber', 'routingNumber', 'swift', 'instructions']
+      .map((key) => [key, trimmed(o[key], key === 'instructions' ? 600 : 120)]));
+  }
+  if (incoming.fees && incoming.fees.vaultSend !== undefined) {
+    const fee = Number(incoming.fees.vaultSend);
+    if (!Number.isFinite(fee) || fee < 0) throw fail(400, 'The fee to send is an amount of zero or more.');
+    incoming.fees = { vaultSend: Math.round(fee) };
+  }
   const saved = await settingsLib.save(incoming);
   await audit.log({
     action: 'admin.settings_updated', category: 'admin', req, severity: 'notice',

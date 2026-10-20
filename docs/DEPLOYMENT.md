@@ -149,7 +149,8 @@ come next.
    | [`supabase/migrations/0004_bank_sms.sql`](../supabase/migrations/0004_bank_sms.sql) | Text-message delivery status on banking alerts |
    | [`supabase/migrations/0005_bank_invest.sql`](../supabase/migrations/0005_bank_invest.sql) | Investments: holdings, trades, and the last price seen for each asset |
    | [`supabase/migrations/0006_bank_backposting.sql`](../supabase/migrations/0006_bank_backposting.sql) | Staff booking, re-timing and reversing purchases after the fact |
-   | [`supabase/migrations/0007_invest_term.sql`](../supabase/migrations/0007_invest_term.sql) | The term and maturity date on every Bitcoin purchase |
+   | [`supabase/migrations/0007_invest_term.sql`](../supabase/migrations/0007_invest_term.sql) | The term and maturity date on every investment in a vault |
+   | [`supabase/migrations/0008_vault.sql`](../supabase/migrations/0008_vault.sql) | Requests to receive Bitcoin into a vault (cash through the OTC partner, or Bitcoin) and to send it out |
 
    Everything is behind row level security. `enquiries` has no anon policy at all:
    writes arrive through the API using the service role.
@@ -444,90 +445,78 @@ prices. Each item that is not done says exactly what to set and where. Fix,
 redeploy, press **Check again**. Until everything required is done, the
 console's Overview shows a banner with the number left.
 
-## Bitcoin: live price, history, terms and maturity
+## The vault: prices, history, terms and maturity
 
-Every page carries a live Bitcoin price under the nav, and the signed-in
-**Bitcoin** screen (`/invest`) is where a customer buys Bitcoin with their cash
-balance and sells it back. Bitcoin is the only asset offered. They get a
-fraction of a Bitcoin, to the satoshi, at the price of the moment they confirm,
-and choose a **term** for each purchase (Settings, Bitcoin terms: 3, 6, 12 and
-24 months to start with). A purchase matures on its purchase date plus its
-term; the dashboard counts down to it and charts the value of what they hold
-since their first purchase.
+Every page carries a live Bitcoin price under the nav. A customer's vault holds
+investments that each went in on a date, at that day's price, with a term of 10
+to 100 years. Bitcoin comes in as cash paid to the OTC partner or as Bitcoin
+sent to the vault address, and goes out only once it has matured; staff
+confirm both under **Requests**. [RUNNING-THE-BANK.md](RUNNING-THE-BANK.md)
+covers the day-to-day.
 
 What it needs:
 
 1. Run `supabase/setup.sql` (Step 4). It includes `0005_bank_invest.sql`
-   (holdings and trades) and `0007_invest_term.sql` (the term and maturity on
-   each purchase). Until 0007 has run, purchases still book, on the default
-   term, and the setup checklist says so.
-2. Nothing else. The price comes from CoinGecko, Coinbase or Yahoo Finance,
-   and the daily history behind the chart from CoinGecko, Yahoo Finance or
-   Coinbase, whichever answers first; no key is needed.
-3. Check `https://<your-app>/api/bank/markets` (a price with its `source`) and
-   `https://<your-app>/api/bank/markets/history?days=365` (a list of points).
+   (holdings and trades), `0007_invest_term.sql` (the term and maturity date)
+   and `0008_vault.sql` (requests to receive and send). Until 0007 has run,
+   investments still book, on the default term; until 0008 has run, the setup
+   checklist flags `bank_vault_requests`.
+2. In the console, **Settings**: the vault addresses and the OTC partner's
+   payment details. Until they are set, Receive tells customers it cannot take
+   cash or Bitcoin yet.
+3. Nothing else. The live price comes from CoinGecko, Coinbase or Yahoo
+   Finance. The daily history behind the chart, and the price for any past day,
+   comes from Yahoo Finance (from September 2014), Blockchain.com and
+   CryptoCompare (from 2010) or Coinbase (from 2015), whichever answers first
+   with enough of it; no key is needed.
+4. Check `https://<your-app>/api/bank/markets` (a price with its `source`) and
+   `https://<your-app>/api/bank/markets/history?days=6000` (points back to 2011).
 
 How it behaves:
 
-- Each purchase is a normal ledger debit of the cash balance (category
-  **Investments**), so it appears in transactions; a sale is a credit.
-- The price is fetched by the server at the moment of the trade, never taken
-  from the browser. If it has moved more than 2% from the price the customer
-  was shown, the trade is refused with the new price and they confirm again.
-- If no price fresher than two minutes can be had, buying and selling are
-  refused with a message saying so; the ticker keeps showing the last price
-  with its time.
-- A maturity date does not lock anything: Bitcoin can be sold at any time,
-  oldest purchase first.
-- Holdings of the assets offered before the platform became Bitcoin only (the
-  S&P 500, stocks, gold) are converted to Bitcoin at live prices the next time
-  the customer's portfolio is read, or when staff open Bitcoin investments.
-  What the customer originally invested carries over as the cost of the
-  Bitcoin, and they are sent a notice. Those other assets are never shown, and
-  nothing but Bitcoin can be bought or sold.
+- Nothing can be dated before 1 January 2011 or in the future. Anything dated
+  in the past is booked at Bitcoin's closing price that day, so a customer's
+  growth is measured from the day each investment went in. If no provider has
+  a price for that day, the booking is refused with a message saying so.
+- Moving an investment to another date reprices it at that day: cash paid
+  keeps its amount and buys what it would have then; Bitcoin received keeps
+  its units and is valued at that day.
+- Only matured Bitcoin can be sent, after the customer's PIN and an emailed
+  code, and only once staff mark it sent. It comes off what matured first.
+- Cash balances and the assets offered before the vault (the S&P 500, stocks,
+  gold) are converted to Bitcoin at live prices the next time the customer's
+  vault is read, or when staff open **Vaults**, with what was originally paid
+  carried over. Nothing else is shown.
 
-**This is a demonstration of the flow.** Holdings are recorded in this
-application's ledger; no order is sent to an exchange or broker, and no Bitcoin
-is bought or held on anyone's behalf. Offering this to real customers needs a
-licensed exchange or custody partner, and the licences (and disclosures) that
-go with taking customers' money to invest.
+**This is a demonstration of the flow.** Vaults are records in this
+application's database; no Bitcoin is held on anyone's behalf, no transaction
+is made on any network, and the OTC partner and vault addresses are whatever
+staff type in. Offering this to real customers needs a licensed custodian and
+OTC partner, and the licences (and disclosures) that go with holding other
+people's Bitcoin.
 
-## Back-posting: instructions taken by phone (staff only)
+## Adding to a vault after the fact (staff only)
 
-Some instructions reach the bank before they reach the system: a customer at
-the counter, or a call taken while the network was down. The staff console
-records them at the time and price they were actually agreed. Open the
+Some payments reach the platform before they reach the system: money paid
+before a customer was registered, or a transfer confirmed by phone. Open the
 customer (search in the console header), then:
 
-- **Adjust** on an account posts a credit or debit with a **value date and
-  time** - leave both blank for now.
-- **Edit** on any entry changes its date and time, description, category, memo
-  and - for a posted entry that is not a Bitcoin purchase or sale - its **amount**, moving the
-  balance by the difference. Every edit asks for an internal note.
-- **Bitcoin, Book a purchase or sale** buys Bitcoin with cash, or sells it to
-  cash, at an **entered price** (prefilled with the live price), an optional
-  earlier **time** and, for a purchase, any whole number of months as its
-  **term**. The receipt says "Entered by staff".
-- On each purchase or sale, **Change date or term** moves it and its ledger
-  entry to when it really happened (a purchase's maturity moves with it, and its
-  term can be changed); **Reverse** undoes it completely - Bitcoin off (or back
-  on) the holding and the cash back through a ledger reversal. The ordinary
-  Reverse on its ledger entry does the same, so cash and Bitcoin never disagree.
+- **Add to this vault** books cash paid or Bitcoin received, with the **date**
+  it happened (not before 2011) and a **term** of 10 to 100 years. It is priced
+  at that day's close, never typed in.
+- On each investment, **Change date or term** moves it to when it really
+  happened, repricing it at that day, and its maturity moves with it.
+  **Reverse** takes it back out of the vault completely. A conversion cannot be
+  reversed.
 
-Whenever an entry is dated in the past, the running "balance after" figures of
-the entries after it are restated, so statements and the transaction list add
-up; the account balance itself is the anchor and does not change. Nothing can
-be dated in the future. Every one of these actions is recorded in the activity
-log against the member of staff, with before-and-after figures. Customers
-cannot reach any of it.
+Every one of these actions is recorded in the activity log against the member
+of staff. Customers cannot reach any of it.
 
 ## Asset logos
 
-The ticker, dashboard and Invest screen show a round badge for each asset,
-drawn in the asset's colours. To use real logos instead, put files named by
-symbol in `public/assets/img/logos/` (`AAPL.svg`, `BTC.png`, ...) and rebuild;
-any asset without a file keeps its badge. Company logos are trademarks: use
-them only where you have the right to.
+The ticker, the dashboard and the vault screens show a round Bitcoin badge
+wherever Bitcoin is named. To use a logo file instead, put `BTC.svg` (or
+`.png`) in `public/assets/img/logos/` and rebuild.
 
 ## Local development
 
@@ -577,7 +566,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `PINGRAM_SMS_URL` | no | Override for Pingram's send endpoint (default `https://api.pingram.io/sms`) |
 | `FINNHUB_API_KEY` | optional | Free key from finnhub.io: stock and ETF prices, used only to convert holdings of those assets to Bitcoin. Without it, Yahoo Finance and Stooq are used |
 | `MARKET_CACHE_SECONDS` | no | How long one round of prices is reused (default 30) |
-| `MARKET_TRADE_MAX_AGE_SECONDS` | no | A purchase or sale is refused if the freshest price is older than this (default 120) |
+| `MARKET_TRADE_MAX_AGE_SECONDS` | no | Today's price is only used if it is fresher than this (default 120); otherwise booking waits for one |
 | `MARKET_HISTORY_CACHE_MINUTES` | no | How long the daily price history behind the dashboard chart is kept before it is fetched again (default 30) |
 | `MARKET_DATA_FIXTURE` | no | `1` uses fixed demonstration prices. Tests and offline only; never on a deployment |
 | `PUBLIC_BASE_URL` | for email | Absolute base for the links inside alert emails. `BANK_BASE_URL` and `APP_URL` are accepted too, for when Vercel refuses the `PUBLIC_` prefix |
@@ -648,9 +637,9 @@ host's router, not from here.
 On Vercel that means a path with no function file behind it. `api/[...path].js`
 resolves for **one** segment under `/api` and nothing deeper, so `/api/health`
 answers while `/api/bank/auth/login` does not. Each depth needs its own entry
-point, which is what the files under `api/bank/` are - four of them, because
-the deepest bank route is four segments
-(`/api/bank/accounts/:id/statements/:period`).
+point, which is what the files under `api/bank/` are - five of them, because
+the deepest bank route is five segments
+(`/api/bank/admin/vault/requests/:id/confirm`).
 
 `npm test` checks that every route the bank registers has one, and names the
 file to add if a new route goes deeper than the existing files reach.

@@ -74,6 +74,7 @@ const PROBES = [
   ].map(([table, columns]) => ({ table, columns, migration: '0005_bank_invest.sql' })),
   { table: 'bank_trades', key: 'bank_trades.staff', columns: 'id,status,reversed_at,booked_by,note', migration: '0006_bank_backposting.sql' },
   { table: 'bank_trades', key: 'bank_trades.term', columns: 'id,term_months,matures_at', migration: '0007_invest_term.sql' },
+  { table: 'bank_vault_requests', key: 'bank_vault_requests', columns: 'id,kind,status,units,address,txid', migration: '0008_vault.sql' },
 ];
 
 async function probeSchema() {

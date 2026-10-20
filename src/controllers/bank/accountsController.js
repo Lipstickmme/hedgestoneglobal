@@ -155,32 +155,22 @@ const exportTransactions = asyncHandler(async (req, res) => {
 /* ------------------------------------------------------------ overview --- */
 
 /**
- * The cash side of the dashboard, in one round trip: what is in the cash
- * balance, what is available to invest or withdraw, recent entries and
- * withdrawals. The Bitcoin side comes from /invest.
+ * The rest of the dashboard, in one round trip: who is signed in, their open
+ * requests to receive or send Bitcoin, recent alerts and unread messages.
+ * What is in the vault comes from /invest.
  */
 const overview = asyncHandler(async (req, res) => {
   const user = req.bankUser;
-  const [accounts, allTx, transfers, alertRows, messages] = await Promise.all([
-    db.accounts.find({ user_id: user.id }, { order: 'created_at.asc' }),
-    db.transactions.find({ user_id: user.id }, { order: 'date.desc', limit: 50 }),
-    db.transfers.find({ user_id: user.id }, { order: 'created_at.desc', limit: 20 }),
+  const vault = require('../../bank/vault');
+  const [requests, alertRows, messages] = await Promise.all([
+    db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 10 }).catch(() => []),
     db.alerts.find({ user_id: user.id }, { order: 'created_at.desc', limit: 8 }),
     db.messages.find({ user_id: user.id, from_side: 'bank', read_at: null }),
   ]);
-  const byId = new Map(accounts.map((a) => [a.id, a]));
-  const cash = accounts.filter((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1 && a.status !== 'closed');
-
   res.json({
     user: require('../../bank/users').publicUser(user, 'self'),
-    totals: {
-      deposits: cash.reduce((s, a) => s + Number(a.balance || 0), 0),
-      available: cash.reduce((s, a) => s + ledger.availableFor(a), 0),
-    },
-    accounts: cash.map(accountsLib.publicAccount),
-    recent: allTx.slice(0, 10).map((t) => publicTransaction(t, byId.get(t.account_id))),
-    pending: allTx.filter((t) => t.status === 'pending').map((t) => publicTransaction(t, byId.get(t.account_id))),
-    transfers: transfers.slice(0, 6).map(require('../../bank/transfers').publicTransfer),
+    requests: requests.map(vault.publicRequest),
+    openRequests: requests.filter((r) => vault.OPEN.includes(r.status)).length,
     alerts: alertRows.map((a) => ({
       id: a.id, type: a.type, subject: a.subject, preview: a.preview,
       createdAt: a.created_at, readAt: a.read_at, severity: a.severity, status: a.status,

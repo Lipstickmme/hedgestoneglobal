@@ -22,7 +22,7 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=72c898ad" />
+  <link rel="stylesheet" href="/css/bank.css?v=eed87fea" />
   
   <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
 </head>
@@ -41,14 +41,14 @@
         <div class="rf-nav-group">
           <h6>Today</h6>
           <a href="#overview" data-tab="overview" class="is-active"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Overview</span></a>
-          <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 14.4V3.4"/><path d="M7.5 7.9 12 3.4l4.5 4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.4 18.6h7.2"/></g></svg><span>Withdrawals</span><em class="rf-pip rf-hide" data-staff-pip="queue"></em></a>
+          <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.3 21h17.4"/></g></svg><span>Requests</span><em class="rf-pip rf-hide" data-staff-pip="queue"></em></a>
           <a href="#messages" data-tab="messages"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 5h19.2v14H2.4z"/><path d="m2.4 5.9 9.6 6.7 9.6-6.7"/></g><g stroke-width="0.95" opacity=".72"><path d="m2.4 18.2 6.6-5.4M21.6 18.2 15 12.8"/></g></svg><span>Messages</span><em class="rf-pip rf-hide" data-staff-pip="messages"></em></a>
         </div>
         <div class="rf-nav-group">
           <h6>Customers</h6>
           <a href="#customers" data-tab="customers"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="9" cy="7.6" r="3.4"/><path d="M3 19.9a6 6 0 0 1 12 0"/><path d="M16.1 4.9a3.4 3.4 0 0 1 0 6.4"/><path d="M17 13.8a6 6 0 0 1 4 5.6"/></g></svg><span>All customers</span></a>
           <a href="#register" data-tab="register"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 4.4v15.2M4.4 12h15.2"/></g></svg><span>Register a customer</span></a>
-          <a href="#investments" data-tab="investments"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="12" r="9.3"/><path d="M9.3 7.3h4a2.1 2.1 0 0 1 0 4.3h-4zM9.3 11.6h4.6a2.25 2.25 0 0 1 0 4.5H9.3zM9.3 7.3v8.8"/></g><g stroke-width="0.95" opacity=".72"><path d="M10.8 5.7v1.6M13 5.7v1.6M10.8 16.1v1.6M13 16.1v1.6"/></g></svg><span>Bitcoin investments</span></a>
+          <a href="#investments" data-tab="investments"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3 4.2h18v15.6H3z"/><circle cx="12" cy="12" r="4.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 9.6v4.8M9.6 12h4.8"/><path d="M5.6 8v1.6M5.6 14.4V16"/></g></svg><span>Vaults</span></a>
         </div>
         <div class="rf-nav-group">
           <h6>Records</h6>
@@ -77,7 +77,7 @@
         <button class="rf-burger" id="rf-burger" aria-label="Open menu"><span></span></button>
         <div>
           <h1>Staff console</h1>
-          <p class="rf-top-sub">Customers, withdrawals and everything that has been done today.</p>
+          <p class="rf-top-sub">Customers, their vaults, and everything that has been done today.</p>
         </div>
         <div class="rf-top-actions">
           <form class="hs-staff-search" role="search" data-staff-search>
@@ -102,10 +102,10 @@
           <div class="rf-grid cols-4 rf-mb" data-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Waiting for a decision</h3><div class="rf-card-actions"><button class="rf-btn ghost sm" data-goto="queue">Open the queue</button></div></div>
+              <div class="rf-card-head"><h3>Waiting for a decision</h3><div class="rf-card-actions"><button class="rf-btn ghost sm" data-goto="queue">Open the requests</button></div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
-                  <thead><tr><th>Customer</th><th>Type</th><th>To</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
+                  <thead><tr><th>Customer</th><th>Request</th><th>Details</th><th class="num">Amount</th><th>Submitted</th></tr></thead>
                   <tbody data-queue-preview><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
                 </table>
               </div>
@@ -140,7 +140,7 @@
             <div class="rf-card-head"><h3>Customers</h3><div class="rf-card-actions rf-small rf-muted" data-customer-count></div></div>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Accounts</th><th class="num">Cash</th><th>Joined</th></tr></thead>
+                <thead><tr><th>Customer</th><th>Customer no.</th><th>Status</th><th>KYC</th><th class="num">Bitcoin</th><th class="num">Invested</th><th>Joined</th></tr></thead>
                 <tbody data-customers><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
@@ -261,10 +261,14 @@
 
               <div class="rf-stack">
                 <section class="rf-card">
-                  <div class="rf-card-head"><h3>Cash balance</h3></div>
+                  <div class="rf-card-head"><h3>First amount into the vault</h3></div>
                   <div class="rf-card-body">
-                    <p class="rf-small rf-muted" style="margin-top:0">Every customer has one cash balance. It holds money waiting to buy Bitcoin, and it is where sales are paid. Post what they are starting with; add more later with Adjust on their record.</p>
-                    <div class="rf-field"><label for="r-opening">Opening deposit</label><input class="rf-input money" id="r-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
+                    <p class="rf-small rf-muted" style="margin-top:0">Optional. Cash they have already paid the OTC partner, booked as Bitcoin at its price on the day they paid. Add more later from their record.</p>
+                    <div class="rf-row">
+                      <div class="rf-field"><label for="r-opening">Amount paid</label><input class="rf-input money" id="r-opening" name="firstAmount" inputmode="decimal" placeholder="0.00" /></div>
+                      <div class="rf-field"><label for="r-first-date">Paid on</label><input class="rf-input" type="date" id="r-first-date" name="firstDate" min="2011-01-01" /></div>
+                    </div>
+                    <div class="rf-field"><label for="r-first-term">Term (years)</label><input class="rf-input" type="number" id="r-first-term" name="firstTermYears" min="10" max="100" step="1" placeholder="10" /><div class="hint">10 to 100 years. Blank for the default term.</div></div>
                   </div>
                 </section>
 
@@ -284,7 +288,7 @@
                     <div class="rf-field"><label for="r-notes">Internal notes</label><textarea class="rf-textarea" id="r-notes" name="notes" style="min-height:70px"></textarea></div>
                     <div class="rf-notice bad rf-hide" data-form-error></div>
                     <button class="rf-btn block" type="submit" data-submit>Register customer</button>
-                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number, the cash balance and the temporary password.</p>
+                    <p class="rf-small rf-muted rf-mt">A welcome email goes out with the customer number and the temporary password.</p>
                   </div>
                 </section>
               </div>
@@ -296,23 +300,34 @@
         <section data-panel="queue" hidden>
           <section class="rf-card">
             <div class="rf-card-head">
-              <h3>Withdrawals</h3>
+              <h3>Requests</h3>
               <div class="rf-card-actions">
                 <select class="rf-select" data-queue-status style="width:auto">
-                  <option value="pending_review">In review</option>
-                  <option value="">Everything</option>
-                  <option value="pending_verification">Awaiting the customer&rsquo;s code</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="rejected">Returned</option>
+                  <option value="pending">Waiting for us</option>
+                  <option value="pending_verification">Waiting for the customer&rsquo;s code</option>
+                  <option value="completed">Done</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="cancelled">Cancelled by the customer</option>
+                  <option value="all">Everything</option>
                 </select>
-                <button class="rf-btn ghost sm" data-run-scheduled>Run scheduled now</button>
               </div>
             </div>
+            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Cash paid to the OTC partner and Bitcoin sent to the vault are booked when you confirm them, at Bitcoin&rsquo;s price on the day the customer paid or sent it. A send can only be approved for Bitcoin that has matured: make the transfer from the vault wallet, then mark it sent with its transaction ID.</p>
             <div class="rf-table-wrap">
               <table class="rf-table">
-                <thead><tr><th>Submitted</th><th>Customer</th><th>Type</th><th>To</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
-                <tbody data-queue><tr><td colspan="8" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                <thead><tr><th>Submitted</th><th>Customer</th><th>Request</th><th>Details</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+                <tbody data-queue><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="rf-card rf-mt" data-legacy-wrap hidden>
+            <div class="rf-card-head"><h3>Cash withdrawals from before the vault</h3></div>
+            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Asked for before the platform became a vault. Release one to pay it, or return it: returned cash is converted to Bitcoin the next time the customer signs in.</p>
+            <div class="rf-table-wrap">
+              <table class="rf-table">
+                <thead><tr><th>Submitted</th><th>Customer</th><th>To</th><th>Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
+                <tbody data-legacy-queue></tbody>
               </table>
             </div>
           </section>
@@ -449,7 +464,7 @@
           <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Who holds Bitcoin</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
+              <div class="rf-card-head"><h3>Vaults</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
                   <thead><tr><th>Customer</th><th class="num">Bitcoin</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
@@ -511,35 +526,43 @@
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Bitcoin terms</h3></div>
+                <div class="rf-card-head"><h3>The vault</h3></div>
                 <div class="rf-card-body">
-                  <p class="rf-small rf-muted" style="margin:0 0 16px">The terms a customer chooses from when they buy, and the one chosen for them. Each purchase matures on its purchase date plus its term; the dashboard counts down to it. A maturity date does not lock anything.</p>
+                  <div class="rf-field"><label for="st-addresses">Vault addresses</label><textarea class="rf-textarea mono" id="st-addresses" name="vaultAddresses" style="min-height:96px" placeholder="bc1q... Main vault"></textarea><div class="hint">Where customers send Bitcoin in. One address a line, optionally followed by a label. Each customer is always shown the same one. Until one is set, customers cannot send Bitcoin in.</div></div>
                   <div class="rf-row">
-                    <div class="rf-field"><label for="st-terms">Terms offered (months)</label><input class="rf-input" id="st-terms" name="investmentTerms" placeholder="3, 6, 12, 24" /></div>
-                    <div class="rf-field"><label for="st-term">Default term (months)</label><input class="rf-input" id="st-term" name="investmentTermMonths" inputmode="numeric" /></div>
+                    <div class="rf-field"><label for="st-term">Default term (years)</label><input class="rf-input" id="st-term" name="investmentTermYears" type="number" min="10" max="100" step="1" /><div class="hint">Customers choose 10 to 100 years; this one is preselected.</div></div>
+                    <div class="rf-field"><label for="st-send-fee">Fee to send Bitcoin out</label><input class="rf-input money" id="st-send-fee" name="vaultSendFee" inputmode="decimal" placeholder="0.00" /><div class="hint">Ours, shown on the Fees page. The Bitcoin network&rsquo;s fee is separate.</div></div>
                   </div>
                 </div>
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Verification and review</h3></div>
+                <div class="rf-card-head"><h3>OTC partner</h3></div>
                 <div class="rf-card-body">
-                  <div class="rf-switch"><span class="t">One-time code on every withdrawal<small>Emailed before the withdrawal is accepted.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Withdrawal PIN required<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
-                  <div class="rf-switch"><span class="t">Hold withdrawals for review<small>Nothing leaves until someone here releases it.</small></span><input type="checkbox" name="holdTransfersForReview" /></div>
-                  <div class="rf-switch"><span class="t">Maintenance mode<small>Shows a banner across the site.</small></span><input type="checkbox" name="maintenanceMode" /></div>
-                  <div class="rf-field rf-mt"><label for="st-hold">Always review above</label><input class="rf-input" id="st-hold" name="holdThresholdCents" inputmode="decimal" /></div>
+                  <p class="rf-small rf-muted" style="margin:0 0 16px">Customers paying cash pay the OTC partner directly, quoting their customer number. These details are shown on their Receive page. Until the payee name and number are set, cash payments are closed.</p>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-name">Partner</label><input class="rf-input" id="st-otc-name" name="otc.name" placeholder="The OTC desk's trading name" /></div>
+                    <div class="rf-field"><label for="st-otc-bank">Their bank</label><input class="rf-input" id="st-otc-bank" name="otc.bankName" /></div>
+                  </div>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-payee">Payee name</label><input class="rf-input" id="st-otc-payee" name="otc.accountName" /></div>
+                    <div class="rf-field"><label for="st-otc-number">Number to pay</label><input class="rf-input mono" id="st-otc-number" name="otc.accountNumber" /></div>
+                  </div>
+                  <div class="rf-row">
+                    <div class="rf-field"><label for="st-otc-routing">Routing or sort code</label><input class="rf-input mono" id="st-otc-routing" name="otc.routingNumber" /></div>
+                    <div class="rf-field"><label for="st-otc-swift">SWIFT / BIC</label><input class="rf-input mono" id="st-otc-swift" name="otc.swift" /></div>
+                  </div>
+                  <div class="rf-field"><label for="st-otc-instructions">Instructions</label><textarea class="rf-textarea" id="st-otc-instructions" name="otc.instructions" style="min-height:70px" placeholder="Quote your customer number as the payment reference."></textarea></div>
                 </div>
               </section>
 
               <section class="rf-card">
-                <div class="rf-card-head"><h3>Daily limits</h3></div>
-                <div class="rf-card-body rf-row" data-limits></div>
-              </section>
-
-              <section class="rf-card">
-                <div class="rf-card-head"><h3>Fees</h3></div>
-                <div class="rf-card-body rf-row" data-fees></div>
+                <div class="rf-card-head"><h3>Verification</h3></div>
+                <div class="rf-card-body">
+                  <div class="rf-switch"><span class="t">One-time code on every send<small>Emailed before a request to send Bitcoin reaches you.</small></span><input type="checkbox" name="requireOtpForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">PIN required to send<small>For customers who have set one.</small></span><input type="checkbox" name="requirePinForTransfers" /></div>
+                  <div class="rf-switch"><span class="t">Maintenance mode<small>Shows a banner across the site.</small></span><input type="checkbox" name="maintenanceMode" /></div>
+                </div>
               </section>
             </div>
             <div class="rf-inline rf-mt">
@@ -558,61 +581,6 @@
               <button type="button" data-close-modal aria-label="Close">&times;</button>
             </div>
             <div class="rf-modal-body" data-modal-body></div>
-          </div>
-        </div>
-
-        <!-- ------------------------------------------------ adjust modal -- -->
-        <div class="rf-modal-backdrop rf-hide" data-adjust-modal>
-          <div class="rf-modal">
-            <div class="rf-modal-head">
-              <h3>Adjust a balance</h3>
-              <button type="button" data-close-modal aria-label="Close">&times;</button>
-            </div>
-            <form id="rf-adjust-form">
-              <div class="rf-modal-body">
-                <p class="rf-small rf-muted" data-adjust-account></p>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="ad-direction">Direction</label>
-                    <select class="rf-select" id="ad-direction" name="direction">
-                      <option value="credit">Credit (money in)</option>
-                      <option value="debit">Debit (money out)</option>
-                    </select>
-                  </div>
-                  <div class="rf-field"><label for="ad-amount">Amount</label><input class="rf-input money" id="ad-amount" name="amount" inputmode="decimal" placeholder="0.00" required /></div>
-                </div>
-                <div class="rf-field"><label for="ad-description">Description the customer sees</label><input class="rf-input" id="ad-description" name="description" placeholder="DEPOSIT RECEIVED" required /></div>
-                <div class="rf-row three">
-                  <div class="rf-field"><label for="ad-method">Method</label><select class="rf-select" id="ad-method" name="method"><option value="adjustment">Deposit or adjustment</option><option value="direct_deposit">Deposit</option><option value="ach">Standard withdrawal</option><option value="wire_domestic">Same-day withdrawal</option><option value="wire_international">International withdrawal</option><option value="fee">Fee</option><option value="refund">Refund</option><option value="investment">Bitcoin</option></select></div>
-                  <div class="rf-field"><label for="ad-category">Category</label><select class="rf-select" id="ad-category" name="category"><option value="Deposits">Deposits</option><option value="Investments">Investments</option><option value="Withdrawals">Withdrawals</option><option value="Fees & Interest">Fees & Interest</option><option value="Income">Income</option><option value="Transfers">Transfers</option><option value="Taxes">Taxes</option><option value="Other">Other</option></select></div>
-                  <div class="rf-field"><label for="ad-status">Status</label><select class="rf-select" id="ad-status" name="status"><option value="posted">Posted</option><option value="pending">Pending</option></select></div>
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field rf-field-date">
-                        <span class="rf-label" id="ad-date-label">Value date</span>
-                        <div class="rf-dateparts" role="group" aria-labelledby="ad-date-label" data-dateparts data-from="-10" data-to="1" data-order="desc">
-                          <select class="rf-select" data-part="month" aria-label="Value date: month"><option value="">Month</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
-                          <select class="rf-select" data-part="day" aria-label="Value date: day"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select>
-                          <select class="rf-select" data-part="year" aria-label="Value date: year"><option value="">Year</option></select>
-                          <input type="hidden" id="ad-date" name="date" data-part="value" />
-                        </div>
-                      </div>
-                  <div class="rf-field"><label for="ad-time">Time</label><input class="rf-input" type="time" id="ad-time" name="time" step="60" /><div class="hint">Leave both blank for now. Set them to date a deposit to when it actually arrived.</div></div>
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field"><label for="ad-merchant">Paid by or to</label><input class="rf-input" id="ad-merchant" name="counterpartyName" /></div>
-                  <div class="rf-field"><label for="ad-bank">Their bank</label><input class="rf-input" id="ad-bank" name="counterpartyBank" /></div>
-                </div>
-                <div class="rf-field"><label for="ad-memo">Memo shown to the customer</label><input class="rf-input" id="ad-memo" name="memo" /></div>
-                <div class="rf-field"><label for="ad-note">Internal note</label><input class="rf-input" id="ad-note" name="note" /></div>
-                <label class="rf-check"><input type="checkbox" name="notify" checked /><span>Email the customer about this</span></label>
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-              </div>
-              <div class="rf-modal-foot">
-                <button class="rf-btn ghost" type="button" data-close-modal>Cancel</button>
-                <button class="rf-btn" type="submit" data-submit>Post the entry</button>
-              </div>
-            </form>
           </div>
         </div>
 
@@ -637,30 +605,10 @@
             </form>
           </div>
         </div>
-
-        <!-- ------------------------------------------------ account modal -- -->
-        <div class="rf-modal-backdrop rf-hide" data-account-modal>
-          <div class="rf-modal">
-            <div class="rf-modal-head"><h3>Open a cash balance</h3><button type="button" data-close-modal aria-label="Close">&times;</button></div>
-            <form id="rf-open-account-form">
-              <div class="rf-modal-body">
-                <div class="rf-row">
-                  <div class="rf-field"><label for="oa-nickname">Nickname</label><input class="rf-input" id="oa-nickname" name="nickname" /></div>
-                  <div class="rf-field"><label for="oa-opening">Opening deposit</label><input class="rf-input money" id="oa-opening" name="openingBalance" inputmode="decimal" placeholder="0.00" /></div>
-                </div>
-                <div class="rf-notice bad rf-hide" data-form-error></div>
-              </div>
-              <div class="rf-modal-foot">
-                <button class="rf-btn ghost" type="button" data-close-modal>Cancel</button>
-                <button class="rf-btn" type="submit" data-submit>Open it</button>
-              </div>
-            </form>
-          </div>
-        </div>
       </main>
       <nav class="rf-tabbar" id="rf-tabbar" aria-label="Sections">
         <a href="#overview" data-tab="overview" class="is-active"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 9.8 12 4.1l9.6 5.7"/><path d="M4.3 9.8v8.4M9.4 9.8v8.4M14.6 9.8v8.4M19.7 9.8v8.4"/><path d="M3.1 18.2h17.8"/><path d="M1.8 20.6h20.4"/></g><g stroke-width="0.95" opacity=".72"><path d="M6.85 11v6M12 11v6M17.15 11v6"/><path d="M4.3 9.8h15.4"/></g></svg><span>Today</span></a>
-        <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 14.4V3.4"/><path d="M7.5 7.9 12 3.4l4.5 4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g><g stroke-width="0.95" opacity=".72"><path d="M8.4 18.6h7.2"/></g></svg><span>Withdrawals</span></a>
+        <a href="#queue" data-tab="queue"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.3 21h17.4"/></g></svg><span>Requests</span></a>
         <a href="#customers" data-tab="customers"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="9" cy="7.6" r="3.4"/><path d="M3 19.9a6 6 0 0 1 12 0"/><path d="M16.1 4.9a3.4 3.4 0 0 1 0 6.4"/><path d="M17 13.8a6 6 0 0 1 4 5.6"/></g></svg><span>Customers</span></a>
         <a href="#messages" data-tab="messages"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 5h19.2v14H2.4z"/><path d="m2.4 5.9 9.6 6.7 9.6-6.7"/></g><g stroke-width="0.95" opacity=".72"><path d="m2.4 18.2 6.6-5.4M21.6 18.2 15 12.8"/></g></svg><span>Messages</span></a>
         <button type="button" id="rf-tab-menu" aria-controls="rf-side" aria-expanded="false"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3.4 6.6h17.2M3.4 12h17.2M3.4 17.4h17.2"/></g></svg><span>Menu</span></button>
@@ -673,6 +621,6 @@
   <script src="/js/asset-logos.js?v=93d683f2" defer></script>
   <script src="/js/assets.js?v=a953dc1b" defer></script>
   <script src="/js/ticker.js?v=68500b3e" defer></script>
-  <script src="/js/bank/console.js?v=52f67363" defer></script>
+  <script src="/js/bank/console.js?v=ec7b724b" defer></script>
 </body>
 </html>

@@ -1,24 +1,23 @@
 # Hedgestone Finance
 
-A Bitcoin-only investment platform: a public site that sells one thing,
-a signed-in dashboard that follows each customer's Bitcoin from the day it was
-bought to the day it matures, and a staff console that registers customers,
-credits their cash balances and releases their withdrawals.
+A Bitcoin vault: a public site, a signed-in dashboard that follows each
+investment from the day it went into the vault to the day it matures, and a
+staff console that confirms what comes in and approves what goes out.
 
 Everything runs on Node and Express with no framework and one runtime
 dependency. Supabase holds the data in production; without it the same code
 runs on JSON files, so the whole platform starts on a laptop with nothing
 provisioned.
 
-> **This is a demonstration.** Hedgestone Finance is fictional. Holdings are
-> recorded in this application's own ledger: no order reaches an exchange, no
-> Bitcoin is bought or held for anyone, and no real money moves through it.
-> Offering it to real customers needs a licensed exchange or custody partner
-> and the licences that go with taking money to invest.
+> **This is a demonstration.** Hedgestone Finance is fictional. Vaults are
+> records in this application's own database: no Bitcoin is held for anyone,
+> no transaction is made on any network, and no real money moves through it.
+> Offering it to real customers needs a licensed custodian and OTC partner,
+> and the licences that go with holding other people's Bitcoin.
 
 ```bash
 npm install
-npm run seed     # an administrator, a customer, three Bitcoin purchases
+npm run seed     # an administrator, a customer with a dated vault, a payment to confirm
 npm start        # http://localhost:3000
 ```
 
@@ -30,6 +29,46 @@ npm start        # http://localhost:3000
 
 The sign-in page carries both demonstration logins as buttons, so nothing needs
 typing.
+
+---
+
+## How the vault works
+
+**In.** A customer adds to their vault two ways, both on `/receive`:
+
+- **Cash, through the OTC partner.** They pay the partner from a bank in their
+  name, quoting their customer number, and tell us the amount, the date they
+  paid and the term they want. Staff check it with the partner and confirm it;
+  it is booked as the Bitcoin that amount bought at Bitcoin's closing price on
+  the day it was paid.
+- **Bitcoin.** They send Bitcoin to their vault address and tell us how much,
+  when and (if they have it) the transaction ID. Staff confirm it arrived; it is
+  added at its value on that day.
+
+**Held.** Every investment carries a term of **10 to 100 years**, in whole
+years, and matures on its date plus its term. The dashboard shows both dates,
+the years held and the time to go, and charts the vault's value every day
+since the first investment against what went in.
+
+**Out.** Only Bitcoin that has matured can be sent. The customer asks on
+`/send` for an amount and an address of theirs, confirms with their PIN and an
+emailed code, and staff make the transfer from the vault wallet and mark it
+sent with its transaction ID. What leaves comes off the investments that
+matured first.
+
+**Dates.** Nothing can be dated before **1 January 2011**: Bitcoin began in
+2009 but had no daily market price until mid-2010. Anything dated in the past,
+whether a customer's payment or a staff booking, is priced at that day's close
+(`markets.priceAt`, from Yahoo Finance, Blockchain.com, CryptoCompare or
+Coinbase), never at today's price, so growth since 2014 is growth since 2014.
+Moving it to another date reprices it: cash paid keeps its amount and buys what
+it would have then; Bitcoin received keeps its units and is valued at the new
+day.
+
+**Set up by staff**, under Settings: the vault addresses (one a line; each
+customer always sees the same one), the OTC partner's payment details, the
+default term, and the fee to send. Until an address and the partner are set,
+Receive says so instead of showing anything to pay or send to.
 
 ---
 
@@ -53,50 +92,46 @@ variable, is treated as unset.
 
 | Screen | What it does |
 |---|---|
-| `/dashboard` | The investment: what the Bitcoin is worth, what went in, growth so far; a chart of its value on every day since the first purchase against the amount invested, with each purchase marked and a table view; every purchase with its growth; time to maturity for each; cash to invest |
-| `/invest` | Buy Bitcoin at the live price from $1 and choose a term (3, 6, 12 or 24 months by default); sell any part back to cash at any time; every purchase with its maturity date |
-| `/transactions` | Search and filter every deposit, purchase, sale and withdrawal; CSV export |
-| `/transfers` | Withdraw cash to a bank account in your own name: standard, same-day or international; one-time code and withdrawal PIN; receipts |
-| `/recipients` | The bank accounts in your name that withdrawals are paid into |
+| `/dashboard` | The vault: what it is worth, what went in, growth so far, with the growth chart inside the same card (each investment marked, a table view); first investment and next maturity; the Bitcoin price; what is ready to send; each investment from the day it went in to the day it matures; open requests and recent movements |
+| `/vault` | Everything in the vault with its price then, value now, growth and maturity |
+| `/history` | Everything that moved in or out, filterable by kind and date; CSV export |
+| `/receive` | The OTC partner's details and the customer's reference, the vault address, and forms to tell us about a payment or a transfer |
+| `/send` | What is ready to send, a form to send it (PIN and emailed code), and when the rest matures |
 | `/alerts` | Every notification raised, and control over which ones send |
 | `/messages` | Secure messages with the team, inside the session |
-| `/security` | Password, two-step verification, withdrawal PIN, security question, signed-in devices |
+| `/security` | Password, two-step verification, PIN for sending, security question, signed-in devices |
 | `/activity` | The customer's own audit trail, with device and IP against each entry |
 | `/profile` | Contact details, photo upload, documents on file |
 
-A maturity date is the end of the term the customer chose. It is shown, counted
-down and charted against; it does not lock the Bitcoin, and nothing happens on
-the day.
-
 ### For staff, at `/console`
 
-Register a customer — identity, address, employment, ID documents, photo and an
-opening deposit — in one form. Then: credit or debit a cash balance with a
-dated, described ledger entry; book a Bitcoin purchase or sale at an agreed
-price, time and term, change a purchase's date or term, or reverse it; release
-or return withdrawals with a reason the customer reads; verify withdrawal
-accounts; reset passwords; suspend and restore access; reveal a full SSN
-(recorded against your name); compose email alerts; answer secure messages;
-read and export the activity log; and change the platform's name, the Bitcoin
-terms on offer, withdrawal limits and fees, verification rules and the
-announcement banner.
+**Requests** is the queue: confirm a payment or a transfer (correcting the
+amount, date or term to what actually arrived), mark a send as sent with its
+transaction ID, or reject either with a reason the customer reads. Register a
+customer, with anything they have already paid booked at that day's price. On a
+customer's record, add to their vault directly (cash paid or Bitcoin received,
+dated and with a term), move an investment to the date it really happened (it is
+repriced), change its term, or reverse it. **Vaults** lists every customer's
+Bitcoin at the live price. Also: reset passwords, suspend and restore access,
+reveal a full SSN (recorded against your name), compose email alerts, answer
+secure messages, read and export the activity log, and change the platform's
+name, vault addresses, OTC details, default term and the announcement banner.
 
-### Gone with Bitcoin-only
+### What went with the vault
 
 Cards, cheque deposits, bill pay, statements, claims, payments between
-customers and every asset but Bitcoin were removed. Their old addresses
-redirect (`src/site/retired.js`, mirrored in `vercel.json`).
+customers, cash balances, withdrawals to a bank, buying and selling, and every
+asset but Bitcoin were removed. Their old addresses redirect
+(`src/site/retired.js`, mirrored in `vercel.json`).
 
-Anything a customer still holds of another asset is converted to Bitcoin the
-next time their portfolio is read, or when staff open Bitcoin investments:
-each holding is valued at its live price and that value buys Bitcoin at
-Bitcoin's. No cash moves. What they originally paid carries over as the cost
-of the Bitcoin, so their gain or loss continues rather than restarting, and the
-Bitcoin is a new purchase on the default term. The customer is sent a notice,
-each conversion is in the activity log, and a conversion cannot be reversed.
-Until a holding is converted it is not shown anywhere; if there is no live
-price for it, the customer sees that a conversion is on its way and staff see
-how many are waiting. Past transactions keep their original descriptions.
+Customers who had cash or another asset have it converted to Bitcoin the next
+time their vault is read, or when staff open **Vaults**: at the live price,
+with what they originally paid carried over as invested, on the default term.
+They are sent a notice, each conversion is in the activity log, and a
+conversion cannot be reversed. Until it is converted it is not shown; if there
+is no live price for it yet, the customer sees that a conversion is on its way
+and staff see how many are waiting. Cash on hold for a withdrawal asked for
+before the vault is left until staff release or return it, under **Requests**.
 
 ---
 
@@ -118,35 +153,35 @@ how many are waiting. Past transactions keep their original descriptions.
 
 ```
 src/
-  bank/                     the investment platform
-    constants.js            the platform, its one product, limits, fees, terms, alert types
+  bank/                     the vault
+    constants.js            the platform, the vault's rules (terms, earliest date), fees, alert types
     db.js                   collections over Supabase or JSON files
     ids.js                  account numbers, references, trace numbers
     security.js             scrypt, AES-256-GCM, masking, password policy
     auth.js                 sessions, CSRF, one-time codes, lockout
     users.js                creating a customer, and what may leave the server
-    accounts.js             opening a customer's cash balance
-    ledger.js               the only place a balance changes
-    transfers.js            withdrawals: submit, verify, review, complete, reject
-    invest.js               buying and selling Bitcoin, terms, maturity, positions
-    markets.js              the live Bitcoin price and its daily history
+    vault.js                requests to receive and send, the vault address, the OTC partner
+    invest.js               what is in a vault: booking in, sending out, dating, terms, conversions
+    markets.js              the live Bitcoin price, its daily history since 2011, a price for any day
+    accounts.js, ledger.js  cash balances from before the vault, kept so they convert cleanly
+    transfers.js            withdrawals from before the vault, for staff to release or return
     alerts.js               notification records and the branded emails
     audit.js                the activity log
     settings.js             operator overrides on top of the defaults
-    seed.js                 first-run data: a demo investor with dated purchases
+    seed.js                 first-run data: a demo customer with a dated vault
     site/                   the application's page shells and definitions
-  controllers/bank/         HTTP handlers: auth, accounts, money, invest, profile, admin
+  controllers/bank/         HTTP handlers: auth, vault, invest, profile, admin
   routes/bank.js            the /api/bank router
   site/                     the public site: layout, page content, retired paths
   controllers/, utils/      the website side: enquiries, chat, applications, mail
 
 public/
   css/bank.css              the design system: shell, tables, forms, charts
-  js/bank/                  core, signin, app, money, invest, profile, console
+  js/bank/                  core, signin, app (dashboard), vault, profile, console
   js/                       main, chat, careers, apply, admin (the desk), bankname
   assets/bank/              the mark and generated artwork
 
-supabase/migrations/        0001 to 0007, in order; supabase/setup.sql is all of them
+supabase/migrations/        0001 to 0008, in order; supabase/setup.sql is all of them
 scripts/seed-bank.js        npm run seed
 test/bank.test.js           end-to-end API tests
 test/bank-browser.test.js   the same flows through a real browser
@@ -156,45 +191,41 @@ test/bank-browser.test.js   the same flows through a real browser
 
 ## How the money works
 
-Money is integer cents everywhere, and Bitcoin is held to eight decimal
-places as an integer number of units. A balance only ever changes through
-`src/bank/ledger.js`, inside a per-account lock, and every change writes a
-transaction row. There is no code path that sets a balance directly, including
-in the staff console, where "adjust a balance" posts a dated entry the customer
-can see in their history.
+Cash is integer cents everywhere, and Bitcoin is held to eight decimal places
+as an integer number of satoshis, so no figure is the result of a
+floating-point rounding error. Each customer's vault changes one thing at a
+time (a lock per customer).
 
-Each customer has one cash balance. Deposits are credited to it by staff.
-Buying Bitcoin debits it and records a purchase: the units, the price paid,
-the date, and the term chosen (3, 6, 12 or 24 months by default, set under
-Settings). The purchase date plus the term is the maturity date the dashboard
-counts down to. Maturity is a target, not a lock: a customer can sell back to
-cash at any time, and the dashboard counts a sale against the oldest purchase
-first.
+A vault is a holding of Bitcoin and the trades that explain it: each one
+coming in (`OTC-` cash paid, `RCV-` Bitcoin received, `CNV-` a conversion)
+with its units, its price that day, what it cost and its term; each one going
+out (`SND-`) with the address it went to. The dashboard's investments are
+those trades as they stand now: what is left of each after anything sent, with
+sends taken from what matured first.
 
-A withdrawal moves through these states:
+A request moves through these states:
 
 ```
-submitted
-  -> pending_verification   one-time code, and the withdrawal PIN if set
-  -> pending_review         funds held; a person decides
-  -> completed              the hold settles into a posting
-   or rejected              the hold is released and the customer is told why
+cash_in, btc_in   pending  -> completed (booked into the vault)   or rejected / cancelled
+btc_out           pending_verification (PIN and emailed code)
+                  -> pending (with staff)
+                  -> completed (sent, with its transaction ID)    or rejected / cancelled
 ```
 
-The hold goes on the moment the request is accepted, which is what stops the
-same money being invested or withdrawn twice while it clears.
+A request to send counts against what is ready to send from the moment it is
+made, so the same Bitcoin cannot be asked for twice.
 
 ---
 
 ## Security
 
-- Passwords, withdrawal PINs and security answers: scrypt (N=16384), compared
+- Passwords, PINs for sending and security answers: scrypt (N=16384), compared
   in constant time. Five failed sign-ins lock the account for fifteen minutes.
 - Sessions: 256-bit opaque tokens, httpOnly, SameSite=Lax, Secure behind
   HTTPS. The database holds only the digest, so a dump yields no usable
   session. Every device is listed to the customer and can be revoked.
 - CSRF: a readable cookie echoed in a header on every state-changing request.
-- Two-step verification on sign-in and on every withdrawal, by emailed code.
+- Two-step verification on sign-in and on every send, by emailed code.
   Codes are hashed like passwords and retire when a new one is issued.
 - SSNs and ID numbers are encrypted with AES-256-GCM under
   `BANK_ENCRYPTION_KEY`. Set it before the first customer is registered.
@@ -224,26 +255,25 @@ POST   /auth/logout
 GET    /auth/session            who am I, unread counts, announcement
 POST   /auth/forgot | /auth/reset | /auth/password
 
-GET    /overview                everything the dashboard needs, in one call
-GET    /invest                  holdings, positions, terms, maturity
-POST   /invest/convert          buy Bitcoin from the cash balance
-POST   /invest/sell             sell back to cash
-GET    /accounts | /transactions | /transactions/:id | /transactions/export
-GET    /transfers/options | /transfers | /transfers/:id
-POST   /transfers | /transfers/:id/verify | /resend | /cancel     withdrawals
-GET/POST/PATCH/DELETE  /beneficiaries[/:id]                       withdrawal accounts
+GET    /overview                who is signed in, open requests, alerts
+GET    /invest                  the vault: worth, invested, investments, maturities, ready to send
+GET    /vault                   vault address, OTC details, terms, ready to send, requests
+POST   /vault/receive           "I have paid" (cash) or "I have sent" (bitcoin)
+POST   /vault/send              ask to send matured Bitcoin to an address
+POST   /vault/requests/:id/verify | /resend | /cancel
+GET    /vault/history[/export]  everything that moved, filterable; CSV
 GET/POST /alerts, /messages
 GET    /me | PATCH /me | /me/documents | /me/security | /me/activity
 
 /admin/*                        staff only
   GET  /overview | /customers | /customers/:id | /activity[/export] | /alerts
-  POST /customers                                register a customer
-  POST /customers/:id/accounts                   open a cash balance
-  POST /accounts/:id/adjust                      post a ledger entry
-  POST /transfers/:id/approve | /reject          the withdrawal queue
-  GET  /investments | /customers/:id/investments
+  POST /customers                                register a customer (and what they have paid)
+  GET  /vault/requests?status=                   the requests queue
+  POST /vault/requests/:id/confirm | /reject     book what arrived, record a send, or say no
+  GET  /investments | /customers/:id/investments every vault, and one
   POST /trades | PATCH /trades/:id | POST /trades/:id/reverse
-                                                 book, re-date or reverse a purchase
+                                                 add to a vault by date, re-date (repriced), re-term, reverse
+  POST /transfers/:id/approve | /reject          withdrawals from before the vault
   POST /alerts                                   compose and send
   GET  /settings | PUT /settings
 ```
@@ -272,8 +302,9 @@ providers.
 ### With Supabase
 
 1. Run `supabase/setup.sql` in the SQL editor. It is every migration, 0001 to
-   0007, and safe to run again; an existing project only needs the ones it has
-   not had yet (0007 adds the term and maturity date to purchases).
+   0008, and safe to run again; an existing project only needs the ones it has
+   not had yet (0007 adds the term and maturity date to each investment, 0008
+   the table of requests to receive and send).
 2. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (and `SUPABASE_ANON_KEY`
    for the chat widget and the desk).
 3. Start the server. The first request seeds the platform if it is empty.
@@ -289,10 +320,8 @@ Alerts are written to the database first and sent second. Without
 and marked "not sent" in the console.
 
 Texts go through Pingram on the same terms, and are delivered independently of
-the email: an SMS outage never marks a delivered email failed. Money arriving
-raises two alerts rather than one, the credit with the current balance, then
-the available balance, because those are different numbers answering
-different questions. [docs/RUNNING-THE-BANK.md](docs/RUNNING-THE-BANK.md) sets
+the email: an SMS outage never marks a delivered email failed.
+[docs/RUNNING-THE-BANK.md](docs/RUNNING-THE-BANK.md) sets
 both providers up and shows what the customer receives.
 
 One-time codes behave the same way, with a guard: on a laptop with no mail
@@ -329,8 +358,9 @@ public demonstration.
 | `SUPABASE_*`, `RESEND_*`, `FORM_*` | As in `.env.example` |
 
 Anything an operator should be able to change without a deploy (the platform
-name, limits, fees, Bitcoin terms, verification rules, the announcement banner,
-the session timeout) lives in the console under Settings instead.
+name, the vault addresses, the OTC partner, the default term, the fee to send,
+verification rules, the announcement banner, the session timeout) lives in the
+console under Settings instead.
 
 ---
 
@@ -363,10 +393,10 @@ are committed. The link card carries no name, so it stays right after a rename.
 `api/[...path].js`, which is the same Express app. Vercel's filesystem is
 read-only apart from `/tmp` and nothing there survives between invocations, so
 production needs Supabase; the file backend is for local development. Paths of
-removed pages (`/accounts`, `/cards`, `/statements`, `/personal` and so on)
-redirect permanently to their nearest replacement.
+removed pages (`/invest`, `/transfers`, `/accounts`, `/cards`, `/digital` and so
+on) redirect permanently to their nearest replacement.
 
 `docs/DEPLOYMENT.md` covers Supabase, Resend and inbound mail step by step.
-`docs/RUNNING-THE-BANK.md` covers the other half: registering customers,
-crediting a cash balance, booking Bitcoin purchases, approving withdrawals, and
+`docs/RUNNING-THE-BANK.md` covers the other half: setting the vault up,
+registering customers, confirming what comes in, sending what has matured, and
 wiring up email and text alerts.

@@ -9,17 +9,29 @@
  * thing can exist, which is what the scripts look for.
  */
 
-const { appPage, authPage, icon, dateField, RISK } = require('./layout');
-const { BANK, US_STATES, CATEGORIES, SECURITY_QUESTIONS, DOCUMENT_KINDS } = require('../constants');
+const { appPage, authPage, icon, RISK } = require('./layout');
+const { BANK, US_STATES, SECURITY_QUESTIONS, DOCUMENT_KINDS, VAULT } = require('../constants');
 
 const option = (value, label) => `<option value="${value}">${label || value}</option>`;
 const stateOptions = US_STATES.map((s) => option(s)).join('');
+
+/** The Bitcoin mark, drawn as public/js/assets.js draws it, for pages before their script runs. */
+const btcMark = (px = 20) => `<span class="hs-logo" aria-hidden="true" style="--s:${px}px;background:linear-gradient(135deg,#f7931a,#ffb347);color:#fff;font-size:${Math.round(px * 0.5)}px">&#8383;</span>`;
+
+/** A term in whole years, with quick choices; the maturity it gives is previewed by the page script. */
+const termField = (id, name = 'termYears') => `
+                <div class="rf-field">
+                  <label for="${id}">Keep it in the vault for</label>
+                  <div class="hs-term-input"><input class="rf-input" type="number" id="${id}" name="${name}" min="${VAULT.termYears.min}" max="${VAULT.termYears.max}" step="1" required /><span>years</span></div>
+                  <div class="hs-chips" role="group" aria-label="Quick terms">${[10, 20, 30, 50, 100].map((y) => `<button type="button" data-term="${y}">${y} years</button>`).join('')}</div>
+                  <div class="hint" data-term-preview>${VAULT.termYears.min} to ${VAULT.termYears.max} years. It can be sent out once it matures.</div>
+                </div>`;
 
 /* ================================================================ sign in == */
 
 const signinContent = `
       <div class="rf-auth-box">
-        <h1>Sign in to your investment</h1>
+        <h1>Sign in to your vault</h1>
         <p class="lede">Your session ends after 30 minutes of inactivity.</p>
 
         <div class="rf-card">
@@ -69,7 +81,7 @@ const signinContent = `
 
         <div class="rf-auth-alt">
           <a href="/forgot">Forgotten your password?</a> &middot;
-          <a href="/open-account">Start investing</a>
+          <a href="/open-account">Open your vault</a>
         </div>
 
         <div class="rf-card rf-mt rf-hide" data-demo-card>
@@ -90,7 +102,7 @@ const signinContent = `
 const forgotContent = `
       <div class="rf-auth-box">
         <h1>Reset your password</h1>
-        <p class="lede">We will email a code to the address on your account.</p>
+        <p class="lede">We will email a code to the address you signed up with.</p>
         <div class="rf-card">
           <div class="rf-card-body">
             <form id="rf-forgot-form" novalidate>
@@ -155,49 +167,40 @@ const changePasswordContent = `
 /* ============================================================== dashboard == */
 
 /*
- * The dashboard is the investment: what the Bitcoin is worth, what went into
- * it, how it has grown since the day it was bought, and how long each purchase
- * has left to maturity. Cash comes second, as what is left to invest.
- * public/js/bank/app.js fills every [data-*] below from /invest, /overview and
- * /markets/history.
+ * The dashboard is the vault: what the Bitcoin in it is worth, what went in,
+ * how it has grown since the first day, and for each investment the day it
+ * went in and the day it matures. public/js/bank/app.js fills every [data-*]
+ * below from /invest, /overview and /markets/history.
  */
 const dashboardContent = `
-        <section class="hs-dash-hero hs-btc-hero rf-mb">
-          <div class="hs-dash-hero-main">
-            <span class="k">${icon('bitcoin', 16)} Your Bitcoin investment</span>
-            <strong class="v" data-hero="value">&mdash;</strong>
-            <span class="d">
-              <span>Invested <b data-hero="cost">&mdash;</b></span>
-              <span>Growth <b data-hero="gain">&mdash;</b></span>
-              <span>Held <b data-hero="units">&mdash;</b></span>
-            </span>
-          </div>
-          <nav class="hs-qa" aria-label="Quick actions">
-            <a href="/invest?buy=1" class="is-primary"><i>${icon('bitcoin', 20)}</i><span>Buy Bitcoin</span></a>
-            <a href="/invest?sell=1"><i>${icon('chart', 20)}</i><span>Sell</span></a>
-            <a href="/transfers"><i>${icon('withdraw', 20)}</i><span>Withdraw</span></a>
-            <a href="/transactions"><i>${icon('activity', 20)}</i><span>History</span></a>
-          </nav>
-        </section>
-
-        <div class="rf-grid cols-4 rf-mb">
-          <div class="rf-card rf-stat"><div class="k">First bought</div><div class="v" data-stat="since">&mdash;</div><div class="d" data-stat="sinceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Next maturity</div><div class="v" data-stat="maturity">&mdash;</div><div class="d" data-stat="maturitySub">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Bitcoin price now</div><div class="v" data-stat="price">&mdash;</div><div class="d" data-stat="priceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Cash to invest</div><div class="v" data-stat="cash">&mdash;</div><div class="d" data-stat="cashSub">in your cash balance</div></div>
-        </div>
-
-        <section class="rf-card rf-mb hs-growth">
-          <div class="rf-card-head">
-            <h3>Growth since you invested</h3>
-            <div class="rf-card-actions hs-growth-legend" aria-hidden="true">
-              <span><i class="k value"></i>Value</span>
-              <span><i class="k cost"></i>Amount invested</span>
-              <span><i class="k buy"></i>Purchase</span>
+        <section class="hs-vault rf-mb">
+          <div class="hs-vault-head hs-dash-hero hs-btc-hero">
+            <div class="hs-dash-hero-main">
+              <span class="k">${btcMark(22)} Your vault is worth</span>
+              <strong class="v" data-hero="value">&mdash;</strong>
+              <span class="d">
+                <span>Invested <b data-hero="cost">&mdash;</b></span>
+                <span>Growth <b data-hero="gain">&mdash;</b></span>
+                <span>Holding <b data-hero="units">&mdash;</b></span>
+              </span>
             </div>
+            <nav class="hs-qa" aria-label="Quick actions">
+              <a href="/receive" class="is-primary"><i>${icon('receive', 20)}</i><span>Receive</span></a>
+              <a href="/send"><i>${icon('send', 20)}</i><span>Send</span></a>
+              <a href="/vault"><i>${icon('vault', 20)}</i><span>My vault</span></a>
+              <a href="/history"><i>${icon('activity', 20)}</i><span>History</span></a>
+            </nav>
           </div>
-          <div class="rf-card-body">
-            <div class="hs-chart" data-growth-chart role="img" aria-label="Your Bitcoin's value since your first purchase">
+          <div class="hs-vault-chart hs-growth">
+            <div class="hs-vault-chart-head">
+              <h3>Growth since you first invested</h3>
+              <div class="hs-growth-legend" aria-hidden="true">
+                <span><i class="k value"></i>Value</span>
+                <span><i class="k cost"></i>Amount invested</span>
+                <span><i class="k buy"></i>Added to the vault</span>
+              </div>
+            </div>
+            <div class="hs-chart" data-growth-chart role="img" aria-label="The value of your vault since you first invested">
               <div class="rf-skel" style="height:100%"></div>
             </div>
             <p class="rf-small rf-muted hs-chart-note" data-chart-note></p>
@@ -213,268 +216,179 @@ const dashboardContent = `
           </div>
         </section>
 
-        <div class="rf-grid side">
-          <section class="rf-card">
-            <div class="rf-card-head">
-              <h3>Your purchases</h3>
-              <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/invest">Buy or sell</a></div>
-            </div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Bought</th><th class="num opt">Invested</th><th class="num opt">Price paid</th><th class="num">Value now</th><th class="num">Growth</th></tr></thead>
-                <tbody data-positions><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-            <div class="rf-card-foot rf-small rf-muted" data-converting hidden>Your earlier investments are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
-          </section>
-
-          <div class="rf-stack">
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>${icon('hourglass', 18)} Time to maturity</h3></div>
-              <ul class="rf-list hs-terms" data-terms><li class="rf-muted rf-small">Loading&hellip;</li></ul>
-            </section>
-
-            <section class="rf-card">
-              <div class="rf-card-head">
-                <h3>Recent activity</h3>
-                <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/transactions">See all</a></div>
-              </div>
-              <ul class="rf-list" data-recent-list><li class="rf-muted rf-small">Loading&hellip;</li></ul>
-            </section>
-          </div>
+        <div class="rf-grid cols-4 rf-mb hs-dates">
+          <div class="rf-card rf-stat hs-date is-in"><div class="k">${icon('clock', 15)} First invested</div><div class="v" data-stat="since">&mdash;</div><div class="d" data-stat="sinceSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-date is-out"><div class="k">${icon('hourglass', 15)} Next maturity</div><div class="v" data-stat="maturity">&mdash;</div><div class="d" data-stat="maturitySub">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">${btcMark(16)} Bitcoin price now</div><div class="v" data-stat="price">&mdash;</div><div class="d" data-stat="priceSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">${icon('send', 15)} Ready to send</div><div class="v" data-stat="ready">&mdash;</div><div class="d" data-stat="readySub">Bitcoin that has matured</div></div>
         </div>
 
-        <p class="rf-small rf-muted rf-mt hs-inv-note">${RISK} A maturity date is the end of the term you chose; it does not lock your Bitcoin, and it does not promise a value on that day.</p>`;
+        <section class="rf-card rf-mb">
+          <div class="rf-card-head">
+            <h3>Each investment, from the day it went in to the day it matures</h3>
+            <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/receive">Add to your vault</a></div>
+          </div>
+          <ol class="hs-timeline" data-timeline><li class="rf-muted rf-small">Loading&hellip;</li></ol>
+          <div class="rf-card-foot rf-small rf-muted" data-converting hidden>Your earlier holdings are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
+        </section>
 
-/* =========================================================== transactions == */
+        <div class="rf-grid cols-2">
+          <section class="rf-card">
+            <div class="rf-card-head">
+              <h3>Your requests</h3>
+              <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/receive">Receive</a> <a class="rf-btn ghost sm" href="/send">Send</a></div>
+            </div>
+            <ul class="rf-list" data-requests><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+          </section>
+          <section class="rf-card">
+            <div class="rf-card-head">
+              <h3>Recent movements</h3>
+              <div class="rf-card-actions"><a class="rf-btn ghost sm" href="/history">See all</a></div>
+            </div>
+            <ul class="rf-list" data-recent-list><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+          </section>
+        </div>
 
-const transactionsContent = `
+        <p class="rf-small rf-muted rf-mt hs-inv-note">${RISK} Bitcoin can be sent out of your vault once it reaches its maturity date. A maturity date is not a promise of any value on that day.</p>`;
+
+/* ================================================================ history == */
+
+const historyContent = `
         <section class="rf-card rf-mb">
           <div class="rf-card-body tight">
-            <form class="rf-row four" data-filters style="align-items:end">
-              <div class="rf-field" style="margin:0">
-                <label for="f-q">Search</label>
-                <input class="rf-input" id="f-q" name="q" placeholder="Description or reference" />
+            <form class="rf-filter" data-filters>
+              <div class="rf-field">
+                <label for="h-kind">Show</label>
+                <select class="rf-select" id="h-kind" name="kind">
+                  <option value="">Everything</option>
+                  <option value="in">Into the vault</option>
+                  <option value="out">Out of the vault</option>
+                  <option value="cash">Paid in cash</option>
+                  <option value="bitcoin">Bitcoin received</option>
+                  <option value="sent">Bitcoin sent</option>
+                  <option value="converted">Conversions</option>
+                </select>
               </div>
-              <div class="rf-field" style="margin:0">
-                <label for="f-account">Account</label>
-                <select class="rf-select" id="f-account" name="accountId"><option value="">All accounts</option></select>
-              </div>
-              <div class="rf-field" style="margin:0">
-                <label for="f-category">Category</label>
-                <select class="rf-select" id="f-category" name="category"><option value="">All categories</option>${CATEGORIES.slice(0, CATEGORIES.indexOf('Other') + 1).map((c) => option(c)).join('')}</select>
-              </div>
-              <div class="rf-field" style="margin:0">
-                <label for="f-direction">Direction</label>
-                <select class="rf-select" id="f-direction" name="direction"><option value="">Money in and out</option><option value="credit">Money in</option><option value="debit">Money out</option></select>
-              </div>
-              ${dateField({ id: 'f-from', name: 'from', label: 'From', from: -10, to: 0, wrapClass: 'rf-field rf-field-flush' })}
-              ${dateField({ id: 'f-to', name: 'to', label: 'To', from: -10, to: 0, wrapClass: 'rf-field rf-field-flush' })}
-              <div class="rf-field" style="margin:0">
-                <label for="f-status">Status</label>
-                <select class="rf-select" id="f-status" name="status"><option value="">Any status</option><option value="posted">Posted</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="reversed">Reversed</option></select>
-              </div>
-              <div class="rf-inline">
-                <button class="rf-btn sm" type="submit">Apply</button>
-                <button class="rf-btn ghost sm" type="reset">Clear</button>
-                <a class="rf-btn ghost sm" data-export href="/api/bank/transactions/export">Export CSV</a>
-              </div>
+              <div class="rf-field"><label for="h-from">From</label><input class="rf-input" type="date" id="h-from" name="from" min="${VAULT.earliest}" /></div>
+              <div class="rf-field"><label for="h-to">To</label><input class="rf-input" type="date" id="h-to" name="to" min="${VAULT.earliest}" /></div>
+              <div class="rf-field" style="align-self:end"><button class="rf-btn sm" type="submit">Filter</button> <a class="rf-btn ghost sm" href="/api/bank/vault/history/export" download>Download CSV</a></div>
             </form>
           </div>
         </section>
-
         <section class="rf-card">
-          <div class="rf-card-head">
-            <h3>Transactions</h3>
-            <div class="rf-card-actions rf-small rf-muted" data-count></div>
-          </div>
+          <div class="rf-card-head"><h3>Everything that moved</h3><div class="rf-card-actions rf-small rf-muted" data-count></div></div>
           <div class="rf-table-wrap">
             <table class="rf-table">
-              <thead><tr><th>Date</th><th>Description</th><th class="opt">Category</th><th class="opt">Account</th><th>Status</th><th class="num">Amount</th><th class="num opt">Balance</th></tr></thead>
+              <thead><tr><th>Date</th><th>What</th><th class="num">Bitcoin</th><th class="num opt">Bitcoin price</th><th class="num">Value</th><th class="opt">Matures</th><th class="opt">Reference</th></tr></thead>
               <tbody data-rows><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
             </table>
           </div>
-          <div class="rf-card-foot rf-spread">
-            <span data-range></span>
-            <span class="rf-inline">
-              <button class="rf-btn ghost sm" data-prev>Previous</button>
-              <button class="rf-btn ghost sm" data-next>Next</button>
-            </span>
-          </div>
         </section>`;
 
-/* ============================================================ withdrawals == */
+/* ================================================================ receive == */
 
-const transfersContent = `
-        <div class="rf-grid side">
+const receiveContent = `
+        <div class="rf-grid cols-2 hs-receive">
           <section class="rf-card">
-            <div class="rf-card-head"><h3>Withdraw cash</h3></div>
+            <div class="rf-card-head"><h3>${icon('receive', 18)} Pay with cash</h3></div>
             <div class="rf-card-body">
-              <p class="rf-small rf-muted" style="margin-top:0">Money goes from your cash balance to a bank account in your own name. To withdraw what is in Bitcoin, <a href="/invest?sell=1">sell it to cash</a> first.</p>
-              <div class="rf-segment rf-mb" data-type-picker></div>
-
-              <form id="rf-transfer-form" novalidate>
-                <div class="rf-field">
-                  <label for="t-from">From</label>
-                  <select class="rf-select" id="t-from" name="fromAccountId" required></select>
-                  <div class="hint" data-available></div>
-                </div>
-
-                <div class="rf-field" data-to-beneficiary>
-                  <label for="t-beneficiary">To</label>
-                  <select class="rf-select" id="t-beneficiary" name="beneficiaryId"></select>
-                  <div class="hint"><a href="/recipients">Add or manage withdrawal accounts</a></div>
-                </div>
-
+              <p class="rf-small rf-muted" style="margin-top:0">Pay our OTC partner from a bank in your name. When they confirm your payment, it buys Bitcoin at that day&rsquo;s price and goes into your vault.</p>
+              <div data-otc><div class="rf-skel" style="height:140px"></div></div>
+              <form id="hs-cash-form" class="rf-mt" novalidate hidden>
+                <h4 class="rf-label">Once you have paid, tell us</h4>
                 <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="t-amount">Amount</label>
-                    <input class="rf-input money" id="t-amount" name="amount" inputmode="decimal" placeholder="0.00" required />
-                  </div>
-                  ${dateField({ id: 't-date', name: 'scheduledFor', label: 'Withdraw on', from: 0, to: 3, order: 'asc', hint: 'Leave blank to withdraw now.' })}
+                  <div class="rf-field"><label for="c-amount">Amount paid (USD)</label><input class="rf-input money" id="c-amount" name="amount" inputmode="decimal" placeholder="0.00" required /></div>
+                  <div class="rf-field"><label for="c-date">Paid on</label><input class="rf-input" type="date" id="c-date" name="occurredAt" min="${VAULT.earliest}" required /></div>
                 </div>
-
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="t-recurrence">Repeat</label>
-                    <select class="rf-select" id="t-recurrence" name="recurrence">
-                      <option value="none">One time</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-                  <div class="rf-field" data-pin-field hidden>
-                    <label for="t-pin">Withdrawal PIN</label>
-                    <input class="rf-input mono" id="t-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="off" />
-                  </div>
-                </div>
-
-                <div class="rf-field">
-                  <label for="t-memo">Note <span class="rf-muted">(optional)</span></label>
-                  <input class="rf-input" id="t-memo" name="memo" maxlength="140" placeholder="For your own records" />
-                </div>
-
-                <div class="rf-notice" data-summary></div>
+                ${termField('c-term')}
+                <div class="rf-field"><label for="c-note">Anything we should know</label><input class="rf-input" id="c-note" name="note" maxlength="300" placeholder="Paid from my bank in two parts" /></div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Review and withdraw</button>
+                <button class="rf-btn block" type="submit" data-submit>I have paid</button>
               </form>
             </div>
           </section>
 
-          <div class="rf-stack">
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>Limits today</h3></div>
-              <ul class="rf-list" data-limits></ul>
-            </section>
-            <section class="rf-card">
-              <div class="rf-card-head"><h3>How long it takes</h3></div>
-              <div class="rf-card-body rf-small rf-muted" data-clearing></div>
-            </section>
-          </div>
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>${btcMark(18)} Send Bitcoin to your vault</h3></div>
+            <div class="rf-card-body">
+              <p class="rf-small rf-muted" style="margin-top:0">Send Bitcoin from a wallet of yours to the address below. When it has arrived it is added to your vault, valued at that day&rsquo;s price.</p>
+              <div data-address><div class="rf-skel" style="height:96px"></div></div>
+              <form id="hs-btc-form" class="rf-mt" novalidate hidden>
+                <h4 class="rf-label">Once you have sent it, tell us</h4>
+                <div class="rf-row">
+                  <div class="rf-field"><label for="b-units">Bitcoin sent</label><input class="rf-input money" id="b-units" name="units" inputmode="decimal" placeholder="0.00000000" required /></div>
+                  <div class="rf-field"><label for="b-date">Sent on</label><input class="rf-input" type="date" id="b-date" name="occurredAt" min="${VAULT.earliest}" required /></div>
+                </div>
+                <div class="rf-field"><label for="b-txid">Transaction ID <span class="rf-muted">(if you have it)</span></label><input class="rf-input mono" id="b-txid" name="txid" maxlength="64" autocomplete="off" /></div>
+                ${termField('b-term')}
+                <div class="rf-notice bad rf-hide" data-form-error></div>
+                <button class="rf-btn block" type="submit" data-submit>I have sent it</button>
+              </form>
+            </div>
+          </section>
         </div>
 
         <section class="rf-card rf-mt">
-          <div class="rf-card-head">
-            <h3>Your withdrawals</h3>
-            <div class="rf-card-actions">
-              <select class="rf-select" data-status-filter style="width:auto">
-                <option value="">All statuses</option>
-                <option value="pending_review">In review</option>
-                <option value="pending_verification">Awaiting code</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="completed">Completed</option>
-                <option value="rejected">Returned</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
+          <div class="rf-card-head"><h3>Your requests</h3></div>
           <div class="rf-table-wrap">
             <table class="rf-table">
-              <thead><tr><th>Date</th><th>To</th><th class="opt">Type</th><th class="opt">Confirmation</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
-              <tbody data-transfers><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+              <thead><tr><th>Asked</th><th>What</th><th class="num">Amount</th><th class="opt">Term</th><th>Status</th><th class="opt">Reference</th><th></th></tr></thead>
+              <tbody data-requests><tr><td colspan="7" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
             </table>
           </div>
         </section>`;
 
-/* ============================================================= recipients == */
+/* =================================================================== send == */
 
-const recipientsContent = `
+const sendContent = `
         <div class="rf-grid side">
           <section class="rf-card">
-            <div class="rf-card-head">
-              <h3>Your withdrawal accounts</h3>
-              <div class="rf-card-actions rf-small rf-muted" data-count></div>
-            </div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Name on the account</th><th class="opt">Held at</th><th>Account</th><th class="opt">Type</th><th>Status</th><th></th></tr></thead>
-                <tbody data-rows><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Add a withdrawal account</h3></div>
+            <div class="rf-card-head"><h3>${icon('send', 18)} Send Bitcoin</h3></div>
             <div class="rf-card-body">
-              <p class="rf-small rf-muted" style="margin-top:0">An account in your own name at your bank, for us to pay withdrawals into. New accounts are checked by our team before the first withdrawal reaches them.</p>
-              <form id="rf-beneficiary-form" novalidate>
+              <div class="hs-ready">
+                <span class="k">${btcMark(20)} Ready to send</span>
+                <strong class="v" data-ready>&mdash;</strong>
+                <span class="d" data-ready-sub>Only Bitcoin that has reached its maturity date can be sent.</span>
+              </div>
+              <form id="hs-send-form" class="rf-mt" novalidate>
                 <div class="rf-field">
-                  <label for="b-type">Where it is</label>
-                  <select class="rf-select" id="b-type" name="type">
-                    <option value="domestic_ach">An account in the US</option>
-                    <option value="international_wire">An account outside the US</option>
-                  </select>
-                </div>
-                <div class="rf-field">
-                  <label for="b-name">Name on the account</label>
-                  <input class="rf-input" id="b-name" name="name" required />
-                </div>
-                <div class="rf-field">
-                  <label for="b-nickname">Nickname <span class="rf-muted">(optional)</span></label>
-                  <input class="rf-input" id="b-nickname" name="nickname" placeholder="My everyday account" />
+                  <label for="s-units">How much</label>
+                  <input class="rf-input money" id="s-units" name="units" inputmode="decimal" placeholder="0.00000000" required />
+                  <div class="hs-chips" role="group" aria-label="Quick amounts"><button type="button" data-share="25">25%</button><button type="button" data-share="50">50%</button><button type="button" data-share="100">All of it</button></div>
+                  <div class="hint" data-send-value>&nbsp;</div>
                 </div>
                 <div class="rf-field">
-                  <label for="b-bank">Held at</label>
-                  <input class="rf-input" id="b-bank" name="bankName" />
+                  <label for="s-address">To this Bitcoin address</label>
+                  <input class="rf-input mono" id="s-address" name="address" autocomplete="off" spellcheck="false" placeholder="bc1q..." required />
+                  <div class="hint">An address in a wallet of yours. Check it carefully: Bitcoin sent to the wrong address cannot be brought back.</div>
                 </div>
-                <div class="rf-field">
-                  <label for="b-account">Account number</label>
-                  <input class="rf-input mono" id="b-account" name="accountNumber" required />
+                <div class="rf-field" data-pin-field hidden>
+                  <label for="s-pin">Your PIN</label>
+                  <input class="rf-input mono" type="password" id="s-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="off" />
                 </div>
-                <div class="rf-field" data-routing-field>
-                  <label for="b-routing">Routing number</label>
-                  <input class="rf-input mono" id="b-routing" name="routingNumber" inputmode="numeric" maxlength="9" />
-                  <div class="hint">The nine digits your bank gives for payments in. We check it before we save it.</div>
-                </div>
-                <div class="rf-field rf-hide" data-swift-field>
-                  <label for="b-swift">SWIFT / BIC</label>
-                  <input class="rf-input mono" id="b-swift" name="swift" maxlength="11" />
-                </div>
-                <div class="rf-field rf-hide" data-country-field>
-                  <label for="b-country">Country</label>
-                  <input class="rf-input" id="b-country" name="country" />
-                </div>
-                <div class="rf-row">
-                  <div class="rf-field">
-                    <label for="b-account-type">Account type</label>
-                    <select class="rf-select" id="b-account-type" name="accountType">
-                      <option value="checking">Current or checking</option>
-                      <option value="savings">Savings</option>
-                    </select>
-                  </div>
-                  <div class="rf-field">
-                    <label for="b-relationship">Whose account</label>
-                    <select class="rf-select" id="b-relationship" name="relationship">
-                      <option value="Own account">Mine</option>
-                      <option value="Joint account">Joint, in my name</option>
-                    </select>
-                  </div>
-                </div>
+                <div class="rf-field"><label for="s-note">Note for us</label><input class="rf-input" id="s-note" name="note" maxlength="300" /></div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
-                <button class="rf-btn block" type="submit" data-submit>Save withdrawal account</button>
+                <button class="rf-btn block" type="submit" data-submit>Continue</button>
+                <p class="rf-small rf-muted hs-center">We email you a code to confirm. Our team then checks the request and sends it from the vault.</p>
               </form>
             </div>
           </section>
-        </div>`;
+
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>${icon('hourglass', 18)} When the rest matures</h3></div>
+            <ul class="rf-list hs-terms" data-upcoming><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+          </section>
+        </div>
+
+        <section class="rf-card rf-mt">
+          <div class="rf-card-head"><h3>Your requests to send</h3></div>
+          <div class="rf-table-wrap">
+            <table class="rf-table">
+              <thead><tr><th>Asked</th><th class="num">Bitcoin</th><th>To</th><th>Status</th><th class="opt">Reference</th><th></th></tr></thead>
+              <tbody data-requests><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+            </table>
+          </div>
+        </section>`;
 
 /* ================================================================ alerts == */
 
@@ -493,16 +407,6 @@ const alertsContent = `
             <div class="rf-card-body">
               <form id="rf-alert-prefs" data-prefs></form>
               <hr class="rf-divider" />
-              <div class="rf-row">
-                <div class="rf-field">
-                  <label for="a-threshold">Alert me about movements over</label>
-                  <input class="rf-input" id="a-threshold" name="alertThreshold" inputmode="decimal" />
-                </div>
-                <div class="rf-field">
-                  <label for="a-low">Cash balance below</label>
-                  <input class="rf-input" id="a-low" name="lowBalanceThreshold" inputmode="decimal" />
-                </div>
-              </div>
               <button class="rf-btn" data-save-prefs>Save preferences</button>
             </div>
           </section>
@@ -577,7 +481,7 @@ const securityContent = `
                 <form id="rf-pin-form" novalidate>
                   <div class="rf-row">
                     <div class="rf-field">
-                      <label for="s-pin">Withdrawal PIN</label>
+                      <label for="s-pin">PIN for sending Bitcoin</label>
                       <input class="rf-input mono" id="s-pin" name="transferPin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits" />
                     </div>
                     <div class="rf-field">
@@ -630,7 +534,7 @@ const securityContent = `
 
 const activityContent = `
         <section class="rf-card">
-          <div class="rf-card-head"><h3>Account activity</h3><div class="rf-card-actions rf-small rf-muted">Everything done on your account, with the device and address it came from</div></div>
+          <div class="rf-card-head"><h3>Sign-ins and changes</h3><div class="rf-card-actions rf-small rf-muted">Everything done in your name, with the device and address it came from</div></div>
           <div class="rf-table-wrap">
             <table class="rf-table">
               <thead><tr><th>When</th><th>What happened</th><th>Category</th><th class="opt">Device</th><th class="opt">IP address</th></tr></thead>
@@ -711,7 +615,7 @@ const profileContent = `
             </section>
 
             <section class="rf-card">
-              <div class="rf-card-head"><h3>Your account</h3></div>
+              <div class="rf-card-head"><h3>Your details with us</h3></div>
               <div class="rf-card-body"><dl class="rf-dl" data-relationship></dl></div>
             </section>
 
@@ -719,46 +623,38 @@ const profileContent = `
         </div>`;
 
 /*
- * The Bitcoin screen: buy with cash, sell back to cash, and every purchase
- * with its term. public/js/bank/invest.js fills it from /invest.
+ * My vault: what is in it, each investment with the day it went in and the
+ * day it matures, and what has moved. public/js/bank/vault.js fills it from
+ * /invest.
  */
-const investContent = `
+const vaultContent = `
         <div class="rf-grid cols-4 rf-mb" data-inv-totals>
-          <div class="rf-card rf-stat hs-inv-hero"><div class="k">Your Bitcoin is worth</div><div class="v" data-inv="value">&mdash;</div><div class="d" data-inv="gain">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">Invested</div><div class="v" data-inv="cost">&mdash;</div><div class="d">what your Bitcoin cost</div></div>
-          <div class="rf-card rf-stat"><div class="k">Cash to invest</div><div class="v" data-inv="cash">&mdash;</div><div class="d">available in your cash balance</div></div>
+          <div class="rf-card rf-stat hs-inv-hero"><div class="k">${btcMark(16)} Your vault is worth</div><div class="v" data-inv="value">&mdash;</div><div class="d" data-inv="gain">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Invested</div><div class="v" data-inv="cost">&mdash;</div><div class="d">what went into it</div></div>
           <div class="rf-card rf-stat"><div class="k">Bitcoin held</div><div class="v" data-inv="count">&mdash;</div><div class="d" data-inv="asof">&nbsp;</div></div>
+          <div class="rf-card rf-stat"><div class="k">Ready to send</div><div class="v" data-inv="ready">&mdash;</div><div class="d" data-inv="readySub">matured</div></div>
         </div>
 
         <section class="rf-card rf-mb">
           <div class="rf-card-head">
-            <h3>Buy Bitcoin</h3>
-            <div class="rf-card-actions rf-small rf-muted" data-inv-source>Live price</div>
+            <h3>What is in your vault</h3>
+            <div class="rf-card-actions"><a class="rf-btn sm" href="/receive">Add to it</a> <a class="rf-btn ghost sm" href="/send">Send</a></div>
           </div>
-          <p class="rf-small rf-muted hs-inv-lede">Bitcoin is the one asset we invest in. Choose an amount and how long you plan to hold it; you buy a fraction of a Bitcoin at the live price, booked the moment you confirm, and you can sell back to cash at any time.</p>
-          <div class="hs-assets" data-inv-assets>
-            <div class="rf-skel" style="height:118px"></div>
+          <div class="rf-table-wrap">
+            <table class="rf-table">
+              <thead><tr><th>Invested</th><th class="num">Bitcoin</th><th class="num opt">Price then</th><th class="num">Value now</th><th class="num">Growth</th><th>Matures</th></tr></thead>
+              <tbody data-inv-positions><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+            </table>
           </div>
+          <div class="rf-card-foot rf-small rf-muted" data-inv-converting hidden>Your earlier holdings are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
         </section>
 
-        <div class="rf-grid side">
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Your purchases</h3></div>
-            <div class="rf-table-wrap">
-              <table class="rf-table">
-                <thead><tr><th>Bought</th><th class="num">Bitcoin</th><th class="num opt">Price paid</th><th class="num">Value now</th><th class="num">Growth</th><th>Matures</th></tr></thead>
-                <tbody data-inv-positions><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
-              </table>
-            </div>
-            <div class="rf-card-foot rf-small rf-muted" data-inv-converting hidden>Your earlier investments are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
-          </section>
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Recent purchases and sales</h3></div>
-            <ul class="hs-trades" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
-          </section>
-        </div>
+        <section class="rf-card">
+          <div class="rf-card-head"><h3>Recent movements</h3><div class="rf-card-actions"><a class="rf-btn ghost sm" href="/history">Full history</a></div></div>
+          <ul class="hs-trades" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
+        </section>
 
-        <p class="rf-small rf-muted rf-mt hs-inv-note">The price comes from public market data. Each purchase or sale is booked at the price shown when you confirm; if the price has moved more than 2% since you opened the sheet, we show you the new price and ask again. ${RISK}</p>
+        <p class="rf-small rf-muted rf-mt hs-inv-note"><span data-inv-source>Live price</span>. Everything added to your vault is priced at Bitcoin&rsquo;s closing price on the day it was paid or arrived. ${RISK}</p>
 `;
 
 module.exports = [
@@ -781,47 +677,46 @@ module.exports = [
     file: 'dashboard.html',
     build: appPage,
     opts: {
-      title: `Dashboard | ${BANK.name}`, description: 'Your Bitcoin investment at a glance.',
-      heading: 'Good to see you', sub: 'Your Bitcoin, from the day you bought it.',
+      title: `Dashboard | ${BANK.name}`, description: 'Your Bitcoin vault at a glance.',
+      heading: 'Good to see you', sub: 'Your vault, from the day you first invested.',
       active: 'dashboard', content: dashboardContent, extraScripts: ['/js/bank/app.js'],
-      actions: '<a class="rf-btn sm" href="/invest?buy=1">Buy Bitcoin</a>',
+      actions: '<a class="rf-btn sm" href="/receive">Add to your vault</a>',
     },
   },
   {
-    file: 'transactions.html',
+    file: 'vault.html',
     build: appPage,
     opts: {
-      title: `Transactions | ${BANK.name}`, description: 'Every deposit, purchase, sale and withdrawal.',
-      heading: 'Transactions', sub: 'Every deposit, purchase, sale and withdrawal.',
-      active: 'transactions', content: transactionsContent, extraScripts: ['/js/bank/app.js'],
+      title: `My vault | ${BANK.name}`, description: 'What is in your vault, and when each part matures.',
+      heading: 'My vault', sub: 'Each investment, what it is worth now, and when it matures.',
+      active: 'vault', content: vaultContent, extraScripts: ['/js/bank/vault.js'],
     },
   },
   {
-    file: 'transfers.html',
+    file: 'history.html',
     build: appPage,
     opts: {
-      title: `Withdraw | ${BANK.name}`, description: 'Withdraw cash to a bank account in your name.',
-      heading: 'Withdraw', sub: 'From your cash balance to a bank account in your name.',
-      active: 'transfers', content: transfersContent, extraScripts: ['/js/bank/money.js'],
+      title: `History | ${BANK.name}`, description: 'Everything that has moved into or out of your vault.',
+      heading: 'History', sub: 'Everything that has moved into or out of your vault.',
+      active: 'history', content: historyContent, extraScripts: ['/js/bank/vault.js'],
     },
   },
   {
-    file: 'recipients.html',
+    file: 'receive.html',
     build: appPage,
     opts: {
-      title: `Withdrawal accounts | ${BANK.name}`, description: 'The bank accounts your withdrawals are paid into.',
-      heading: 'Withdrawal accounts', sub: 'The accounts in your name that withdrawals are paid into.',
-      active: 'recipients', content: recipientsContent, extraScripts: ['/js/bank/money.js'],
+      title: `Receive | ${BANK.name}`, description: 'Add to your vault with cash or Bitcoin.',
+      heading: 'Receive', sub: 'Add to your vault: pay cash through our OTC partner, or send Bitcoin.',
+      active: 'receive', content: receiveContent, extraScripts: ['/js/bank/vault.js'],
     },
   },
   {
-    file: 'invest.html',
+    file: 'send.html',
     build: appPage,
     opts: {
-      title: `Bitcoin | ${BANK.name}`, description: 'Buy and sell Bitcoin at the live price.',
-      heading: 'Bitcoin', sub: 'Buy at the live price, choose your term, sell back to cash any time.',
-      active: 'invest', content: investContent, extraScripts: ['/js/bank/invest.js'],
-      actions: '<button class="rf-btn sm" type="button" data-inv-quick>Buy Bitcoin</button>',
+      title: `Send | ${BANK.name}`, description: 'Send matured Bitcoin to a wallet of yours.',
+      heading: 'Send', sub: 'Send Bitcoin that has matured to a wallet of yours.',
+      active: 'send', content: sendContent, extraScripts: ['/js/bank/vault.js'],
     },
   },
   {
@@ -838,7 +733,7 @@ module.exports = [
     build: appPage,
     opts: {
       title: `Messages | ${BANK.name}`, description: 'Secure messages with our team.',
-      heading: 'Secure messages', sub: 'Inside your session, so account details are safe to send.',
+      heading: 'Secure messages', sub: 'Inside your session, so personal details are safe to send.',
       active: 'messages', content: messagesContent, extraScripts: ['/js/bank/app.js'],
     },
   },
@@ -847,7 +742,7 @@ module.exports = [
     build: appPage,
     opts: {
       title: `Security | ${BANK.name}`, description: 'Password, verification and signed-in devices.',
-      heading: 'Security', sub: 'Password, two-step verification, withdrawal PIN and devices.',
+      heading: 'Security', sub: 'Password, two-step verification, your PIN and devices.',
       active: 'security', content: securityContent, extraScripts: ['/js/bank/profile.js'],
     },
   },
@@ -855,7 +750,7 @@ module.exports = [
     file: 'activity.html',
     build: appPage,
     opts: {
-      title: `Activity | ${BANK.name}`, description: 'Everything done on your account.',
+      title: `Activity | ${BANK.name}`, description: 'Every sign-in and change made in your name.',
       heading: 'Activity', sub: 'A full history, with the device and address behind each entry.',
       active: 'security', content: activityContent, extraScripts: ['/js/bank/profile.js'],
     },
@@ -878,8 +773,12 @@ module.exports = [
  */
 module.exports.RETIRED = {
   '/accounts': '/dashboard',
-  '/statements': '/transactions',
-  '/bills': '/transfers',
-  '/deposit': '/dashboard',
+  '/statements': '/history',
+  '/bills': '/send',
+  '/deposit': '/receive',
   '/cards': '/dashboard',
+  '/invest': '/vault',
+  '/transactions': '/history',
+  '/transfers': '/send',
+  '/recipients': '/send',
 };

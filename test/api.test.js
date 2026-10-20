@@ -245,12 +245,14 @@ async function withApp(env, fn) {
         BANK_ADMIN_PASSWORD: 'Quarry#Road2026',
       },
       async (base) => {
-        // Break the history write, which is how a serverless timeout shows up.
-        const ledger = require(ROOT + '/src/bank/ledger');
-        const real = ledger.post;
-        ledger.post = async () => { throw new Error('function timed out'); };
+        // Break a write part way through - the welcome message, after the
+        // first customer and before the second - which is how a serverless
+        // timeout shows up.
+        const { db } = require(ROOT + '/src/bank/db');
+        const real = db.messages.insert;
+        db.messages.insert = async () => { throw new Error('function timed out'); };
         await require(ROOT + '/src/bank/seed').ensureSeed().catch(() => {});
-        ledger.post = real;
+        db.messages.insert = real;
 
         const stuck = await req(base, 'GET', '/api/health');
         assert.strictEqual(stuck.body.bank.seedState, 'incomplete');
