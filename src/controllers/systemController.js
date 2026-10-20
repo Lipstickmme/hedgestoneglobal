@@ -104,6 +104,29 @@ async function probeSchema() {
   return { results, problems };
 }
 
+/**
+ * How long one small database request takes from this server, in ms: the
+ * median of three after a warm-up (the first pays for the connection). Every
+ * page makes several, so a server far from its database is slow everywhere,
+ * however lean the code. Null without Supabase.
+ */
+async function databaseLatency() {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const once = async () => {
+    const t = Date.now();
+    await supabase.select('bank_settings', 'select=id&limit=1');
+    return Date.now() - t;
+  };
+  try {
+    await once();
+    const times = [await once(), await once(), await once()].sort((a, b) => a - b);
+    return times[1];
+  } catch (err) {
+    return null;
+  }
+}
+
 /** GET /api/public-config: what the browser needs to talk to Supabase. */
 exports.publicConfig = (req, res) => {
   const url = config.supabaseUrl();
@@ -520,6 +543,9 @@ exports.health = async (req, res) => {
     storage: url && service ? 'supabase' : 'filesystem',
     // Which project the site reads and writes, so SQL is run in that one.
     supabaseProject: url ? (config.supabaseProject().ref || config.supabaseProject().host) : undefined,
+    // Where this server runs, and how far away the database is.
+    serverRegion: process.env.VERCEL_REGION || undefined,
+    databaseLatencyMs: url && service ? await databaseLatency() : undefined,
     // Enough to tell a locked-out operator what the bank thinks its sign-in
     // is, without saying what it is: the address is reported only as set or
     // not, and no password or hash goes anywhere near this response.
@@ -562,3 +588,4 @@ exports.health = async (req, res) => {
 // The console's setup checklist asks the same questions of the schema.
 exports.PROBES = PROBES;
 exports.probeSchema = probeSchema;
+exports.databaseLatency = databaseLatency;

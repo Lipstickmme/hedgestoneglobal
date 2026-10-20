@@ -205,14 +205,28 @@ const icon = (name, size = 18) => {
  *
  * The CSRF cookie is set and cleared alongside the session cookie and, unlike
  * it, is readable here. No cookie means no session: go to sign in before the
- * first paint. A cookie means there may be one: keep the shell hidden behind a
- * small loader until core.js has confirmed it (rf-booting), and reveal it after
- * eight seconds regardless, so a script that fails to load never leaves a
- * blank page.
+ * first paint. A cookie means there may be one: keep the shell hidden behind
+ * the loading screen (the logo and a bar) until core.js has confirmed it and
+ * the page has drawn (rf-booting), and reveal it after eight seconds
+ * regardless, so a script that fails to load never leaves a blank page.
  */
-const GATE = `<script>(function(){var d=document.documentElement;if(!/(?:^|;\\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>`;
+/*
+ * With a cookie, it also starts the page's one request for its data (see
+ * src/controllers/bank/bootController.js) straight away, while the
+ * stylesheets and scripts are still arriving; core.js picks it up.
+ */
+const gate = (page) => `<script>(function(){var d=document.documentElement;if(!/(?:^|;\\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';try{window.__hsBoot=fetch('/api/bank/boot?page=${page}',{credentials:'same-origin',headers:{Accept:'application/json'}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null});}catch(e){}})();</script>`;
 
-function head({ title, description, noindex = false, styles = [], bodyClass }) {
+/** The loading screen: the logo, the name and a bar, until the page has its data. */
+const splash = () => `  <div class="hs-splash" aria-hidden="true">
+    <div class="hs-splash-inner">
+      <img src="/assets/bank/logomark-dark.png" alt="" width="46" height="56" />
+      <span class="hs-splash-name" data-platform-name>${BANK.name}</span>
+      <span class="hs-splash-bar"><i></i></span>
+    </div>
+  </div>`;
+
+function head({ title, description, noindex = false, styles = [], bodyClass, boot = '' }) {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -237,9 +251,9 @@ function head({ title, description, noindex = false, styles = [], bodyClass }) {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/css/fonts.css" />
   <link rel="stylesheet" href="/css/bank.css" />
-  ${styles.map((href) => `<link rel="stylesheet" href="${href}" />`).join('\n  ')}${bodyClass === 'rf-app' ? `\n  ${GATE}` : ''}
+  ${styles.map((href) => `<link rel="stylesheet" href="${href}" />`).join('\n  ')}${bodyClass === 'rf-app' ? `\n  ${gate(boot)}` : ''}
 </head>
-<body class="${bodyClass}">`;
+<body class="${bodyClass}">${bodyClass === 'rf-app' ? `\n${splash()}` : ''}`;
 }
 
 const scripts = (list) =>
@@ -438,7 +452,7 @@ function tabbar(active, staff = false) {
  */
 function appPage({ title, description, heading, sub, active, content, extraScripts = [], actions = '', wide = false, staff = false }) {
   return [
-    head({ title, description, noindex: true, bodyClass: 'rf-app' }),
+    head({ title, description, noindex: true, bodyClass: 'rf-app', boot: staff ? 'console' : active }),
     `  <div class="rf-shell${staff ? ' is-staff' : ''}">`,
     sidebar(active, staff),
     `    <div class="rf-main">

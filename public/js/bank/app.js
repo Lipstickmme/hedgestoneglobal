@@ -33,7 +33,7 @@
   const logo = (px) => (window.HSAssets ? window.HSAssets.logo('BTC', px) : '');
   const termText = (months) => (months == null ? '' : months % 12 === 0 ? `${months / 12}-year term` : `${months}-month term`);
   const KIND = { cash: 'Paid in cash', bitcoin: 'Bitcoin received', sent: 'Bitcoin sent', converted: 'Converted to Bitcoin', bought: 'Bought', sold: 'Sold' };
-  const requestAmount = (r) => (r.kind === 'cash_in' ? money(r.amount) : `${esc(r.units)} BTC`);
+  const requestAmount = (r) => (r.kind === 'cash_in' ? money(r.amount) : r.units == null ? '' : `${esc(r.units)} BTC`);
 
   async function dashboard() {
     const heading = qs('.rf-top h1');
@@ -43,10 +43,17 @@
         const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
         heading.textContent = `${part}, ${data.user.preferredName || data.user.firstName || ''}`.trim();
       }
+      // Member since: the day they joined, which is the day of their first
+      // investment when that came before they registered.
+      if (data.user && data.user.createdAt) {
+        const days = Math.floor((Date.now() - new Date(data.user.createdAt).getTime()) / DAY);
+        qs('[data-hero="joined"]').textContent = longDate(data.user.createdAt);
+        qs('[data-hero="joinedSub"]').textContent = days < 1 ? 'Joined today' : `${span(days)} with us`;
+      }
       const requests = data.requests.slice(0, 6);
       qs('[data-requests]').innerHTML = requests.length
         ? requests.map((r) => `<li>
-            <span class="t"><strong>${esc(r.label)}: ${requestAmount(r)}</strong><span>${date(r.createdAt)} &middot; <span class="rf-mono">${esc(r.reference)}</span></span></span>
+            <span class="t"><strong>${esc(r.label)}${requestAmount(r) ? `: ${requestAmount(r)}` : ''}</strong><span>${date(r.createdAt)} &middot; <span class="rf-mono">${esc(r.reference)}</span></span></span>
             ${badge(r.status, r.status === 'pending' ? 'With our team' : r.status === 'pending_verification' ? 'Needs your code' : r.status)}
           </li>`).join('')
         : '<li class="rf-muted rf-small">Nothing waiting. <a href="/receive">Add to your vault</a> with cash or Bitcoin.</li>';
@@ -57,13 +64,35 @@
     const positions = inv.positions || [];
 
     // The headline: what the vault is worth, what went in, and the difference.
-    qs('[data-hero="value"]').textContent = btc.value == null ? '—' : money(btc.value);
+    const valueEl = qs('[data-hero="value"]');
+    valueEl.textContent = btc.value == null ? '—' : money(btc.value);
+    // Billions do not fit a phone at full size.
+    valueEl.classList.toggle('is-long', valueEl.textContent.length > 14);
     qs('[data-hero="cost"]').textContent = money(btc.cost);
+    qs('[data-hero="costSub"]').textContent = positions.length ? `in ${positions.length} investment${positions.length === 1 ? '' : 's'}` : 'Nothing yet';
     const gainEl = qs('[data-hero="gain"]');
     gainEl.textContent = btc.value == null ? '—' : `${signed(btc.gain)}${btc.gainPct == null ? '' : ` (${pct(btc.gainPct)})`}`;
-    gainEl.classList.toggle('down', (btc.gain || 0) < 0);
+    qs('[data-hero="gainPill"]').classList.toggle('down', (btc.gain || 0) < 0);
     qs('[data-hero="units"]').textContent = `${btc.units} BTC`;
     qs('[data-converting]').hidden = !inv.converting;
+
+    // What it cost per Bitcoin, against today's price.
+    const units = Number(btc.units);
+    if (units > 0 && btc.cost > 0) {
+      const avg = Math.round(btc.cost / units);
+      qs('[data-stat="avg"]').textContent = money(avg);
+      qs('[data-stat="avgSub"]').innerHTML = btc.price
+        ? `Bitcoin is <span class="rf-amt ${btc.price >= avg ? 'credit' : 'debit'}">${pct(((btc.price - avg) / avg) * 100)}</span> from it today`
+        : 'Per Bitcoin, across everything you hold';
+    } else {
+      qs('[data-stat="avg"]').textContent = '—';
+      qs('[data-stat="avgSub"]').textContent = 'Once you have invested';
+    }
+    const matured = positions.filter((p) => p.matured).length;
+    qs('[data-stat="count"]').textContent = String(positions.length);
+    qs('[data-stat="countSub"]').textContent = positions.length
+      ? `${matured} matured · ${positions.length - matured} maturing${btc.lastMaturity && positions.length - matured ? ` until ${longDate(btc.lastMaturity)}` : ''}`
+      : 'Each payment or transfer is one';
 
     if (btc.firstPurchasedAt) {
       const held = Math.floor((Date.now() - new Date(btc.firstPurchasedAt).getTime()) / DAY);
@@ -73,11 +102,15 @@
       qs('[data-stat="since"]').textContent = 'Not yet';
       qs('[data-stat="sinceSub"]').innerHTML = '<a href="/receive">Add to your vault</a> to start';
     }
+    const bar = qs('[data-hero="termBar"]');
     if (btc.nextMaturity) {
       const left = Math.max(0, Math.ceil((new Date(btc.nextMaturity).getTime() - Date.now()) / DAY));
+      const next = positions.filter((p) => !p.matured).sort((a, b) => (a.maturesAt < b.maturesAt ? -1 : 1))[0];
       qs('[data-stat="maturity"]').textContent = longDate(btc.nextMaturity);
-      qs('[data-stat="maturitySub"]').textContent = `in ${span(left)}`;
+      qs('[data-stat="maturitySub"]').textContent = `in ${span(left)}${next ? ` · ${Math.round(next.progress * 100)}% of its term` : ''}`;
+      if (bar && next) requestAnimationFrame(() => { bar.style.width = `${Math.round(next.progress * 100)}%`; });
     } else {
+      if (bar) bar.style.width = positions.length ? '100%' : '0%';
       qs('[data-stat="maturity"]').textContent = positions.length ? 'All matured' : '—';
       qs('[data-stat="maturitySub"]').textContent = positions.length ? 'Everything in your vault can be sent' : 'Chosen when you add to your vault';
     }
@@ -139,10 +172,13 @@
     // same few URLs and the edge cache answers most of them.
     const reach = Math.ceil((Date.now() - first) / DAY) + 7;
     const days = [30, 90, 180, 365, 730, 1825, 3650].find((d) => reach <= d) || 6000;
-    let history = { points: [], source: '' };
-    try {
-      history = await api.get(`/markets/history?symbol=BTC&days=${days}`);
-    } catch (err) { /* drawn from the purchases alone, and said so */ }
+    // Usually it came with the page's data; asked for only when it did not.
+    let history = inv.history && inv.history.points && inv.history.points.length ? inv.history : { points: [], source: '' };
+    if (!history.points.length) {
+      try {
+        history = await api.get(`/markets/history?symbol=BTC&days=${days}`);
+      } catch (err) { /* drawn from the purchases alone, and said so */ }
+    }
     const series = growthSeries(positions, history.points, btc.price);
     drawGrowth(host, series, positions);
     let resized;

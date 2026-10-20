@@ -97,6 +97,8 @@ router.post('/auth/resend', signInLimiter, authController.resend);
 router.post('/auth/forgot', signInLimiter, authController.forgot);
 router.post('/auth/reset', signInLimiter, authController.resetPassword);
 router.get('/auth/session', authController.session);
+// Who is signed in and the page's data, in one request (see bootController).
+router.get('/boot', require('../controllers/bank/bootController').boot);
 router.post('/auth/logout', authController.logout);
 
 // Changing a password is the one authenticated route allowed while a forced

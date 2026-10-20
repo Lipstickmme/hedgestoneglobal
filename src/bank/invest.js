@@ -250,7 +250,7 @@ async function addToVault(user, input, req, opts = {}) {
   const termMonths = termFor(input.termYears, cfg);
   const kind = input.kind === 'bitcoin' ? 'bitcoin' : 'cash';
 
-  return withLock(`invest:${user.id}`, async () => {
+  const result = await withLock(`invest:${user.id}`, async () => {
     const { asset, quote } = await markets.priceAt('BTC', at);
     const pc = priceCents(quote.price);
     let units;
@@ -305,6 +305,9 @@ async function addToVault(user, input, req, opts = {}) {
     }
     return { trade: publicTrade(trade) };
   });
+  // Money paid before they registered moves when they joined.
+  await alignJoined(user.id);
+  return result;
 }
 
 /* ---------------------------------------------------------- vault: out --- */
@@ -470,16 +473,20 @@ async function sendFromVault(user, input, req, opts = {}) {
 /* ---------------------------------------------------------------- staff --- */
 
 /**
- * Move something in the vault to the date it really happened, or change a
- * purchase's term. Moving it reprices it at that day's price: a cash purchase
+ * Correct something in the vault: the date it really happened, its term, or
+ * how much it was. Moving it reprices it at that day's price: a cash purchase
  * keeps what was paid and is worth the Bitcoin that bought then; Bitcoin
- * received keeps its units and is valued at that day. The maturity moves
- * with it: it is always the date plus the term.
+ * received keeps its units and is valued at that day. A new amount works the
+ * same way - cash paid buys what it would have on the day, Bitcoin received
+ * is valued at the day's price. The maturity is always the date plus the
+ * term.
+ *
+ * @param {object} change  { termYears, amount (cents, cash paid), units (Bitcoin received) }
  */
-async function retimeTrade(tradeId, at, staff, note, req, { termYears } = {}) {
+async function retimeTrade(tradeId, at, staff, note, req, { termYears, amount, units: newUnitsIn } = {}) {
   const found = await db.trades.findById(tradeId);
   if (!found) throw err(404, 'Trade not found.');
-  return withLock(`invest:${found.user_id}`, async () => {
+  const result = await withLock(`invest:${found.user_id}`, async () => {
     const trade = await db.trades.findById(tradeId);
     if (trade.status === 'reversed') throw err(409, 'That trade has been reversed.');
     const iso = at ? bookingDate(at) : trade.created_at;
@@ -487,24 +494,46 @@ async function retimeTrade(tradeId, at, staff, note, req, { termYears } = {}) {
     const kind = kindOf(trade);
     const asset = markets.BY_SYMBOL.get(trade.symbol);
 
-    if (trade.side === 'buy' && trade.symbol === 'BTC' && iso !== trade.created_at && kind !== 'converted') {
-      const { quote } = await markets.priceAt('BTC', iso);
-      const pc = priceCents(quote.price);
+    const wantsAmount = amount != null && amount !== '' && Math.round(Number(amount)) !== Number(trade.amount || 0);
+    const wantsUnits = newUnitsIn != null && newUnitsIn !== '' && toScaled(newUnitsIn, asset.decimals) !== toScaled(trade.units, asset.decimals);
+    if (wantsAmount || wantsUnits) {
+      if (trade.side !== 'buy' || trade.symbol !== 'BTC') throw err(409, 'Only something added to the vault can have its amount changed. Reverse a send and record it again instead.', 'amount_fixed');
+      if (kind === 'converted' || trade.transaction_id) throw err(409, 'A conversion keeps the amount it was converted at. Change its date or term instead.', 'amount_fixed');
+      if (wantsAmount && kind === 'bitcoin') throw err(400, 'This was Bitcoin received: change how much Bitcoin, and its value follows.', 'amount_is_units');
+      if (wantsUnits && kind !== 'bitcoin') throw err(400, 'This was cash paid: change the amount paid, and the Bitcoin it bought follows.', 'units_is_amount');
+    }
+
+    const moved = iso !== trade.created_at;
+    if (trade.side === 'buy' && trade.symbol === 'BTC' && kind !== 'converted' && (moved || wantsAmount || wantsUnits)) {
+      // The day's price: looked up again only when the day changes.
+      let pc = Number(trade.price);
+      let quote = null;
+      if (moved || !pc) {
+        ({ quote } = await markets.priceAt('BTC', iso));
+        pc = priceCents(quote.price);
+      }
       const existing = await holdingFor(trade.user_id, 'BTC');
       const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
       const cost = Number(existing ? existing.cost_basis : 0);
-      const units = toScaled(trade.units, asset.decimals);
+      const oldUnits = toScaled(trade.units, asset.decimals);
+      const oldAmount = Number(trade.amount || 0);
+      let nextUnits;
+      let nextAmount;
       if (kind === 'bitcoin') {
-        const amount = valueOf(units, pc, asset.decimals);
-        await saveHolding(existing, trade.user_id, asset, held, cost + amount - Number(trade.amount || 0));
-        patch.amount = amount;
+        nextUnits = wantsUnits ? toScaled(newUnitsIn, asset.decimals) : oldUnits;
+        if (nextUnits <= 0n) throw err(400, 'Enter how much Bitcoin was received.', 'invalid_units');
+        nextAmount = valueOf(nextUnits, pc, asset.decimals);
       } else {
-        const next = unitsFor(Number(trade.amount || 0), pc, asset.decimals);
-        if (held + next - units < 0n) throw err(409, 'Some of this Bitcoin has been sent since; at that date it would have bought less than has gone.', 'units_sent');
-        await saveHolding(existing, trade.user_id, asset, held + next - units, cost);
-        patch.units = fromScaled(next, asset.decimals);
+        nextAmount = wantsAmount ? Math.round(Number(amount)) : oldAmount;
+        if (!Number.isFinite(nextAmount) || nextAmount < MIN_BUY) throw err(400, `The smallest amount is ${money(MIN_BUY)}.`, 'below_minimum');
+        nextUnits = unitsFor(nextAmount, pc, asset.decimals);
       }
-      Object.assign(patch, { price: pc, quote_source: quote.source, quote_as_of: quote.asOf });
+      if (held - oldUnits + nextUnits < 0n) {
+        throw err(409, 'Some of this Bitcoin has been sent since: the change would leave less than has gone.', 'units_sent');
+      }
+      await saveHolding(existing, trade.user_id, asset, held - oldUnits + nextUnits, cost - oldAmount + nextAmount);
+      Object.assign(patch, { units: fromScaled(nextUnits, asset.decimals), amount: nextAmount, price: pc });
+      if (quote) Object.assign(patch, { quote_source: quote.source, quote_as_of: quote.asOf });
     }
 
     let term = trade.term_months == null ? null : Number(trade.term_months);
@@ -514,22 +543,69 @@ async function retimeTrade(tradeId, at, staff, note, req, { termYears } = {}) {
     if (trade.side === 'buy' && (trade.term_months != null || trade.matures_at)) {
       patch.term_months = term;
       patch.matures_at = addMonths(iso, term);
-    } else if (trade.side === 'buy' && term !== null) {
-      throw err(409, 'This database cannot store a term yet. Run supabase/setup.sql in Supabase, then try again.', 'term_unsupported');
+    } else if (trade.side === 'buy' && termYears != null && termYears !== '') {
+      throw err(409, 'This database cannot store a term yet. Open the Setup checklist in the console and run the SQL it shows, then try again.', 'term_unsupported');
     }
     await db.trades.update(trade.id, patch);
-    if (trade.transaction_id && iso !== trade.created_at) {
+    if (trade.transaction_id && moved) {
       await db.transactions.update(trade.transaction_id, { date: iso });
       if (trade.account_id) await ledger.restate(trade.account_id);
     }
+    const changed = [];
+    if (moved) changed.push(`dated ${iso.slice(0, 10)}`);
+    if (patch.price && (moved || wantsAmount || wantsUnits)) changed.push(`${patch.units} BTC (${money(patch.amount)}) at ${money(patch.price)}`);
+    if (patch.term_months && Number(patch.term_months) !== Number(trade.term_months)) changed.push(termLabel(patch.term_months));
     await audit.log({
       action: 'admin.trade_retimed', category: 'admin', userId: trade.user_id, req, severity: 'notice',
       actor: { id: staff.id, email: staff.email, role: 'admin' },
-      detail: `${trade.reference} dated ${iso.slice(0, 10)}${patch.price ? ` at ${money(patch.price)}` : ''}${patch.term_months ? `, ${termLabel(patch.term_months)}` : ''}${note ? ` - ${note}` : ''}`,
-      meta: { tradeId: trade.id, from: trade.created_at, to: iso },
+      detail: `${trade.reference}: ${changed.join(', ') || 'unchanged'}${wantsAmount || wantsUnits ? ` (was ${trade.units} BTC, ${money(trade.amount)})` : ''}${note ? ` - ${note}` : ''}`,
+      meta: { tradeId: trade.id, from: trade.created_at, to: iso, was: { units: trade.units, amount: Number(trade.amount || 0) } },
     });
     return publicTrade({ ...trade, ...patch });
   });
+  await alignJoined(found.user_id);
+  return result;
+}
+
+/*
+ * Who joined when. A customer registered today with money they paid in 2015
+ * has been with us since 2015, so "joined" is the earlier of when they
+ * registered and the first thing in their vault - on their record, their
+ * dashboard and the welcome alert alike. Worked out again whenever something
+ * in the vault is added, re-dated or reversed, so it follows corrections both
+ * ways. The first time it moves, when they really registered is written to
+ * the activity log, and read back from there after.
+ */
+const JOINED_MARK = 'account.joined_dated';
+
+async function alignJoined(userId) {
+  try {
+    const [user, buys, marks] = await Promise.all([
+      db.users.findById(userId),
+      db.trades.find({ user_id: userId, side: 'buy' }, { order: 'created_at.asc' }),
+      db.activity.find({ user_id: userId, action: JOINED_MARK }, { order: 'created_at.asc', limit: 1 }).catch(() => []),
+    ]);
+    if (!user || user.role === 'admin') return null;
+    const mark = marks[0];
+    const registered = (mark && mark.meta && mark.meta.registeredAt) || user.created_at;
+    const first = buys.find((t) => t.status !== 'reversed' && !isConversion(t));
+    const joined = first && new Date(first.created_at) < new Date(registered) ? first.created_at : registered;
+    if (new Date(joined).getTime() === new Date(user.created_at).getTime()) return joined;
+    if (!mark) {
+      await audit.log({
+        action: JOINED_MARK, category: 'account', userId, actor: { role: 'system' },
+        detail: `Joined dated ${String(joined).slice(0, 10)}, the day of their first deposit (registered ${String(registered).slice(0, 10)})`,
+        meta: { registeredAt: registered },
+      });
+    }
+    await db.users.update(userId, { created_at: joined });
+    // The welcome is dated the day they joined.
+    await db.alerts.updateWhere({ user_id: userId, type: 'account_opened' }, { created_at: joined }).catch(() => 0);
+    return joined;
+  } catch (e) {
+    console.warn(`[hedgestone] could not align when ${userId} joined: ${e.message}`);
+    return null;
+  }
 }
 
 /**
@@ -551,7 +627,7 @@ async function reverseTrade(tradeId, staff, note, req) {
   const asset = markets.BY_SYMBOL.get(trade.symbol);
   if (!asset) throw err(400, 'That asset is no longer listed.');
 
-  return withLock(`invest:${trade.user_id}`, async () => {
+  const result = await withLock(`invest:${trade.user_id}`, async () => {
     const existing = await holdingFor(trade.user_id, asset.symbol);
     const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
     const units = toScaled(trade.units, asset.decimals);
@@ -577,6 +653,8 @@ async function reverseTrade(tradeId, staff, note, req) {
     });
     return publicTrade({ ...trade, ...patch });
   });
+  await alignJoined(trade.user_id);
+  return result;
 }
 
 /* ------------------------------------------------------------ convert --- */
@@ -897,6 +975,16 @@ async function portfolio(userId, { user: known } = {}) {
       [holdingRows, btcTrades, sends] = await read();
     }
   }
+  // Back-dated before they registered: they joined that day. Checked here
+  // from rows already read, so customers booked before this rule align the
+  // next time their vault is looked at.
+  const firstIn = btcTrades.find((t) => t.side === 'buy' && t.status !== 'reversed' && !isConversion(t));
+  const who = known || null;
+  if (firstIn && who && who.role !== 'admin' && new Date(firstIn.created_at) < new Date(who.created_at)) {
+    const joined = await alignJoined(userId);
+    if (joined && known) known.created_at = joined;
+  }
+
   const btcHolding = holdingRows.find((h) => h.symbol === 'BTC') || null;
   const trades = btcTrades.slice().reverse().slice(0, 25);
   const ready = readyFrom(btcTrades, btcHolding, sends);
@@ -960,7 +1048,7 @@ async function portfolio(userId, { user: known } = {}) {
 }
 
 module.exports = {
-  addToVault, sendFromVault, maturedUnits, portfolio, publicTrade, retimeTrade, reverseTrade, addMonths,
+  addToVault, sendFromVault, maturedUnits, portfolio, publicTrade, retimeTrade, reverseTrade, addMonths, alignJoined,
   convertRetired, convertCash, convertLegacy, convertAllLegacy, termFor, defaultTermYears, termLabel,
   MIN_BUY, TERM_YEARS, MAX_TERM_MONTHS, _units: { toScaled, fromScaled, unitsFor, valueOf },
 };

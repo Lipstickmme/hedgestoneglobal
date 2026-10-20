@@ -327,10 +327,78 @@
       paintRequests(data.requests, ['btc_out']);
     }
 
+    /* The address: checked as it is pasted, with the reason when it is wrong. */
+    const addressInput = qs('#s-address');
+    const status = qs('[data-address-status]');
+    const checkAddress = () => {
+      const raw = addressInput.value.trim();
+      if (!raw) {
+        status.hidden = true;
+        addressInput.classList.remove('is-valid', 'is-invalid');
+        return null;
+      }
+      const result = window.BtcAddress ? window.BtcAddress.check(raw) : { ok: true, address: raw, type: 'Bitcoin address', length: raw.length };
+      status.hidden = false;
+      status.className = `hs-addr-status ${result.ok ? 'is-ok' : 'is-bad'}`;
+      addressInput.classList.toggle('is-valid', result.ok);
+      addressInput.classList.toggle('is-invalid', !result.ok);
+      status.innerHTML = result.ok
+        ? `<b>&#10003; A valid Bitcoin address</b> &middot; ${esc(result.type)}, ${result.length} characters. It starts <span class="rf-mono">${esc(result.address.slice(0, 6))}</span> and ends <span class="rf-mono">${esc(result.address.slice(-6))}</span>: check both against your wallet.`
+        : `<b>&#9888; Not a Bitcoin address.</b> ${esc(result.reason)}`;
+      return result;
+    };
+    addressInput.addEventListener('input', checkAddress);
+    addressInput.addEventListener('blur', checkAddress);
+    // Some browsers fill a saved email in after the page loads, whatever the
+    // field says; it is cleared rather than left looking like an address.
+    setTimeout(() => {
+      if (/@/.test(addressInput.value)) { addressInput.value = ''; checkAddress(); }
+    }, 600);
+    addressInput.addEventListener('focus', () => {
+      if (/@/.test(addressInput.value)) addressInput.value = '';
+    });
+
+    /** Shown before anything is sent: the amount, and the address in groups of four to compare. */
+    function confirmSend(values, checked) {
+      return new Promise((resolve) => {
+        const groups = checked.address.match(/.{1,4}/g).map((g, i, all) => `<span class="${i === 0 || i === all.length - 1 ? 'is-end' : ''}">${esc(g)}</span>`).join('');
+        const el = document.createElement('div');
+        el.className = 'rf-modal-backdrop';
+        el.innerHTML = `
+          <div class="rf-modal">
+            <div class="rf-modal-head"><h3>Check before you send</h3><button type="button" data-close aria-label="Close">&times;</button></div>
+            <div class="rf-modal-body">
+              <p class="hs-confirm-amt"><strong>${esc(values.units)} BTC</strong>${price ? `<span>about ${money(Math.floor(Number(values.units) * price))}</span>` : ''}</p>
+              <p class="rf-small rf-muted" style="margin:0 0 6px">To this ${esc(checked.type)} address:</p>
+              <div class="hs-addr-groups">${groups}</div>
+              <div class="hs-addr-warn rf-mt">Compare every group with the Receive screen of your wallet, the first and last above all. Bitcoin sent to a wrong address cannot be brought back, by us or anyone.</div>
+              <label class="rf-check rf-mt"><input type="checkbox" data-checked-address /> <span>I have checked the address against my own wallet</span></label>
+            </div>
+            <div class="rf-modal-foot">
+              <button class="rf-btn ghost" type="button" data-close>Go back</button>
+              <button class="rf-btn" type="button" data-go disabled>Send ${esc(values.units)} BTC</button>
+            </div>
+          </div>`;
+        document.body.appendChild(el);
+        const done = (answer) => { el.remove(); resolve(answer); };
+        const go = qs('[data-go]', el);
+        qs('[data-checked-address]', el).addEventListener('change', (e) => { go.disabled = !e.target.checked; });
+        go.addEventListener('click', () => done(true));
+        qsa('[data-close]', el).forEach((b) => b.addEventListener('click', () => done(false)));
+      });
+    }
+
     onSubmit(form, async (values) => {
-      if (!confirm(`Send ${values.units} BTC to:\n\n${values.address}\n\nBitcoin sent to the wrong address cannot be brought back. Is the address right?`)) return;
+      const checked = checkAddress();
+      if (!checked || !checked.ok) {
+        addressInput.focus();
+        throw new Error(checked ? checked.reason : 'Paste the Bitcoin address from your wallet.');
+      }
+      values.address = checked.address;
+      if (!(await confirmSend(values, checked))) return;
       const result = await api.post('/vault/send', values);
       form.reset();
+      checkAddress();
       valueHint();
       await reload();
       if (result.next === 'verify') await verify(result.request, result.otp);

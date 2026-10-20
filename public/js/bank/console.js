@@ -301,7 +301,7 @@
       </li>`).join('');
       const trades = inv.trades.slice(0, 8).map((t) => `<li class="${t.status === 'reversed' ? 'is-reversed' : ''}">
         <span class="t"><strong>${esc(KIND_LABEL[t.kind] || t.kind)} ${btc(t.units)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${termText(t.termMonths)}` : ''}${t.bookedByStaff ? ' &middot; by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
-        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths && t.termMonths % 12 === 0 ? t.termMonths / 12 : '')}">Change date or term</button>${t.converted || t.transactionId ? '' : ` <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${KIND_LABEL[t.kind] || t.kind} ${t.units} BTC (${money(t.amount)})`)}">Reverse</button>`}</span>`}
+        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths && t.termMonths % 12 === 0 ? t.termMonths / 12 : '')}" data-trade-kind="${esc(t.kind)}" data-trade-amount="${esc((Number(t.amount || 0) / 100).toFixed(2))}" data-trade-units="${esc(t.units)}" data-trade-fixed="${t.converted || t.transactionId ? '1' : ''}">${t.side === 'buy' && !t.converted && !t.transactionId ? 'Edit amount, date or term' : 'Change date or term'}</button>${t.converted || t.transactionId ? '' : ` <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${KIND_LABEL[t.kind] || t.kind} ${t.units} BTC (${money(t.amount)})`)}">Reverse</button>`}</span>`}
       </li>`).join('');
       list.innerHTML = `${holdings}
         ${positions ? `<li class="rf-label" style="border:0;padding-bottom:0">What is in it, and when each part matures</li>${positions}` : ''}
@@ -523,12 +523,20 @@
       return;
     }
 
-    /* Move something to when it really happened (repriced at that day), or change its term. */
+    /* Correct something in a vault: how much, when (repriced at that day), or its term. */
     const timeBtn = event.target.closest('[data-trade-time]');
     if (timeBtn) {
       event.preventDefault();
       const isBuy = timeBtn.getAttribute('data-trade-side') === 'buy';
-      const { form, close } = staffSheet(isBuy ? 'Change the date or term' : 'Change the date', `
+      const kind = timeBtn.getAttribute('data-trade-kind');
+      // Cash paid and Bitcoin received can have their amount corrected; a conversion cannot.
+      const editable = isBuy && !timeBtn.getAttribute('data-trade-fixed');
+      const isBtc = kind === 'bitcoin';
+      const amountField = !editable ? '' : isBtc
+        ? `<div class="rf-field"><label>Bitcoin received</label><input class="rf-input money" name="units" inputmode="decimal" value="${esc(timeBtn.getAttribute('data-trade-units'))}" /><div class="hint">Its value follows, at that day&rsquo;s price.</div></div>`
+        : `<div class="rf-field"><label>Amount paid (USD)</label><input class="rf-input money" name="amount" inputmode="decimal" value="${esc(timeBtn.getAttribute('data-trade-amount'))}" /><div class="hint">The Bitcoin it bought follows, at that day&rsquo;s price.</div></div>`;
+      const { form, close } = staffSheet(editable ? 'Edit the amount, date or term' : isBuy ? 'Change the date or term' : 'Change the date', `
+        ${amountField}
         ${whenFields(timeBtn.getAttribute('data-trade-at'), isBuy ? `Not before ${EARLIEST}. A new date reprices it at Bitcoin's closing price that day: cash paid buys what it would have bought then; Bitcoin received is valued at that day.` : '')}
         ${isBuy ? `<div class="rf-field"><label>Term (years)</label><input class="rf-input" type="number" name="termYears" min="${TERM.min}" max="${TERM.max}" step="1" value="${esc(timeBtn.getAttribute('data-trade-term'))}" /><div class="hint">${TERM.min} to ${TERM.max} years. It matures on its date plus its term.</div></div>` : ''}
         <div class="rf-field"><label>Reason</label><input class="rf-input" name="note" placeholder="Payment date confirmed by the OTC partner" /></div>`, 'Save');
@@ -537,9 +545,11 @@
         if (!when) throw new Error('Enter a date.');
         const body = { date: when, note: values.note };
         if (isBuy && values.termYears) body.termYears = values.termYears;
+        if (editable && isBtc && values.units) body.units = values.units;
+        if (editable && !isBtc && values.amount) body.amount = values.amount;
         const res = await api.patch(`/admin/trades/${timeBtn.getAttribute('data-trade-time')}`, body);
         close();
-        toast(isBuy ? `Updated: ${res.trade.units} BTC at ${money(res.trade.price)}, maturing ${date(res.trade.maturesAt)}.` : 'Re-dated.', 'ok');
+        toast(isBuy ? `Updated: ${res.trade.units} BTC (${money(res.trade.amount)}) at ${money(res.trade.price)}, maturing ${date(res.trade.maturesAt)}.` : 'Re-dated.', 'ok');
         openCustomer(acting.customerId);
       });
       return;

@@ -157,8 +157,20 @@
     return data;
   }
 
+  // What the page's /boot request already brought, by API path. Each is
+  // handed out once - the first time a page asks - and later asks (a reload
+  // after a change) go to the server as usual.
+  const preloaded = new Map();
+
   const api = {
-    get: (path) => request('GET', path),
+    get: (path) => {
+      if (preloaded.has(path)) {
+        const data = preloaded.get(path);
+        preloaded.delete(path);
+        return Promise.resolve(data);
+      }
+      return request('GET', path);
+    },
     post: (path, body) => request('POST', path, body === undefined ? {} : body),
     patch: (path, body) => request('PATCH', path, body),
     put: (path, body) => request('PUT', path, body),
@@ -512,10 +524,17 @@
   async function bootstrap() {
     const isApp = document.body.classList.contains('rf-app');
     let session = null;
-    try {
-      session = await api.get('/auth/session');
-    } catch (err) {
-      session = { authenticated: false };
+    // Started by the page's first lines (src/bank/site/layout.js, gate()).
+    const boot = window.__hsBoot ? await window.__hsBoot : null;
+    if (boot && boot.session) {
+      session = boot.session;
+      Object.keys(boot.data || {}).forEach((path) => preloaded.set(path, boot.data[path]));
+    } else {
+      try {
+        session = await api.get('/auth/session');
+      } catch (err) {
+        session = { authenticated: false };
+      }
     }
     state.session = session;
     state.user = session.user || null;
@@ -540,8 +559,7 @@
         return new Promise(() => {});
       }
       paintUser(session);
-      // Confirmed: lift the loader the head script put up.
-      document.documentElement.classList.remove('rf-booting');
+      // Confirmed. The loader comes down once the page has drawn (below).
     }
     // Not awaited: nothing on the page is blocked on a telephone number, and a
     // slow /config should not hold up the dashboard behind it.
@@ -603,14 +621,30 @@
     wireDateParts();
     watchFit();
     booted = bootstrap().then((session) => {
-      readyQueue.splice(0).forEach((fn) => {
+      const runs = readyQueue.splice(0).map((fn) => {
         try {
-          fn(session);
+          return Promise.resolve(fn(session)).catch(() => {});
         } catch (err) {
           console.error('[hedgestone] page script failed', err);
           toast('Something on this page did not load. Refresh to try again.', 'bad');
+          return null;
         }
       });
+      // The loading screen comes down once the page has drawn what it opened
+      // with, so it appears whole rather than panel by panel - or after two
+      // and a half seconds, whichever is first.
+      const root = document.documentElement;
+      if (root.classList.contains('rf-booting')) {
+        let lifted = false;
+        const lift = () => {
+          if (lifted) return;
+          lifted = true;
+          root.classList.add('rf-booted');
+          root.classList.remove('rf-booting');
+        };
+        Promise.all(runs).then(lift);
+        setTimeout(lift, 2500);
+      }
       return session;
     });
   });

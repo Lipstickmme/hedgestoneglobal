@@ -244,6 +244,9 @@ const createCustomer = asyncHandler(async (req, res) => {
       : 'Sign in with the password you chose with us today.',
     cta: { label: 'Sign in', href: `${baseUrl()}/signin` },
   });
+  // With money paid before today, they joined the day they paid it, and the
+  // welcome says so too.
+  if (first) await db.alerts.updateWhere({ user_id: user.id, type: 'account_opened' }, { created_at: fresh.created_at }).catch(() => 0);
 
   res.status(201).json({
     customer: usersLib.publicUser(fresh, 'admin'),
@@ -349,18 +352,16 @@ const deleteCustomer = asyncHandler(async (req, res) => {
   ]);
   const btc = holdings.filter((h) => h.symbol === 'BTC').reduce((sum, h) => sum + Number(h.units || 0), 0);
 
-  await require('../../bank/auth').revokeOtherSessions(user.id, null);
-  // Children first. On Supabase the user's own row would cascade to these
+  require('../../bank/auth').forgetUser(user.id);
+  // Children first, all at once: one request each, side by side, rather than
+  // one after another. On Supabase the user's own row would cascade to these
   // anyway; in file storage nothing cascades, so each is cleared by name.
-  for (const name of CUSTOMER_COLLECTIONS) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      await db[name].removeWhere({ user_id: user.id });
-    } catch (err) {
+  await Promise.all([
+    ...CUSTOMER_COLLECTIONS.map((name) => db[name].removeWhere({ user_id: user.id }).catch((err) => {
       if (err.code !== 'setup_required') throw err;
-    }
-  }
-  await db.settings.remove(`vault:${user.id}`).catch(() => {});
+    })),
+    db.settings.remove(`vault:${user.id}`).catch(() => {}),
+  ]);
   await db.users.remove(user.id);
 
   const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;

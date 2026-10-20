@@ -22,11 +22,18 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=d98377fb" />
+  <link rel="stylesheet" href="/css/bank.css?v=a823f7ed" />
   
-  <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
+  <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';try{window.__hsBoot=fetch('/api/bank/boot?page=send',{credentials:'same-origin',headers:{Accept:'application/json'}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null});}catch(e){}})();</script>
 </head>
 <body class="rf-app">
+  <div class="hs-splash" aria-hidden="true">
+    <div class="hs-splash-inner">
+      <img src="/assets/bank/logomark-dark.png?v=8e9b31bb" alt="" width="46" height="56" />
+      <span class="hs-splash-name" data-platform-name>Hedgestone Finance</span>
+      <span class="hs-splash-bar"><i></i></span>
+    </div>
+  </div>
   <div class="rf-shell">
 
     <aside class="rf-side" id="rf-side">
@@ -112,12 +119,20 @@
                 </div>
                 <div class="rf-field">
                   <label for="s-address">To this Bitcoin address</label>
-                  <input class="rf-input mono" id="s-address" name="address" autocomplete="off" spellcheck="false" placeholder="bc1q..." required />
-                  <div class="hint">An address in a wallet of yours. Check it carefully: Bitcoin sent to the wrong address cannot be brought back.</div>
+                  <!-- Not a login: these keep browsers and password managers from filling in an email address. -->
+                  <input class="rf-input mono hs-address-input" id="s-address" name="address" type="text"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                    data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other"
+                    placeholder="e.g. bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" required />
+                  <div class="hs-addr-status" data-address-status hidden></div>
+                  <div class="hs-addr-warn" role="note">
+                    <strong>Check the address before you send.</strong>
+                    Copy it from the Receive screen of your own wallet and paste it here; never type it, or take it from an email or a message. Compare the first and last six characters with your wallet. Bitcoin sent to a wrong address cannot be brought back.
+                  </div>
                 </div>
                 <div class="rf-field" data-pin-field hidden>
                   <label for="s-pin">Your PIN</label>
-                  <input class="rf-input mono" type="password" id="s-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="off" />
+                  <input class="rf-input mono" type="password" id="s-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore />
                 </div>
                 <div class="rf-field"><label for="s-note">Note for us</label><input class="rf-input" id="s-note" name="note" maxlength="300" /></div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
@@ -154,10 +169,11 @@
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>
   <script src="/js/bankname.js?v=5c0bf235" defer></script>
-  <script src="/js/bank/core.js?v=ab6321c5" defer></script>
+  <script src="/js/bank/core.js?v=415606f2" defer></script>
   <script src="/js/asset-logos.js?v=93d683f2" defer></script>
   <script src="/js/assets.js?v=a953dc1b" defer></script>
   <script src="/js/ticker.js?v=68500b3e" defer></script>
-  <script src="/js/bank/vault.js?v=0ad2d60c" defer></script>
+  <script src="/js/btc-address.js?v=6aee69fb" defer></script>
+  <script src="/js/bank/vault.js?v=eec5ce11" defer></script>
 </body>
 </html>

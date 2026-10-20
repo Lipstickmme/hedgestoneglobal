@@ -550,6 +550,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `SUPABASE_URL` | for the database | Project URL (`VITE_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` accepted) |
 | `SUPABASE_ANON_KEY` | for chat and `/admin` | anon key; public by design, sent to the browser (`SUPABASE_PUBLISHABLE_KEY` and the `NEXT_PUBLIC_` / `VITE_` forms accepted) |
 | `SUPABASE_SERVICE_ROLE_KEY` | for the database | service_role key; server side only (`SUPABASE_SECRET_KEY` accepted) |
+| `VERCEL_REGION` | set by Vercel | Where the functions run; `/api/health` reports it beside `databaseLatencyMs`. Keep the Function Region (Project Settings, Functions) next to the Supabase project's region, or every page pays the distance several times |
 | `SUPABASE_ACCESS_TOKEN` | no | A Supabase personal access token (`sbp_...`, from Account, Access Tokens). Lets the console's **Setup checklist** run missing SQL itself, on the project `SUPABASE_URL` names. It can reach every project in that Supabase account, so delete it once the database is up to date |
 | `RESEND_API_KEY` | for email | Resend API key |
 | `FORM_TO` | for email | Where enquiries and chat land |

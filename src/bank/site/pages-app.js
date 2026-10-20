@@ -175,21 +175,28 @@ const changePasswordContent = `
 const dashboardContent = `
         <section class="hs-vault rf-mb">
           <div class="hs-vault-head hs-dash-hero hs-btc-hero">
-            <div class="hs-dash-hero-main">
-              <span class="k">${btcMark(22)} Your vault is worth</span>
-              <strong class="v" data-hero="value">&mdash;</strong>
-              <span class="d">
-                <span>Invested <b data-hero="cost">&mdash;</b></span>
-                <span>Growth <b data-hero="gain">&mdash;</b></span>
-                <span>Holding <b data-hero="units">&mdash;</b></span>
-              </span>
+            <div class="hs-hero-top">
+              <div class="hs-dash-hero-main">
+                <span class="k">${btcMark(22)} Your vault is worth</span>
+                <strong class="v" data-hero="value">&mdash;</strong>
+                <div class="hs-hero-pills">
+                  <span class="hs-pill hs-pill-gain" data-hero="gainPill"><span class="arrow" aria-hidden="true">&#9650;</span><b data-hero="gain">&mdash;</b><small>all time</small></span>
+                  <span class="hs-pill">${btcMark(14)}<b data-hero="units">&mdash;</b></span>
+                </div>
+              </div>
+              <nav class="hs-qa" aria-label="Quick actions">
+                <a href="/receive" class="is-primary"><i>${icon('receive', 20)}</i><span>Receive</span></a>
+                <a href="/send"><i>${icon('send', 20)}</i><span>Send</span></a>
+                <a href="/vault"><i>${icon('vault', 20)}</i><span>My vault</span></a>
+                <a href="/history"><i>${icon('activity', 20)}</i><span>History</span></a>
+              </nav>
             </div>
-            <nav class="hs-qa" aria-label="Quick actions">
-              <a href="/receive" class="is-primary"><i>${icon('receive', 20)}</i><span>Receive</span></a>
-              <a href="/send"><i>${icon('send', 20)}</i><span>Send</span></a>
-              <a href="/vault"><i>${icon('vault', 20)}</i><span>My vault</span></a>
-              <a href="/history"><i>${icon('activity', 20)}</i><span>History</span></a>
-            </nav>
+            <div class="hs-hero-facts">
+              <div class="hs-fact"><span class="k">${icon('deposit', 13)} Invested</span><b data-hero="cost">&mdash;</b><small data-hero="costSub">&nbsp;</small></div>
+              <div class="hs-fact"><span class="k">${icon('clock', 13)} First invested</span><b data-stat="since">&mdash;</b><small data-stat="sinceSub">&nbsp;</small></div>
+              <div class="hs-fact is-maturity"><span class="k">${icon('hourglass', 13)} Next maturity</span><b data-stat="maturity">&mdash;</b><small data-stat="maturitySub">&nbsp;</small><span class="hs-fact-bar" aria-hidden="true"><i data-hero="termBar"></i></span></div>
+              <div class="hs-fact"><span class="k">${icon('user', 13)} Member since</span><b data-hero="joined">&mdash;</b><small data-hero="joinedSub">&nbsp;</small></div>
+            </div>
           </div>
           <div class="hs-vault-chart hs-growth">
             <div class="hs-vault-chart-head">
@@ -217,10 +224,10 @@ const dashboardContent = `
         </section>
 
         <div class="rf-grid cols-4 rf-mb hs-dates">
-          <div class="rf-card rf-stat hs-date is-in"><div class="k">${icon('clock', 15)} First invested</div><div class="v" data-stat="since">&mdash;</div><div class="d" data-stat="sinceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat hs-date is-out"><div class="k">${icon('hourglass', 15)} Next maturity</div><div class="v" data-stat="maturity">&mdash;</div><div class="d" data-stat="maturitySub">&nbsp;</div></div>
           <div class="rf-card rf-stat"><div class="k">${btcMark(16)} Bitcoin price now</div><div class="v" data-stat="price">&mdash;</div><div class="d" data-stat="priceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k">${icon('send', 15)} Ready to send</div><div class="v" data-stat="ready">&mdash;</div><div class="d" data-stat="readySub">Bitcoin that has matured</div></div>
+          <div class="rf-card rf-stat"><div class="k">${icon('activity', 15)} Average price paid</div><div class="v" data-stat="avg">&mdash;</div><div class="d" data-stat="avgSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-date is-in"><div class="k">${icon('vault', 15)} Investments</div><div class="v" data-stat="count">&mdash;</div><div class="d" data-stat="countSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-date is-out"><div class="k">${icon('send', 15)} Ready to send</div><div class="v" data-stat="ready">&mdash;</div><div class="d" data-stat="readySub">Bitcoin that has matured</div></div>
         </div>
 
         <section class="rf-card rf-mb">
@@ -359,12 +366,20 @@ const sendContent = `
                 </div>
                 <div class="rf-field">
                   <label for="s-address">To this Bitcoin address</label>
-                  <input class="rf-input mono" id="s-address" name="address" autocomplete="off" spellcheck="false" placeholder="bc1q..." required />
-                  <div class="hint">An address in a wallet of yours. Check it carefully: Bitcoin sent to the wrong address cannot be brought back.</div>
+                  <!-- Not a login: these keep browsers and password managers from filling in an email address. -->
+                  <input class="rf-input mono hs-address-input" id="s-address" name="address" type="text"
+                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                    data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other"
+                    placeholder="e.g. bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh" required />
+                  <div class="hs-addr-status" data-address-status hidden></div>
+                  <div class="hs-addr-warn" role="note">
+                    <strong>Check the address before you send.</strong>
+                    Copy it from the Receive screen of your own wallet and paste it here; never type it, or take it from an email or a message. Compare the first and last six characters with your wallet. Bitcoin sent to a wrong address cannot be brought back.
+                  </div>
                 </div>
                 <div class="rf-field" data-pin-field hidden>
                   <label for="s-pin">Your PIN</label>
-                  <input class="rf-input mono" type="password" id="s-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="off" />
+                  <input class="rf-input mono" type="password" id="s-pin" name="pin" inputmode="numeric" maxlength="6" autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore />
                 </div>
                 <div class="rf-field"><label for="s-note">Note for us</label><input class="rf-input" id="s-note" name="note" maxlength="300" /></div>
                 <div class="rf-notice bad rf-hide" data-form-error></div>
@@ -716,7 +731,7 @@ module.exports = [
     opts: {
       title: `Send | ${BANK.name}`, description: 'Send matured Bitcoin to a wallet of yours.',
       heading: 'Send', sub: 'Send Bitcoin that has matured to a wallet of yours.',
-      active: 'send', content: sendContent, extraScripts: ['/js/bank/vault.js'],
+      active: 'send', content: sendContent, extraScripts: ['/js/btc-address.js', '/js/bank/vault.js'],
     },
   },
   {

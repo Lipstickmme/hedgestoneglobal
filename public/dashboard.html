@@ -22,11 +22,18 @@
   <link rel="icon" href="/favicon.png?v=6c6ef7c5" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=70c8e37d" />
   <link rel="stylesheet" href="/css/fonts.css?v=c41d988f" />
-  <link rel="stylesheet" href="/css/bank.css?v=d98377fb" />
+  <link rel="stylesheet" href="/css/bank.css?v=a823f7ed" />
   
-  <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';})();</script>
+  <script>(function(){var d=document.documentElement;if(!/(?:^|;\s*)rf_csrf=/.test(document.cookie)){d.className+=' rf-gone';location.replace('/signin?next='+encodeURIComponent(location.pathname+location.search));return;}d.className+=' rf-booting';try{window.__hsBoot=fetch('/api/bank/boot?page=dashboard',{credentials:'same-origin',headers:{Accept:'application/json'}}).then(function(r){return r.ok?r.json():null}).catch(function(){return null});}catch(e){}})();</script>
 </head>
 <body class="rf-app">
+  <div class="hs-splash" aria-hidden="true">
+    <div class="hs-splash-inner">
+      <img src="/assets/bank/logomark-dark.png?v=8e9b31bb" alt="" width="46" height="56" />
+      <span class="hs-splash-name" data-platform-name>Hedgestone Finance</span>
+      <span class="hs-splash-bar"><i></i></span>
+    </div>
+  </div>
   <div class="rf-shell">
 
     <aside class="rf-side" id="rf-side">
@@ -96,21 +103,28 @@
 
         <section class="hs-vault rf-mb">
           <div class="hs-vault-head hs-dash-hero hs-btc-hero">
-            <div class="hs-dash-hero-main">
-              <span class="k"><span class="hs-logo" aria-hidden="true" style="--s:22px;background:linear-gradient(135deg,#f7931a,#ffb347);color:#fff;font-size:11px">&#8383;</span> Your vault is worth</span>
-              <strong class="v" data-hero="value">&mdash;</strong>
-              <span class="d">
-                <span>Invested <b data-hero="cost">&mdash;</b></span>
-                <span>Growth <b data-hero="gain">&mdash;</b></span>
-                <span>Holding <b data-hero="units">&mdash;</b></span>
-              </span>
+            <div class="hs-hero-top">
+              <div class="hs-dash-hero-main">
+                <span class="k"><span class="hs-logo" aria-hidden="true" style="--s:22px;background:linear-gradient(135deg,#f7931a,#ffb347);color:#fff;font-size:11px">&#8383;</span> Your vault is worth</span>
+                <strong class="v" data-hero="value">&mdash;</strong>
+                <div class="hs-hero-pills">
+                  <span class="hs-pill hs-pill-gain" data-hero="gainPill"><span class="arrow" aria-hidden="true">&#9650;</span><b data-hero="gain">&mdash;</b><small>all time</small></span>
+                  <span class="hs-pill"><span class="hs-logo" aria-hidden="true" style="--s:14px;background:linear-gradient(135deg,#f7931a,#ffb347);color:#fff;font-size:7px">&#8383;</span><b data-hero="units">&mdash;</b></span>
+                </div>
+              </div>
+              <nav class="hs-qa" aria-label="Quick actions">
+                <a href="/receive" class="is-primary"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g></svg></i><span>Receive</span></a>
+                <a href="/send"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.3 21h17.4"/></g></svg></i><span>Send</span></a>
+                <a href="/vault"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3 4.2h18v15.6H3z"/><circle cx="12" cy="12" r="4.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 9.6v4.8M9.6 12h4.8"/><path d="M5.6 8v1.6M5.6 14.4V16"/></g></svg></i><span>My vault</span></a>
+                <a href="/history"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M3.4 14.6 8 10l3.6 3.6L16.6 7l4 4"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.4 17.8h17.2"/></g></svg></i><span>History</span></a>
+              </nav>
             </div>
-            <nav class="hs-qa" aria-label="Quick actions">
-              <a href="/receive" class="is-primary"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g></svg></i><span>Receive</span></a>
-              <a href="/send"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.3 21h17.4"/></g></svg></i><span>Send</span></a>
-              <a href="/vault"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3 4.2h18v15.6H3z"/><circle cx="12" cy="12" r="4.2"/></g><g stroke-width="0.95" opacity=".72"><path d="M12 9.6v4.8M9.6 12h4.8"/><path d="M5.6 8v1.6M5.6 14.4V16"/></g></svg></i><span>My vault</span></a>
-              <a href="/history"><i><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M3.4 14.6 8 10l3.6 3.6L16.6 7l4 4"/></g><g stroke-width="0.95" opacity=".72"><path d="M3.4 17.8h17.2"/></g></svg></i><span>History</span></a>
-            </nav>
+            <div class="hs-hero-facts">
+              <div class="hs-fact"><span class="k"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M12 3.2V14"/><path d="M7.5 9.5 12 14l4.5-4.5"/><path d="M3.3 16.6v4h17.4v-4"/></g></svg> Invested</span><b data-hero="cost">&mdash;</b><small data-hero="costSub">&nbsp;</small></div>
+              <div class="hs-fact"><span class="k"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 6.3V12l4 2.4"/></g></svg> First invested</span><b data-stat="since">&mdash;</b><small data-stat="sinceSub">&nbsp;</small></div>
+              <div class="hs-fact is-maturity"><span class="k"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 2.8h12M6 21.2h12"/><path d="M7.2 2.8c0 4.6 4.8 6.2 4.8 9.2s-4.8 4.6-4.8 9.2M16.8 2.8c0 4.6-4.8 6.2-4.8 9.2s4.8 4.6 4.8 9.2"/></g></svg> Next maturity</span><b data-stat="maturity">&mdash;</b><small data-stat="maturitySub">&nbsp;</small><span class="hs-fact-bar" aria-hidden="true"><i data-hero="termBar"></i></span></div>
+              <div class="hs-fact"><span class="k"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="7.7" r="3.7"/><path d="M4.6 20.7a7.4 7.4 0 0 1 14.8 0"/></g></svg> Member since</span><b data-hero="joined">&mdash;</b><small data-hero="joinedSub">&nbsp;</small></div>
+            </div>
           </div>
           <div class="hs-vault-chart hs-growth">
             <div class="hs-vault-chart-head">
@@ -138,10 +152,10 @@
         </section>
 
         <div class="rf-grid cols-4 rf-mb hs-dates">
-          <div class="rf-card rf-stat hs-date is-in"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 6.3V12l4 2.4"/></g></svg> First invested</div><div class="v" data-stat="since">&mdash;</div><div class="d" data-stat="sinceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat hs-date is-out"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 2.8h12M6 21.2h12"/><path d="M7.2 2.8c0 4.6 4.8 6.2 4.8 9.2s-4.8 4.6-4.8 9.2M16.8 2.8c0 4.6-4.8 6.2-4.8 9.2s4.8 4.6 4.8 9.2"/></g></svg> Next maturity</div><div class="v" data-stat="maturity">&mdash;</div><div class="d" data-stat="maturitySub">&nbsp;</div></div>
           <div class="rf-card rf-stat"><div class="k"><span class="hs-logo" aria-hidden="true" style="--s:16px;background:linear-gradient(135deg,#f7931a,#ffb347);color:#fff;font-size:8px">&#8383;</span> Bitcoin price now</div><div class="v" data-stat="price">&mdash;</div><div class="d" data-stat="priceSub">&nbsp;</div></div>
-          <div class="rf-card rf-stat"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g></svg> Ready to send</div><div class="v" data-stat="ready">&mdash;</div><div class="d" data-stat="readySub">Bitcoin that has matured</div></div>
+          <div class="rf-card rf-stat"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M2.4 20.6h19.2"/><path d="M3.4 14.6 8 10l3.6 3.6L16.6 7l4 4"/></g></svg> Average price paid</div><div class="v" data-stat="avg">&mdash;</div><div class="d" data-stat="avgSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-date is-in"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M3 4.2h18v15.6H3z"/><circle cx="12" cy="12" r="4.2"/></g></svg> Investments</div><div class="v" data-stat="count">&mdash;</div><div class="d" data-stat="countSub">&nbsp;</div></div>
+          <div class="rf-card rf-stat hs-date is-out"><div class="k"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="6" aria-hidden="true"><g stroke-width="1.6"><path d="M6 18 18 6"/><path d="M9 6h9v9"/></g></svg> Ready to send</div><div class="v" data-stat="ready">&mdash;</div><div class="d" data-stat="readySub">Bitcoin that has matured</div></div>
         </div>
 
         <section class="rf-card rf-mb">
@@ -183,10 +197,10 @@
   </div>
   <div class="rf-toasts" id="rf-toasts"></div>
   <script src="/js/bankname.js?v=5c0bf235" defer></script>
-  <script src="/js/bank/core.js?v=ab6321c5" defer></script>
+  <script src="/js/bank/core.js?v=415606f2" defer></script>
   <script src="/js/asset-logos.js?v=93d683f2" defer></script>
   <script src="/js/assets.js?v=a953dc1b" defer></script>
   <script src="/js/ticker.js?v=68500b3e" defer></script>
-  <script src="/js/bank/app.js?v=23896bdd" defer></script>
+  <script src="/js/bank/app.js?v=a13ea576" defer></script>
 </body>
 </html>

@@ -169,18 +169,19 @@ async function destroySession(req, res) {
 }
 
 /** Sign every other device out. What "sign out everywhere" does. */
-async function revokeOtherSessions(userId, keepSessionId) {
+/** Drop what this server remembers of a customer's sessions, so the next request looks them up. */
+function forgetUser(userId, keepSessionId) {
   recentSessions.forEach((entry, hash) => {
     if (entry.session.user_id === userId && entry.session.id !== keepSessionId) recentSessions.delete(hash);
   });
-  const rows = await db.sessions.find({ user_id: userId, revoked_at: null });
-  let count = 0;
-  for (const row of rows) {
-    if (row.id === keepSessionId) continue;
-    await db.sessions.update(row.id, { revoked_at: nowIso() });
-    count += 1;
-  }
-  return count;
+}
+
+/** End every session but one, in a single request rather than one per session. */
+async function revokeOtherSessions(userId, keepSessionId) {
+  forgetUser(userId, keepSessionId);
+  const where = { user_id: userId, revoked_at: null };
+  if (keepSessionId) where.id = { neq: keepSessionId };
+  return db.sessions.updateWhere(where, { revoked_at: nowIso() });
 }
 
 /* ----------------------------------------------------------------- OTP --- */
@@ -340,6 +341,7 @@ async function checkCredentials(email, password) {
 }
 
 module.exports = {
+  forgetUser,
   SESSION_COOKIE,
   CSRF_COOKIE,
   parseCookies,

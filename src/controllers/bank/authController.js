@@ -209,7 +209,8 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 /** Who am I, and is my session still good? The app calls this on every load. */
-const session = asyncHandler(async (req, res) => {
+/** Who is signed in, for /auth/session and for /boot. */
+async function sessionPayload(req, res) {
   await ready();
   if (!req.bankUser) {
     // Cookies left behind by a session that has ended: clear them, so the next
@@ -219,14 +220,14 @@ const session = asyncHandler(async (req, res) => {
       auth.clearCookie(req, res, auth.SESSION_COOKIE || 'rf_session');
       auth.clearCookie(req, res, auth.CSRF_COOKIE);
     }
-    return res.json({ authenticated: false });
+    return { authenticated: false };
   }
   const [cfg, unread, unreadMessages] = await Promise.all([
     settings.get(),
     alerts.unreadCount(req.bankUser.id),
     db.messages.find({ user_id: req.bankUser.id, from_side: 'bank', read_at: null }).then((rows) => rows.length),
   ]);
-  res.json({
+  return {
     authenticated: true,
     user: users.publicUser(req.bankUser, req.bankUser.role === 'admin' ? 'admin' : 'self'),
     csrf: req.bankSession && req.bankSession.csrf,
@@ -238,7 +239,11 @@ const session = asyncHandler(async (req, res) => {
     announcementLevel: cfg.announcementLevel || 'info',
     maintenanceMode: Boolean(cfg.maintenanceMode),
     bankName: (cfg.bankName || '').trim() || BANK.name,
-  });
+  };
+}
+
+const session = asyncHandler(async (req, res) => {
+  res.json(await sessionPayload(req, res));
 });
 
 /* ------------------------------------------------------------ password --- */
@@ -353,4 +358,5 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ status: 'ok' });
 });
 
-module.exports = { login, verify, resend, logout, session, changePassword, forgot, resetPassword };
+module.exports = {
+  sessionPayload, login, verify, resend, logout, session, changePassword, forgot, resetPassword };

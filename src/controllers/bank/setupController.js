@@ -107,6 +107,19 @@ async function checklist() {
     };
   }
 
+  // Every page makes several database requests, so distance multiplies.
+  if (supabase && probe) {
+    const ms = await system.databaseLatency();
+    const region = process.env.VERCEL_REGION;
+    if (ms != null) {
+      add('Database', 'latency', 'Database speed', ms <= 80 ? 'done' : 'todo',
+        ms <= 80
+          ? `Each database request takes about ${ms} ms from this server${region ? ` (${region})` : ''}.`
+          : `Each database request takes about ${ms} ms from this server${region ? ` (Vercel region ${region})` : ''}, and a page makes several, one after another. The server and the database are far apart: this is what makes pages slow.`,
+        'In Supabase, Project Settings, General, note the project\'s region. In Vercel, Project Settings, Functions, Function Region, choose the region nearest to it (for example Frankfurt, fra1, for eu-central-1; Washington, iad1, for us-east-1), then redeploy. Pages should then open in a fraction of the time.');
+    }
+  }
+
   add('Database', 'anon', 'Browser key for live chat and /admin', config.supabaseAnonKey() ? 'done' : (supabase ? 'todo' : 'blocked'),
     config.supabaseAnonKey() ? 'Visitors can chat, and staff can sign in to the /admin desk.' : 'Without it the chat widget falls back to the server and the /admin desk reports "not connected".',
     'In Vercel set SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY) to the anon/publishable key from Supabase, Project Settings, API. Also turn on Authentication, Providers, Anonymous in Supabase.');

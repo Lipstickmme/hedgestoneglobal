@@ -138,7 +138,8 @@ async function setOwnDetails(userId, input, staff, req) {
   const next = { ...current };
   if (input.address !== undefined) {
     const address = String(input.address || '').trim();
-    if (address && !isBitcoinAddress(address)) throw err(400, 'That is not a Bitcoin address. Check it and paste it again.', 'invalid_address');
+    const checked = address ? BtcAddress.check(address) : null;
+    if (checked && !checked.ok) throw err(400, checked.reason, 'invalid_address');
     next.address = address;
     next.addressLabel = String(input.addressLabel || '').trim().slice(0, 60);
   }
@@ -165,10 +166,15 @@ async function setOwnDetails(userId, input, staff, req) {
   return detailsForStaff(userId);
 }
 
-/** Mainnet addresses: bech32 (bc1...) and the older base58 forms (1..., 3...). */
+/*
+ * Mainnet addresses - bc1..., 1... and 3... - with their checksums verified,
+ * so a mistyped or truncated address is refused. The same checker runs on the
+ * Send page, so the customer is told what is wrong before they submit.
+ */
+const BtcAddress = require('../../public/js/btc-address');
+
 function isBitcoinAddress(value) {
-  const v = String(value || '').trim();
-  return /^bc1[02-9ac-hj-np-z]{11,71}$/i.test(v) || /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(v);
+  return BtcAddress.check(value).ok;
 }
 
 const isTxid = (v) => /^[0-9a-f]{64}$/i.test(String(v || '').trim());
@@ -326,8 +332,9 @@ async function requestReceive(user, input, req) {
 /** Ask for matured Bitcoin to be sent to an address. Verified by code before staff see it. */
 async function requestSend(user, input, req) {
   const cfg = await settings.get();
-  const address = String(input.address || '').trim();
-  if (!isBitcoinAddress(address)) throw err(400, 'That is not a Bitcoin address. Check it and paste it again.', 'invalid_address');
+  const checked = BtcAddress.check(input.address);
+  if (!checked.ok) throw err(400, checked.reason, 'invalid_address', { reason: checked.code });
+  const { address } = checked;
   const units = toScaled(input.units, 8);
   if (units <= 0n) throw err(400, 'Enter how much Bitcoin to send.', 'invalid_units');
   const ready = await invest.maturedUnits(user.id);

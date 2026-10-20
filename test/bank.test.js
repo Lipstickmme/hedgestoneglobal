@@ -202,6 +202,24 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok('prices: Bitcoin only, daily history back to 2011, and a price for any day since');
     }
 
+    /* ---- 5a. one request opens a page: who is signed in, and its data ---- */
+    {
+      const boot = await customer.get('/api/bank/boot?page=dashboard');
+      assert.strictEqual(boot.status, 200, boot.text);
+      assert.strictEqual(boot.body.session.authenticated, true);
+      assert.strictEqual(boot.body.session.user.email, 'demo@hedgestonesfinance.com');
+      assert.ok(boot.body.data['/overview'].user, 'the overview');
+      assert.ok(Number(boot.body.data['/invest'].bitcoin.units) > 0, 'the vault');
+      assert.ok(boot.body.data['/invest'].history.points.length > 30, 'and the chart\'s prices, so the dashboard asks for nothing else');
+      const send = await customer.get('/api/bank/boot?page=send');
+      assert.deepStrictEqual(Object.keys(send.body.data).sort(), ['/invest', '/vault']);
+      assert.deepStrictEqual((await customer.get('/api/bank/boot?page=alerts')).body.data, {}, 'a page with nothing to preload gets the session alone');
+      const nobody = await client(base).get('/api/bank/boot?page=dashboard');
+      assert.strictEqual(nobody.body.session.authenticated, false);
+      assert.deepStrictEqual(nobody.body.data, {}, 'and nothing without one');
+      ok('boot: one request brings the session and the page\'s data, the dashboard\'s chart included');
+    }
+
     /* ---- 5b. receive: nothing until staff set the vault up, then cash or Bitcoin, confirmed by staff ---- */
     const admin = client(base);
     assert.strictEqual((await admin.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' })).body.user.role, 'admin');
@@ -435,9 +453,31 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.strictEqual(reversed.body.trade.status, 'reversed');
       assert.strictEqual(sats((await holding()).units), sats(h1.units) - sats('0.1'), 'the 0.1 BTC came off');
       assert.strictEqual((await admin.post(`/api/bank/admin/trades/${btc.body.trade.id}/reverse`, {})).status, 409, 'once');
+
+      // The amount can be corrected too: cash paid buys what it would have on the day;
+      // Bitcoin received is valued at the day's price.
+      const hBefore = await holding();
+      const more = await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { amount: '1,500.00', note: 'Partner confirmed $1,500' });
+      assert.strictEqual(more.status, 200, more.text);
+      assert.strictEqual(more.body.trade.amount, 150000);
+      assert.strictEqual(more.body.trade.price, p2017, 'still at its own day\'s price');
+      assert.strictEqual(sats(more.body.trade.units), unitsFor(150000, p2017));
+      assert.strictEqual(more.body.trade.maturesAt.slice(0, 10), '2047-01-01', 'date and term unchanged');
+      const hAfter = await holding();
+      assert.strictEqual(sats(hAfter.units) - sats(hBefore.units), unitsFor(150000, p2017) - unitsFor(100000, p2017), 'the vault holds the difference');
+      assert.strictEqual(Number(hAfter.cost_basis) - Number(hBefore.cost_basis), 50000, 'and the extra $500 is invested');
+      assert.strictEqual((await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { units: '1' })).body.error, 'units_is_amount');
+      assert.strictEqual((await admin.patch(`/api/bank/admin/trades/${booked.body.trade.id}`, { amount: '0.10' })).body.error, 'below_minimum');
+      const got = await admin.post('/api/bank/admin/trades', { customerId: demoId, kind: 'bitcoin', units: '0.2', date: '2018-01-01T12:00:00Z', termYears: 10 });
+      const fixedUnits = await admin.patch(`/api/bank/admin/trades/${got.body.trade.id}`, { units: '0.25', date: '2018-01-01T12:00:00Z' });
+      assert.strictEqual(fixedUnits.status, 200, fixedUnits.text);
+      assert.strictEqual(sats(fixedUnits.body.trade.units), sats('0.25'));
+      assert.strictEqual(fixedUnits.body.trade.amount, Math.floor(0.25 * p2018), 'its value follows, at the day it arrived');
+      assert.strictEqual((await admin.patch(`/api/bank/admin/trades/${got.body.trade.id}`, { amount: '50' })).body.error, 'amount_is_units');
+
       const audit = (await admin.get('/api/bank/admin/activity?limit=60')).body.activity.map((a) => a.action);
       ['admin.trade_reversed', 'admin.trade_retimed', 'vault.cash_received', 'vault.bitcoin_received'].forEach((a) => assert.ok(audit.includes(a), `${a} is in the activity log`));
-      ok(`back-dating: $1,000 in 2013 at $${dollars(p2013)} matured in 2025; moved to 2017 it is repriced at $${dollars(p2017)} and matures in 2029; nothing before 2011`);
+      ok(`back-dating: $1,000 in 2013 at $${dollars(p2013)} matured in 2025; moved to 2017 it is repriced at $${dollars(p2017)} and matures in 2029; the amount corrects too; nothing before 2011`);
     }
 
     /* ---- 5f. what customers had before the vault becomes Bitcoin ---- */
@@ -653,8 +693,23 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.strictEqual((await db_.accounts.find({ user_id: res.body.customer.id })).length, 0, 'no cash balance is opened');
       assert.strictEqual((await db_.cards.find({ user_id: res.body.customer.id })).length, 0, 'and no card');
       newCustomerId = res.body.customer.id;
+
       const list = await admin.get('/api/bank/admin/customers?q=whitfield');
       assert.strictEqual(list.body.customers[0].btcUnits, res.body.vault.units, 'the customer list shows their Bitcoin');
+      // Paid in 2015, registered today: they joined in 2015, and the welcome says so.
+      assert.strictEqual(res.body.customer.createdAt.slice(0, 10), '2015-06-01', 'joined the day of the first deposit');
+      const sheetNow = await admin.get(`/api/bank/admin/customers/${newCustomerId}`);
+      assert.strictEqual(sheetNow.body.customer.createdAt.slice(0, 10), '2015-06-01');
+      const welcome = await db_.alerts.findOne({ user_id: newCustomerId, type: 'account_opened' });
+      assert.strictEqual(welcome.created_at.slice(0, 10), '2015-06-01', 'the welcome alert is dated the same');
+      // Moved to 2016, joining follows it; added to in 2014, it follows that.
+      await admin.patch(`/api/bank/admin/trades/${res.body.vault.id}`, { date: '2016-02-01T12:00:00Z' });
+      assert.strictEqual((await db_.users.findById(newCustomerId)).created_at.slice(0, 10), '2016-02-01');
+      const early = await admin.post('/api/bank/admin/trades', { customerId: newCustomerId, kind: 'cash', amount: '200', date: '2014-03-03T12:00:00Z', termYears: 10 });
+      assert.strictEqual((await db_.users.findById(newCustomerId)).created_at.slice(0, 10), '2014-03-03');
+      await admin.post(`/api/bank/admin/trades/${early.body.trade.id}/reverse`, { note: 'Booked in error' });
+      assert.strictEqual((await db_.users.findById(newCustomerId)).created_at.slice(0, 10), '2016-02-01', 'and back when that is reversed');
+      assert.strictEqual((await db_.alerts.findOne({ user_id: newCustomerId, type: 'account_opened' })).created_at.slice(0, 10), '2016-02-01');
       ok(`console: registered ${res.body.customer.fullName} with ${res.body.vault.units} BTC from 2015 and no cash balance or card`);
     }
 

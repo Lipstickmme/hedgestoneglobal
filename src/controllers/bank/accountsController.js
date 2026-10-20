@@ -159,15 +159,14 @@ const exportTransactions = asyncHandler(async (req, res) => {
  * requests to receive or send Bitcoin, recent alerts and unread messages.
  * What is in the vault comes from /invest.
  */
-const overview = asyncHandler(async (req, res) => {
-  const user = req.bankUser;
+async function overviewData(user) {
   const vault = require('../../bank/vault');
   const [requests, alertRows, messages] = await Promise.all([
     db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 10 }).catch(() => []),
     db.alerts.find({ user_id: user.id }, { order: 'created_at.desc', limit: 8 }),
     db.messages.find({ user_id: user.id, from_side: 'bank', read_at: null }),
   ]);
-  res.json({
+  return {
     user: require('../../bank/users').publicUser(user, 'self'),
     requests: requests.map(vault.publicRequest),
     openRequests: requests.filter((r) => vault.OPEN.includes(r.status)).length,
@@ -176,10 +175,15 @@ const overview = asyncHandler(async (req, res) => {
       createdAt: a.created_at, readAt: a.read_at, severity: a.severity, status: a.status,
     })),
     unreadMessages: messages.length,
-  });
+  };
+}
+
+const overview = asyncHandler(async (req, res) => {
+  res.json(await overviewData(req.bankUser));
 });
 
 module.exports = {
+  overviewData,
   list,
   transactions,
   transactionDetail,

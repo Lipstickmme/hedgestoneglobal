@@ -228,18 +228,30 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
       assert.strictEqual((await page.textContent('[data-ready]')).trim(), '2.74619651 BTC');
       assert.ok(await page.$$eval('[data-upcoming] .hs-term', (n) => n.length) === 3, 'the rest is listed with when it matures');
       await page.fill('#s-units', '0.25');
+      // The address is checked as it is typed: an email, or one character out, is caught.
+      assert.strictEqual(await page.getAttribute('#s-address', 'type'), 'text');
+      assert.match(await page.getAttribute('#s-address', 'placeholder'), /^e\.g\. bc1q/, 'the hint is an address, not an email');
+      await page.fill('#s-address', 'someone@example.com');
+      assert.match(await page.textContent('[data-address-status]'), /email address, not a Bitcoin address/);
+      await page.fill('#s-address', '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3');
+      assert.match(await page.textContent('[data-address-status]'), /mistake in it/, 'a wrong last character fails the checksum');
       await page.fill('#s-address', '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      assert.match(await page.textContent('[data-address-status]'), /valid Bitcoin address[\s\S]*1BvBMS[\s\S]*JaNVN2/, 'and a good one shows how it starts and ends');
       await page.fill('#s-pin', '4417');
-      page.once('dialog', (dialog) => dialog.accept());
-      const submitted = page.click('#hs-send-form [data-submit]').catch(() => {});
+      await page.click('#hs-send-form [data-submit]');
+      // A sheet to check the address in groups, sent only once ticked.
+      await page.waitForSelector('[data-checked-address]', { timeout: 10000 });
+      assert.ok(await page.isDisabled('.rf-modal-backdrop [data-go]'), 'nothing is sent until the address is confirmed');
+      assert.strictEqual((await page.$$eval('.hs-addr-groups span', (n) => n.map((x) => x.textContent).join(''))), '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await page.check('[data-checked-address]');
+      await page.click('.rf-modal-backdrop [data-go]');
       await page.waitForSelector('.rf-modal-backdrop .rf-devcode code', { timeout: 20000 });
-      await submitted;
       const code = (await page.textContent('.rf-modal-backdrop .rf-devcode code')).trim();
       await page.fill('.rf-modal-backdrop input[name="code"]', code);
       await page.click('.rf-modal-backdrop [data-submit]');
       await page.waitForFunction(() => /With our team/.test((document.querySelector('[data-requests]') || {}).textContent || ''), null, { timeout: 20000 });
       assert.strictEqual((await page.textContent('[data-ready]')).trim(), '2.49619651 BTC', 'what is asked for is no longer ready');
-      ok('send: matured Bitcoin, confirmed with a PIN and an emailed code, then with our team');
+      ok('send: the address checked as it is typed and confirmed in a sheet; matured Bitcoin, a PIN and an emailed code, then with our team');
     }
 
     /* ---- 5. every signed-in screen renders ---- */

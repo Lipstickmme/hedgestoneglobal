@@ -30,33 +30,63 @@ const quotes = asyncHandler(async (req, res) => {
  * investment since the day it was bought. The same for everybody, so the CDN
  * holds it for as long as the server does.
  */
+// A chart is a few hundred pixels wide: a series of years goes out as about
+// a thousand points, always keeping the most recent, which is today.
+function thin(points) {
+  if (points.length <= 1100) return points;
+  const step = Math.ceil(points.length / 1000);
+  return points.filter((p, i) => i % step === 0 || i === points.length - 1);
+}
+
+// The windows the history is kept in, as the dashboard asks for them.
+const WINDOWS = [30, 90, 180, 365, 730, 1825, 3650];
+const windowFor = (fromIso) => {
+  const reach = Math.ceil((Date.now() - new Date(fromIso).getTime()) / 86400000) + 7;
+  return WINDOWS.find((d) => reach <= d) || 6000;
+};
+
 const history = asyncHandler(async (req, res) => {
   const data = await markets.history(req.query.symbol || 'BTC', Number(req.query.days) || 365);
-  // A chart is a few hundred pixels wide: a series of years goes out as about
-  // a thousand points, always keeping the most recent, which is today.
-  let { points } = data;
-  if (points.length > 1100) {
-    const step = Math.ceil(points.length / 1000);
-    points = points.filter((p, i) => i % step === 0 || i === points.length - 1);
-  }
+  const points = thin(data.points);
   res.removeHeader('Set-Cookie');
   res.set('Cache-Control', points.length ? 'public, max-age=600, s-maxage=1800, stale-while-revalidate=3600' : 'no-store');
   res.json({ ...data, points });
 });
 
-/** The vault screen and the dashboard: what it is worth, everything in it, and when each part matures. */
-const portfolio = asyncHandler(async (req, res) => {
-  const [data, cfg] = await Promise.all([invest.portfolio(req.bankUser.id, { user: req.bankUser }), settings.get()]);
-  res.set('Cache-Control', 'no-store');
-  res.json({
+/**
+ * What the vault screen and the dashboard show. With `history`, the price
+ * history behind the dashboard chart rides along when it can be had quickly
+ * (it usually can: it is kept in memory and in the database), so the
+ * dashboard needs no second request; otherwise the page asks for it itself.
+ */
+async function portfolioData(user, { history: withHistory = false } = {}) {
+  const [data, cfg] = await Promise.all([invest.portfolio(user.id, { user }), settings.get()]);
+  const out = {
     ...data,
     minimum: invest.MIN_BUY,
     terms: { min: invest.TERM_YEARS.min, max: invest.TERM_YEARS.max, default: invest.defaultTermYears(cfg) },
     earliest: VAULT.earliest,
-  });
+  };
+  const first = data.bitcoin && data.bitcoin.firstPurchasedAt;
+  if (withHistory && first) {
+    let timer;
+    const hist = await Promise.race([
+      markets.history('BTC', windowFor(first)).catch(() => null),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(null), 1500); }),
+    ]);
+    clearTimeout(timer);
+    if (hist && hist.points.length) out.history = { symbol: hist.symbol, source: hist.source, points: thin(hist.points) };
+  }
+  return out;
+}
+
+/** The vault screen and the dashboard: what it is worth, everything in it, and when each part matures. */
+const portfolio = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await portfolioData(req.bankUser));
 });
 
-module.exports = { quotes, history, portfolio };
+module.exports = { quotes, history, portfolio, portfolioData, windowFor };
 
 /* ---------------------------------------------------------------- staff --- */
 
@@ -127,7 +157,8 @@ const staffOverview = asyncHandler(async (req, res) => {
 
 /** Holdings for one customer, for the customer sheet. */
 const staffCustomerHoldings = asyncHandler(async (req, res) => {
-  const data = await invest.portfolio(req.params.id);
+  const customer = await db.users.findById(req.params.id);
+  const data = await invest.portfolio(req.params.id, { user: customer || undefined });
   res.set('Cache-Control', 'no-store');
   res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin, converting: data.converting });
 });
@@ -155,10 +186,18 @@ const staffBook = asyncHandler(async (req, res) => {
   res.status(201).json(result);
 });
 
-/** PATCH /api/bank/admin/trades/:id - move something to when it really happened (repriced), or change its term. */
+/**
+ * PATCH /api/bank/admin/trades/:id - correct something in a vault: the date
+ * it happened (repriced), its term, or how much it was (cash paid, or
+ * Bitcoin received).
+ */
 const staffRetime = asyncHandler(async (req, res) => {
   const b = req.body || {};
-  const trade = await invest.retimeTrade(req.params.id, b.date, req.bankUser, String(b.note || '').slice(0, 300), req, { termYears: b.termYears });
+  const trade = await invest.retimeTrade(req.params.id, b.date, req.bankUser, String(b.note || '').slice(0, 300), req, {
+    termYears: b.termYears,
+    amount: b.amount != null && b.amount !== '' ? toCents(b.amount) : undefined,
+    units: b.units != null && b.units !== '' ? String(b.units).replace(/[^0-9.]/g, '') : undefined,
+  });
   res.json({ trade });
 });
 

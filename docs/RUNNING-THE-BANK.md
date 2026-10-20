@@ -30,7 +30,7 @@ between customers.
 | Give one customer their own vault address or payment details, or answer their request for them | **Customers** → open one → **Set details for this customer**, or **Requests** → **Give details** |
 | Delete a customer for good (not just suspend) | **Customers** → open one → **Delete customer** |
 | Create a customer, with anything they have already paid | **Register a customer** |
-| Add to a vault directly, move an investment to its real date, change its term, or reverse it | **Customers** → open one → **Add to this vault** / **Change date or term** / **Reverse** |
+| Add to a vault directly, correct an investment's amount, date or term, or reverse it | **Customers** → open one → **Add to this vault** / **Edit amount, date or term** / **Reverse** |
 | See every vault, and convert any cash or other assets still held to Bitcoin | **Vaults** |
 | Email or text every customer at once | **Email alerts** |
 | Rename the platform | **Settings** |
@@ -125,9 +125,17 @@ record:
 - **Add to this vault** — cash they paid or Bitcoin they sent, dated when it
   happened, with a term of 10 to 100 years. Use it for payments made before the
   customer was set up, or confirmed outside a request.
-- **Change date or term** — moving an investment reprices it at the new day:
-  cash paid keeps its amount and buys what it would have then; Bitcoin received
-  keeps its units and is valued at that day. Its maturity moves with it.
+- **Edit amount, date or term** — moving an investment reprices it at the new
+  day: cash paid keeps its amount and buys what it would have then; Bitcoin
+  received keeps its units and is valued at that day. Its maturity moves with
+  it. The amount can be corrected too: for cash paid, the dollar amount (the
+  Bitcoin it bought follows, at that day's price); for Bitcoin received, how
+  much Bitcoin (its value follows). A conversion keeps its amount.
+- **When they joined** follows the money: a customer registered today with a
+  payment from 2015 joined in 2015 — on their record, their dashboard's
+  **Member since** and the welcome alert. Moving or reversing that payment
+  moves it again. The activity log still records when each thing was really
+  done.
 - **Reverse** — takes it back out of the vault completely. A conversion cannot
   be reversed.
 
@@ -176,6 +184,8 @@ the vault**; returned, it is converted next time.
 | "The earliest date that can be used is January 1, 2011" | Nothing is dated before Bitcoin had a daily price |
 | A customer cannot sign in | Check their status, and whether they are locked after five failed attempts. The customer drawer has **Clear the lockout** |
 | "This database cannot store a term yet", or the setup checklist shows `0007_invest_term.sql` / `0008_vault.sql` as to do | Open **Setup checklist**: **Run this in Supabase** has exactly the SQL that database is missing. **Copy SQL**, run it in the SQL Editor of the project the checklist names, then **Check again**. See below if it stays to do |
+| Pages are slow everywhere | Open **Setup checklist**: **Database speed** says how long each database request takes. Over about 80 ms, the site's server and the database are far apart; move the Vercel **Function Region** next to the Supabase project's region (the checklist says how) |
+| A customer's Send is refused: "This address has a mistake in it" | Every Bitcoin address has a built-in check; this one fails it, so a character is wrong, missing or extra. They should copy it again from their wallet |
 | "This is not available yet while the vault is being set up" | The requests table (0008) is missing. Requests are refused rather than saved somewhere they would be lost; run the SQL above |
 
 #### The SQL ran, but the checklist still says to do
