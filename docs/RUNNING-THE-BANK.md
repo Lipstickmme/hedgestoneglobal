@@ -172,7 +172,9 @@ the vault**; returned, it is converted next time.
   for the customer. Steps done in person also show your office address,
   hours and phone from **Settings**, so fill those in. You also give the
   day it counts from (today unless you change it). **Edit suspension** on
-  their sheet changes any of it later, without signing them out. Their
+  their sheet changes any of it later, without signing them out. A
+  suspension made before reasons existed reads as **Biometric verification
+  required**, with the visit-our-office step, until you edit it. Their
   dashboard's green panel shows **Status: Suspended** while it lasts.
   Every change is in the activity log.
 - **Delete customer** erases them for good: their login, vault, every movement,

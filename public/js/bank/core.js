@@ -565,30 +565,29 @@
       box.setAttribute('role', 'alert');
       content.insertBefore(box, content.firstChild);
     }
-    const since = suspended.since ? date(suspended.since, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    const since = suspended.since ? date(suspended.since, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
     const office = suspended.office;
     const phone = office && office.phone;
+    const links = [
+      phone ? `<a href="tel:${esc(String(phone).replace(/[^+\d]/g, ''))}">Call ${esc(phone)}</a>` : '',
+      suspended.category === 'documents' || suspended.category === 'funds' ? '<a href="/profile">Upload documents</a>' : '',
+    ].filter(Boolean).join('');
     box.innerHTML = `
+      <span class="hs-susp-icon">${LOCK}</span>
       <div class="hs-susp-main">
-        <div class="hs-susp-head">
-          <span class="hs-susp-icon">${LOCK}</span>
-          <div>
-            <span class="hs-susp-chip"><i aria-hidden="true"></i>Account suspended${since ? ` &middot; since ${esc(since)}` : ''}</span>
-            <h2>${esc(suspended.label || 'Account suspended')}</h2>
-          </div>
+        <div class="hs-susp-top">
+          <span class="hs-susp-chip"><i aria-hidden="true"></i>Suspended${since ? ` &middot; ${esc(since)}` : ''}</span>
+          <strong class="hs-susp-title">${esc(suspended.label || 'Account suspended')}</strong>
         </div>
-        ${suspended.reason ? `<p class="hs-susp-reason">${esc(suspended.reason)}</p>` : ''}
-        <p class="hs-susp-foot">You can still sign in, see your vault and message us. Receiving, sending and changes to your account are paused until the suspension is lifted.</p>
+        <p class="hs-susp-reason">${suspended.reason ? `${esc(suspended.reason)} ` : ''}<span>Receiving and sending are paused until this is done.</span></p>
       </div>
       <div class="hs-susp-next">
-        <span class="k">What to do next</span>
-        <p>${esc(suspended.nextAction || 'Message us and our team will tell you what is needed.')}</p>
-        ${office && (office.address || office.hours) ? `<div class="hs-susp-office">${PIN}<span>${office.address ? `<b>${esc(office.address)}</b>` : ''}${office.hours ? `<small>${esc(office.hours)}</small>` : ''}</span></div>` : ''}
-        <div class="hs-susp-actions">
-          <a class="rf-btn sm" href="/messages">Message us</a>
-          ${phone ? `<a class="rf-btn ghost sm" href="tel:${esc(String(phone).replace(/[^+\d]/g, ''))}">Call ${esc(phone)}</a>` : ''}
-          ${suspended.category === 'documents' ? '<a class="rf-btn ghost sm" href="/profile">Upload documents</a>' : ''}
-        </div>
+        <span class="k">Next step</span>
+        <p>${esc(suspended.nextAction || 'Visit our office with a valid photo ID to complete your verification in person.')}</p>
+        ${(office && (office.address || office.hours)) || links ? `<div class="hs-susp-meta">
+          ${office && (office.address || office.hours) ? `<span class="hs-susp-office">${PIN}<span>${office.address ? `<b>${esc(office.address)}</b>` : ''}${office.address && office.hours ? ' &middot; ' : ''}${office.hours ? esc(office.hours) : ''}</span></span>` : ''}
+          ${links ? `<span class="hs-susp-links">${links}</span>` : ''}
+        </div>` : ''}
       </div>`;
   }
 

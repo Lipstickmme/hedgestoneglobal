@@ -310,17 +310,17 @@ const SUSPENSION_REASONS = [
   {
     id: 'biometric', label: 'Biometric verification required', visit: true,
     reason: 'We need to confirm your identity in person with a biometric check before your account can be used again.',
-    nextAction: 'Visit our office with a valid photo ID to complete your biometric verification. It takes about 15 minutes.',
+    nextAction: 'Visit our office with a valid photo ID to complete your biometric verification in person. It takes about 15 minutes.',
   },
   {
-    id: 'fraud', label: 'Suspected fraud', visit: false,
+    id: 'fraud', label: 'Suspected fraud', visit: true,
     reason: 'We have seen activity on your account that we need to review, to keep your Bitcoin safe.',
-    nextAction: 'Message us or call our team so we can confirm the recent activity with you. Never share your password or one-time codes with anyone, including us.',
+    nextAction: 'Visit our office with a valid photo ID so we can confirm the recent activity with you in person. Never share your password or one-time codes with anyone.',
   },
   {
     id: 'dormant', label: 'Dormant account', visit: true,
     reason: 'Your account has not been used for a long time, so it has been paused for your protection.',
-    nextAction: 'Visit our office, or message us, to confirm your details and reactivate your account.',
+    nextAction: 'Visit our office with a valid photo ID to confirm your details and reactivate your account.',
   },
   {
     id: 'documents', label: 'Identity documents needed', visit: true,
@@ -328,19 +328,19 @@ const SUSPENSION_REASONS = [
     nextAction: 'Upload a valid photo ID and a recent proof of address from your Profile, or bring them to our office.',
   },
   {
-    id: 'funds', label: 'Proof of funds needed', visit: false,
+    id: 'funds', label: 'Proof of funds needed', visit: true,
     reason: 'We need to confirm where the money in a recent payment came from.',
-    nextAction: 'Send us a bank statement or similar document showing where the funds came from, by message or at our office.',
+    nextAction: 'Bring a bank statement or similar document showing where the funds came from to our office, or upload it from your Profile.',
   },
   {
     id: 'compliance', label: 'Compliance review', visit: false,
     reason: 'Your account is under a routine compliance review.',
-    nextAction: 'Nothing is needed from you for now. We will contact you if we need anything, and lift the suspension as soon as the review is done.',
+    nextAction: 'Nothing is needed from you for now. The suspension is lifted as soon as the review is done.',
   },
   {
-    id: 'other', label: 'Other', visit: false,
+    id: 'other', label: 'Other', visit: true,
     reason: '',
-    nextAction: 'Message us and our team will tell you what is needed.',
+    nextAction: 'Visit our office with a valid photo ID to complete your verification in person.',
   },
 ];
 

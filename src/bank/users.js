@@ -295,14 +295,17 @@ function suspensionPreset(category) {
  * the office to go to, from Settings.
  */
 async function describeSuspension(stored) {
-  const preset = suspensionPreset(stored.category);
+  // A suspension made before there were reasons to pick is a biometric
+  // verification in person, which is what those were for.
+  const category = stored.category || 'biometric';
+  const preset = suspensionPreset(category);
   const out = {
-    category: stored.category || null,
-    label: stored.category ? preset.label : 'Account suspended',
-    reason: String(stored.reason || '').slice(0, 300),
-    nextAction: String(stored.nextAction || (stored.category ? preset.nextAction : '') || '').slice(0, 300),
+    category,
+    label: preset.id === 'other' ? 'Account suspended' : preset.label,
+    reason: String(stored.reason || preset.reason || '').slice(0, 300),
+    nextAction: String(stored.nextAction || preset.nextAction || '').slice(0, 300),
     since: stored.since || null,
-    visit: Boolean(stored.category && preset.visit),
+    visit: Boolean(preset.visit),
     office: null,
   };
   if (out.visit) {
