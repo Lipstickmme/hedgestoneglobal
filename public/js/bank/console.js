@@ -298,7 +298,7 @@
       const list = qs('[data-sheet-investments]', customerModal);
       if (!list) return;
       const holdings = inv.holdings.length ? inv.holdings.map((h) => `<li>
-        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)}${h.retired ? ' (no longer offered)' : ''} &middot; cost ${money(h.costBasis)}</span></span>
+        <span class="t"><strong>${esc(h.units)} ${esc(h.symbol)}</strong><span>${esc(h.name)} &middot; cost ${money(h.costBasis)}</span></span>
         <span class="rf-nowrap"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></span>
       </li>`).join('') + `<li class="rf-small"><span class="t"><strong>Total</strong></span><strong>${money(inv.totals.value)}</strong></li>` : '<li class="rf-muted rf-small">No Bitcoin yet.</li>';
       const positions = (inv.positions || []).map((p) => `<li>
@@ -306,8 +306,8 @@
         <span class="rf-nowrap">${p.value == null ? '&mdash;' : money(p.value)}</span>
       </li>`).join('');
       const trades = inv.trades.slice(0, 8).map((t) => `<li class="${t.status === 'reversed' ? 'is-reversed' : ''}">
-        <span class="t"><strong>${t.side === 'buy' ? 'Bought' : 'Sold'} ${esc(t.units)} ${esc(t.symbol)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${t.termMonths}-month term` : ''}${t.bookedByStaff ? ' &middot; booked by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
-        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths || '')}">Change date or term</button> <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${t.side === 'buy' ? 'Bought' : 'Sold'} ${t.units} ${t.symbol} for ${money(t.amount)}`)}">Reverse</button></span>`}
+        <span class="t"><strong>${t.converted ? 'Converted to' : t.side === 'buy' ? 'Bought' : 'Sold'} ${esc(t.units)} ${esc(t.symbol)} @ ${money(t.price)}</strong><span>${datetime(t.createdAt)} &middot; ${money(t.amount)}${t.side === 'buy' && t.termMonths ? ` &middot; ${t.termMonths}-month term` : ''}${t.bookedByStaff ? ' &middot; booked by staff' : ''}${t.status === 'reversed' ? ' &middot; <b>reversed</b>' : ''}${t.note ? ` &middot; ${esc(t.note)}` : ''}</span></span>
+        ${t.status === 'reversed' ? '' : `<span class="rf-nowrap"><button class="rf-btn link sm" data-trade-time="${esc(t.id)}" data-trade-at="${esc(t.createdAt)}" data-trade-side="${esc(t.side)}" data-trade-term="${esc(t.termMonths || '')}">Change date or term</button>${t.converted ? '' : ` <button class="rf-btn link sm" data-trade-reverse="${esc(t.id)}" data-trade-label="${esc(`${t.side === 'buy' ? 'Bought' : 'Sold'} ${t.units} ${t.symbol} for ${money(t.amount)}`)}">Reverse</button>`}</span>`}
       </li>`).join('');
       list.innerHTML = `${holdings}
         ${positions ? `<li class="rf-label" style="border:0;padding-bottom:0">Purchases and maturity</li>${positions}` : ''}
@@ -1048,21 +1048,23 @@
     qs('[data-inv-holdings]').innerHTML = data.holdings.length ? data.holdings.map((h) => `
       <tr class="clickable" data-customer="${esc(h.customer.id)}">
         <td><strong>${esc(h.customer.fullName)}</strong><span class="sub">${esc(h.customer.email)}</span></td>
-        <td><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)}</span></td>
-        <td class="num rf-mono">${esc(h.units)}</td>
+        <td class="num rf-mono">${esc(h.units)} BTC</td>
         <td class="num opt">${money(h.cost)}</td>
         <td class="num"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></td>
         <td class="num rf-amt ${h.gain >= 0 ? 'credit' : 'debit'}">${h.gain == null ? '&mdash;' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}`}</td>
-      </tr>`).join('') : '<tr><td colspan="6" class="rf-center rf-muted">No customer holds Bitcoin yet.</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="5" class="rf-center rf-muted">No customer holds Bitcoin yet.</td></tr>';
 
-    qs('[data-inv-assets]').innerHTML = data.byAsset.length ? data.byAsset.map((a) => `<li>
-      <span class="t"><strong>${esc(a.name)}</strong><span>${esc(a.symbol)} &middot; ${a.holders} holder${a.holders === 1 ? '' : 's'}</span></span>
-      <strong>${money(a.value)}</strong>
-    </li>`).join('') : '<li class="rf-muted rf-small">Nothing held yet.</li>';
+    // Holdings of assets no longer offered are converted as this screen
+    // loads. Any left are waiting for a live price, and convert on a reload.
+    const converting = qs('[data-inv-converting]');
+    converting.hidden = !data.converting;
+    converting.textContent = data.converting
+      ? `${data.converting} earlier investment${data.converting === 1 ? ' is' : 's are'} waiting to be converted to Bitcoin: there is no live price for ${data.converting === 1 ? 'it' : 'them'} right now. Reload this screen in a few minutes to convert ${data.converting === 1 ? 'it' : 'them'}.`
+      : '';
 
     qs('[data-inv-trades]').innerHTML = data.trades.length ? data.trades.slice(0, 12).map((tr) => `<li class="clickable" data-customer="${esc(tr.customer.id)}">
-      <span class="t"><strong>${tr.side === 'buy' ? 'Bought' : 'Sold'} ${esc(tr.units)} ${esc(tr.symbol)}</strong><span>${esc(tr.customer.fullName)} &middot; ${ago(tr.createdAt)} &middot; @ ${money(tr.price)}</span></span>
-      <span class="rf-amt ${tr.side === 'buy' ? 'debit' : 'credit'}">${money(tr.amount)}</span>
+      <span class="t"><strong>${tr.converted ? 'Converted to' : tr.side === 'buy' ? 'Bought' : 'Sold'} ${esc(tr.units)} ${esc(tr.symbol)}</strong><span>${esc(tr.customer.fullName)} &middot; ${ago(tr.createdAt)} &middot; @ ${money(tr.price)}</span></span>
+      <span class="rf-amt ${tr.converted ? '' : tr.side === 'buy' ? 'debit' : 'credit'}">${money(tr.amount)}</span>
     </li>`).join('') : '<li class="rf-muted rf-small">No purchases or sales yet.</li>';
   }
 

@@ -225,6 +225,7 @@ const dashboardContent = `
                 <tbody data-positions><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
+            <div class="rf-card-foot rf-small rf-muted" data-converting hidden>Your earlier investments are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
           </section>
 
           <div class="rf-stack">
@@ -749,16 +750,7 @@ const investContent = `
                 <tbody data-inv-positions><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
               </table>
             </div>
-            <div class="rf-card-foot" data-inv-holdings-wrap hidden>
-              <h4 class="rf-label" style="margin:0 0 8px">Assets no longer offered</h4>
-              <p class="rf-small rf-muted" style="margin:0 0 10px">You bought these before we became Bitcoin only. They are valued at the live price and you can sell them to cash at any time.</p>
-              <div class="rf-table-wrap">
-                <table class="rf-table">
-                  <thead><tr><th>Asset</th><th class="num">Units</th><th class="num">Value</th><th class="num">Gain / loss</th><th></th></tr></thead>
-                  <tbody data-inv-holdings></tbody>
-                </table>
-              </div>
-            </div>
+            <div class="rf-card-foot rf-small rf-muted" data-inv-converting hidden>Your earlier investments are being converted to Bitcoin and will appear here once they are. This needs a live price, so it can take a few minutes.</div>
           </section>
           <section class="rf-card">
             <div class="rf-card-head"><h3>Recent purchases and sales</h3></div>

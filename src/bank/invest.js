@@ -12,8 +12,10 @@
  * and so a maturity date, which the dashboard counts down to. A maturity date
  * is a plan, not a lock: nothing here refuses a sale before it.
  *
- * Bitcoin is the only asset that can be bought. Holdings of the assets the
- * platform used to offer (markets.RETIRED) can still be valued and sold.
+ * Bitcoin is the only asset. Whatever a customer still holds of the assets
+ * the platform used to offer (markets.RETIRED) is converted to Bitcoin the
+ * next time their portfolio is read, or when staff open the investments
+ * screen (convertRetired). Until then it is not shown anywhere.
  *
  * Arithmetic is exact. Cash is integer cents, as everywhere in the bank; units
  * are carried as BigInt multiples of the asset's smallest unit (a millionth of
@@ -192,6 +194,9 @@ function receipt(trade, asset, account) {
   ];
 }
 
+/** A trade booked by convertRetired rather than by anybody buying or selling. */
+const isConversion = (t) => /^CNV-/.test(String(t.reference || ''));
+
 function publicTrade(t) {
   const asset = markets.BY_SYMBOL.get(t.symbol) || { name: t.symbol, unit: 'unit' };
   return {
@@ -211,6 +216,7 @@ function publicTrade(t) {
     status: t.status || 'completed',
     note: t.note || '',
     bookedByStaff: Boolean(t.booked_by),
+    converted: isConversion(t),
     transactionId: t.transaction_id,
     ...maturityOf(t),
   };
@@ -248,7 +254,7 @@ async function convert(user, input, req, opts = {}) {
 
     const listed = markets.BY_SYMBOL.get(String(input.symbol || 'BTC').toUpperCase());
     if (listed && listed.retired) {
-      throw err(400, `${listed.name} is no longer offered. Bitcoin is the only asset you can buy.`, 'asset_retired');
+      throw err(400, 'Bitcoin is the only asset you can buy.', 'asset_retired');
     }
     const { asset, quote } = opts.price ? staffQuote(input.symbol || 'BTC', opts) : await markets.tradeQuote(input.symbol || 'BTC');
     if (!opts.staff) checkPrice(input.quotedPrice, quote);
@@ -330,8 +336,8 @@ async function convert(user, input, req, opts = {}) {
 async function sell(user, input, req, opts = {}) {
   return withLock(`invest:${user.id}`, async () => {
     const account = await depositAccount(user, input.accountId);
-    const asset = markets.BY_SYMBOL.get(String(input.symbol || '').toUpperCase());
-    if (!asset) throw err(400, 'That asset is not available.');
+    const asset = markets.BY_SYMBOL.get(String(input.symbol || 'BTC').toUpperCase());
+    if (!asset || asset.retired) throw err(400, 'Bitcoin is the only asset you can sell.', 'asset_retired');
     const existing = await holdingFor(user.id, asset.symbol);
     const held = existing ? toScaled(existing.units, asset.decimals) : 0n;
     if (held <= 0n) throw err(400, `You do not hold any ${asset.name}.`, 'no_holding');
@@ -472,6 +478,9 @@ async function reverseTrade(tradeId, staff, note, req) {
   const trade = await db.trades.findById(tradeId);
   if (!trade) throw err(404, 'Trade not found.');
   if (trade.status === 'reversed') throw err(409, 'That trade has already been reversed.');
+  if (isConversion(trade)) {
+    throw err(409, 'A conversion to Bitcoin cannot be reversed. Book a sale of the Bitcoin instead.', 'conversion_final');
+  }
   const asset = markets.BY_SYMBOL.get(trade.symbol);
   if (!asset) throw err(400, 'That asset is no longer listed.');
 
@@ -509,6 +518,159 @@ async function reverseTrade(tradeId, staff, note, req) {
     });
     return publicTrade({ ...trade, ...patch });
   });
+}
+
+/* ------------------------------------------------------------ convert --- */
+
+/**
+ * Turn whatever a customer still holds of the assets the platform no longer
+ * offers into Bitcoin, at the live price of each.
+ *
+ * The holding is valued at its own price and that value buys Bitcoin at
+ * Bitcoin's. No cash moves, so nothing is posted to the cash balance. What the
+ * customer originally paid carries over as the cost of the Bitcoin, so the
+ * gain or loss they had continues rather than restarting at zero. The Bitcoin
+ * is a new purchase dated now, on the default term.
+ *
+ * Removing the old holding is the claim: a delete that finds nothing means
+ * another request converted it first, and this one books nothing. Without a
+ * live price for either side nothing is converted, and the next call tries
+ * again.
+ *
+ * @returns {{ converted: object[], pending: object[] }}
+ */
+async function convertRetired(user, opts = {}) {
+  return withLock(`invest:${user.id}`, async () => {
+    const rows = (await db.holdings.find({ user_id: user.id })).filter((h) => h.symbol !== 'BTC');
+    const out = { converted: [], pending: [] };
+    if (!rows.length) return out;
+
+    // The old assets' prices first: asking for one refreshes every asset,
+    // Bitcoin included, so the Bitcoin price below is already in hand.
+    const priced = [];
+    for (const h of rows) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        priced.push({ h, ...(await markets.tradeQuote(h.symbol)) });
+      } catch (e) {
+        out.pending.push({ symbol: h.symbol, reason: e.message });
+      }
+    }
+    if (!priced.length) return out;
+    let btc;
+    try {
+      btc = await markets.tradeQuote('BTC');
+    } catch (e) {
+      priced.forEach(({ h }) => out.pending.push({ symbol: h.symbol, reason: e.message }));
+      return out;
+    }
+    const btcPc = priceCents(btc.quote.price);
+    const cfg = await settings.get();
+    const termMonths = termFor(null, cfg, true);
+    const actor = opts.staff ? { id: opts.staff.id, email: opts.staff.email, role: 'admin' } : { role: 'system' };
+
+    for (const { h, asset, quote } of priced) {
+      const held = toScaled(h.units, asset.decimals);
+      const pc = priceCents(quote.price);
+      const value = valueOf(held, pc, asset.decimals);
+      const cost = Number(h.cost_basis || 0);
+      const bought = unitsFor(value, btcPc, btc.asset.decimals);
+
+      // eslint-disable-next-line no-await-in-loop
+      if (!(await db.holdings.removeWhere({ id: h.id }))) continue;
+
+      // eslint-disable-next-line no-await-in-loop
+      const existing = await holdingFor(user.id, 'BTC');
+      const had = existing ? toScaled(existing.units, btc.asset.decimals) : 0n;
+      const hadCost = Number(existing ? existing.cost_basis : 0);
+      if (bought > 0n) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await saveHolding(existing, user.id, btc.asset, had + bought, hadCost + cost);
+        } catch (e) {
+          // eslint-disable-next-line no-await-in-loop
+          await db.holdings.insert(h).catch(() => {});
+          throw e;
+        }
+      }
+
+      const at = nowIso();
+      const reference = ids.reference('CNV');
+      const units = fromScaled(bought, btc.asset.decimals);
+      const common = {
+        created_at: at, user_id: user.id, account_id: null, transaction_id: null, reference,
+        booked_by: opts.staff ? opts.staff.id : null, status: 'completed',
+      };
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await db.trades.insert({
+          ...common, id: ids.uuid(), symbol: asset.symbol, side: 'sell', units: fromScaled(held, asset.decimals),
+          price: pc, amount: value, realized_gain: value - cost, note: 'Converted to Bitcoin',
+          quote_source: quote.source, quote_as_of: quote.asOf,
+        });
+        if (bought > 0n) {
+          // eslint-disable-next-line no-await-in-loop
+          await insertTrade({
+            ...common, id: ids.uuid(), symbol: 'BTC', side: 'buy', units, price: btcPc, amount: cost,
+            note: 'Converted to Bitcoin from an earlier investment',
+            quote_source: btc.quote.source, quote_as_of: btc.quote.asOf,
+            term_months: termMonths, matures_at: addMonths(at, termMonths),
+          });
+        }
+      } catch (e) {
+        // The holdings have moved, which is what matters to the customer; the
+        // record of it is what failed. Say so where staff will see it.
+        console.warn(`[hedgestone] ${reference}: ${h.symbol} converted to Bitcoin but the trade record failed: ${e.message}`);
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      await audit.log({
+        action: 'invest.converted', category: 'money', userId: user.id, req: opts.req, actor,
+        detail: `${fromScaled(held, asset.decimals)} ${asset.symbol} (${money(value)} at ${money(pc)}) converted to ${units} BTC at ${money(btcPc)}; ${money(cost)} invested carried over - ${reference}`,
+        meta: { symbol: asset.symbol, units: fromScaled(held, asset.decimals), value, cost, btc: units, reference },
+      });
+      out.converted.push({ name: asset.name, symbol: asset.symbol, units: fromScaled(held, asset.decimals), unit: asset.unit, value, cost, btc: units, reference });
+    }
+
+    if (out.converted.length && !opts.silent) {
+      const worth = out.converted.reduce((n, c) => n + c.value, 0);
+      const coins = fromScaled(out.converted.reduce((n, c) => n + toScaled(c.btc, btc.asset.decimals), 0n), btc.asset.decimals);
+      const invested = out.converted.reduce((n, c) => n + c.cost, 0);
+      await alerts.notifyUser(user, 'investment_trade', {
+        subject: 'Your investments are now in Bitcoin',
+        heading: 'Your investments are now in Bitcoin',
+        intro: `We now offer Bitcoin only, so we have converted your earlier investments, worth ${money(worth)} at today's prices, into ${coins} BTC at ${money(btcPc)}. The ${money(invested)} you originally invested carries over, so your gain or loss continues from where it was.`,
+        rows: [
+          ...out.converted.map((c) => ({ label: c.name, value: `${c.units} ${c.unit === 'share' ? `share${c.units === '1' ? '' : 's'}` : c.unit}, worth ${money(c.value)}` })),
+          { label: 'Bitcoin received', value: `${coins} BTC` },
+          { label: 'Bitcoin price', value: money(btcPc) },
+          { label: 'Matures', value: `${new Date(addMonths(nowIso(), termMonths)).toLocaleDateString('en-US', { dateStyle: 'long' })} (${termMonths}-month term)` },
+        ],
+      }).catch(() => {});
+    }
+    return out;
+  });
+}
+
+/** convertRetired for every customer who still holds something other than Bitcoin. */
+async function convertAllRetired(opts = {}) {
+  const rows = (await db.holdings.find({})).filter((h) => h.symbol !== 'BTC');
+  const out = { customers: 0, converted: [], pending: [] };
+  if (!rows.length) return out;
+  const people = await db.users.findByIds([...new Set(rows.map((h) => h.user_id))]);
+  for (const user of people.values()) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await convertRetired(user, opts);
+      if (r.converted.length) out.customers += 1;
+      out.converted.push(...r.converted.map((c) => ({ ...c, userId: user.id })));
+      out.pending.push(...r.pending.map((p) => ({ ...p, userId: user.id })));
+    } catch (e) {
+      console.warn(`[hedgestone] converting ${user.id} to Bitcoin failed: ${e.message}`);
+      out.pending.push({ userId: user.id, reason: e.message });
+    }
+  }
+  return out;
 }
 
 /* ----------------------------------------------------------- portfolio --- */
@@ -576,62 +738,65 @@ function positionsOf(trades, holding, asset, pc) {
   });
 }
 
-/** Holdings valued at the latest prices, with what each cost, and the Bitcoin position by purchase. */
+/**
+ * The customer's Bitcoin: what it is worth, what it cost, and the purchases
+ * that make it up. Anything still held of an asset no longer offered is
+ * converted first; if it cannot be yet, `converting` says so without naming it.
+ */
 async function portfolio(userId) {
-  const [rows, trades, btcTrades] = await Promise.all([
-    db.holdings.find({ user_id: userId }),
-    db.trades.find({ user_id: userId }, { order: 'created_at.desc', limit: 25 }),
-    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
-  ]);
-  // Retired assets are priced only when this customer still holds one.
-  const assets = await markets.list({ withRetired: rows.some((h) => h.symbol !== 'BTC') });
-  const bySymbol = new Map(assets.map((a) => [a.symbol, a]));
+  let pending = [];
+  const user = await db.users.findById(userId);
+  if (user) {
+    try {
+      ({ pending } = await convertRetired(user));
+    } catch (e) {
+      console.warn(`[hedgestone] converting ${userId} to Bitcoin failed: ${e.message}`);
+      pending = [{ reason: e.message }];
+    }
+  }
 
-  const holdings = rows.map((h) => {
-    const asset = bySymbol.get(h.symbol);
-    if (!asset) return null;
-    const scaled = toScaled(h.units, asset.decimals);
-    const pc = asset.quote ? priceCents(asset.quote.price) : null;
-    const value = pc ? valueOf(scaled, pc, asset.decimals) : null;
-    const cost = Number(h.cost_basis || 0);
+  const [btcHolding, trades, btcTrades, assets] = await Promise.all([
+    holdingFor(userId, 'BTC'),
+    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.desc', limit: 25 }),
+    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
+    markets.list(),
+  ]);
+  const btc = assets.find((a) => a.symbol === 'BTC');
+  const btcPc = btc && btc.quote ? priceCents(btc.quote.price) : null;
+
+  const holdings = btcHolding ? [(() => {
+    const scaled = toScaled(btcHolding.units, btc.decimals);
+    const value = btcPc ? valueOf(scaled, btcPc, btc.decimals) : null;
+    const cost = Number(btcHolding.cost_basis || 0);
     return {
-      symbol: h.symbol,
-      name: asset.name,
-      kind: asset.kind,
-      unit: asset.unit,
-      units: h.units,
-      retired: Boolean(asset.retired),
+      symbol: 'BTC',
+      name: btc.name,
+      kind: btc.kind,
+      unit: btc.unit,
+      units: btcHolding.units,
       costBasis: cost,
-      averagePrice: scaled > 0n ? Math.round((cost * Number(SCALE(asset.decimals))) / Number(scaled)) : 0,
-      price: pc,
+      averagePrice: scaled > 0n ? Math.round((cost * Number(SCALE(btc.decimals))) / Number(scaled)) : 0,
+      price: btcPc,
       value,
       gain: value == null ? null : value - cost,
       gainPct: value == null || !cost ? null : Math.round(((value - cost) / cost) * 10000) / 100,
-      dayChangePct: asset.quote ? asset.quote.changePct : null,
+      dayChangePct: btc.quote ? btc.quote.changePct : null,
     };
-  }).filter(Boolean).sort((a, b) => (b.value || 0) - (a.value || 0));
-
-  const valued = holdings.filter((h) => h.value != null);
-  const totalValue = valued.reduce((s, h) => s + h.value, 0);
-  const totalCost = valued.reduce((s, h) => s + h.costBasis, 0);
-
-  const btc = bySymbol.get('BTC');
-  const btcHolding = rows.find((h) => h.symbol === 'BTC') || null;
-  const btcPc = btc && btc.quote ? priceCents(btc.quote.price) : null;
+  })()] : [];
+  const btcRow = holdings[0] || null;
   const positions = btc ? positionsOf(btcTrades, btcHolding, btc, btcPc) : [];
-  const btcRow = holdings.find((h) => h.symbol === 'BTC');
   const upcoming = positions.filter((p) => !p.matured).sort((a, b) => (a.maturesAt < b.maturesAt ? -1 : 1));
+  const value = btcRow && btcRow.value != null ? btcRow.value : 0;
+  const cost = btcRow && btcRow.value != null ? btcRow.costBasis : 0;
 
   return {
-    // What can be bought, and the retired assets this customer still holds,
-    // so the page can price and sell them.
-    assets: assets.filter((a) => !a.retired || rows.some((h) => h.symbol === a.symbol)),
+    assets,
     holdings,
     totals: {
-      value: totalValue,
-      cost: totalCost,
-      gain: totalValue - totalCost,
-      gainPct: totalCost ? Math.round(((totalValue - totalCost) / totalCost) * 10000) / 100 : null,
+      value,
+      cost,
+      gain: value - cost,
+      gainPct: cost ? Math.round(((value - cost) / cost) * 10000) / 100 : null,
     },
     bitcoin: {
       units: btcRow ? btcRow.units : '0',
@@ -649,10 +814,12 @@ async function portfolio(userId) {
     },
     positions,
     trades: trades.map(publicTrade),
+    converting: pending.length > 0,
   };
 }
 
 module.exports = {
   convert, sell, portfolio, publicTrade, retimeTrade, reverseTrade, addMonths,
+  convertRetired, convertAllRetired,
   MIN_BUY, PRICE_TOLERANCE, MAX_TERM_MONTHS, _units: { toScaled, fromScaled, unitsFor, valueOf },
 };

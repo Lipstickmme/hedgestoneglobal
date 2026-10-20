@@ -270,21 +270,83 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       const oversell = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'BTC', units: '500' });
       assert.strictEqual(oversell.status, 400, 'you cannot sell what you do not hold');
 
-      // A holding of an asset no longer offered is still valued and can be sold.
+      // Holdings of assets no longer offered are converted to Bitcoin the next
+      // time the portfolio is read, at the live price of each, and never shown.
       const db_ = require(path.join(ROOT, 'src/bank/db')).db;
-      await db_.holdings.insert({ id: require('crypto').randomUUID(), created_at: new Date().toISOString(), user_id: checking.userId || (await db_.accounts.findById(checking.id)).user_id, symbol: 'SPY', units: '2', cost_basis: 100000 });
-      const legacy = (await customer.get('/api/bank/invest')).body.holdings.find((h) => h.symbol === 'SPY');
-      assert.ok(legacy && legacy.retired && legacy.value === 2 * 57125, 'priced at the live price, marked retired');
-      const sellLegacy = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'SPY', all: true });
-      assert.strictEqual(sellLegacy.status, 201, sellLegacy.text);
-      assert.ok(!(await customer.get('/api/bank/invest')).body.holdings.some((h) => h.symbol === 'SPY'), 'and once sold it is gone');
+      const userId = (await db_.accounts.findById(checking.id)).user_id;
+      const uuid = () => require('crypto').randomUUID();
+      const stamp = new Date().toISOString();
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'SPY', units: '2', cost_basis: 100000 });
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'AAPL', units: '1.5', cost_basis: 30000 });
+      const btcBefore = await db_.holdings.findOne({ user_id: userId, symbol: 'BTC' });
+      const cashBefore = await balanceOf();
+      const tradesBefore = (await db_.trades.find({ user_id: userId })).length;
+
+      const converted = await customer.get('/api/bank/invest');
+      assert.strictEqual(converted.status, 200, converted.text);
+      const shown = JSON.stringify(converted.body);
+      assert.ok(!/SPY|AAPL|Apple|S&P/.test(shown), 'no other asset appears anywhere in the portfolio');
+      assert.deepStrictEqual(converted.body.holdings.map((h) => h.symbol), ['BTC'], 'Bitcoin is the only holding');
+      assert.deepStrictEqual(converted.body.assets.map((a) => a.symbol), ['BTC'], 'and the only asset');
+      assert.strictEqual(converted.body.converting, false, 'nothing left waiting');
+      assert.ok(!(await db_.holdings.find({ user_id: userId })).some((h) => h.symbol !== 'BTC'), 'the old holdings are gone');
+
+      // SPY 2 x $571.25 and AAPL 1.5 x $227.50, each buying Bitcoin at $66,412.50.
+      const sats = (cents) => (BigInt(cents) * 100000000n) / 6641250n;
+      const expected = sats(2 * 57125) + sats(Math.floor(1.5 * 22750));
+      const btcAfter = await db_.holdings.findOne({ user_id: userId, symbol: 'BTC' });
+      const toSats = (u) => BigInt(Math.round(Number(u) * 1e8));
+      assert.strictEqual(toSats(btcAfter.units) - toSats(btcBefore.units), expected, 'their value bought Bitcoin at the live price');
+      assert.strictEqual(Number(btcAfter.cost_basis) - Number(btcBefore.cost_basis), 130000, 'what was originally invested carries over');
+      assert.strictEqual(await balanceOf(), cashBefore, 'no cash moved');
+
+      const conversions = (await db_.trades.find({ user_id: userId })).filter((t) => /^CNV-/.test(t.reference || ''));
+      assert.strictEqual(conversions.length, 4, 'a sale of each old holding and a purchase of Bitcoin for each');
+      const bought = conversions.filter((t) => t.symbol === 'BTC');
+      assert.ok(bought.every((t) => t.side === 'buy' && Number(t.term_months) === 12), 'each a new purchase on the default term');
+      assert.ok(converted.body.trades.some((t) => t.converted && t.symbol === 'BTC'), 'shown as converted in their trades');
+      assert.ok(converted.body.positions.some((p) => bought.some((t) => t.id === p.id)), 'and as purchases on the dashboard');
+
+      const told = (await customer.get('/api/bank/alerts')).body.alerts.find((a) => /now in Bitcoin/.test(a.subject || a.title || ''));
+      assert.ok(told, 'the customer is told');
+      const logged = (await db_.activity.find({ user_id: userId })).filter((r) => r.action === 'invest.converted');
+      assert.strictEqual(logged.length, 2, 'each conversion is in the activity log');
+
+      await customer.get('/api/bank/invest');
+      assert.strictEqual((await db_.trades.find({ user_id: userId })).length, tradesBefore + 4, 'converting twice books nothing more');
+
+      const sellOld = await customer.post('/api/bank/invest/sell', { accountId: checking.id, symbol: 'SPY', all: true });
+      assert.strictEqual(sellOld.status, 400, 'only Bitcoin can be sold');
+      assert.strictEqual(sellOld.body.error, 'asset_retired');
+
+      const staffer = client(base);
+      assert.strictEqual((await staffer.post('/api/bank/auth/login', { email: 'admin@hedgestonesfinance.com', password: 'Hedgestone#Admin2026' })).status, 200);
+      const undo = await staffer.post(`/api/bank/admin/trades/${bought[0].id}/reverse`, { note: 'test' });
+      assert.strictEqual(undo.status, 409, 'a conversion cannot be reversed');
+      assert.strictEqual(undo.body.error, 'conversion_final');
+
+      // Without a live price for the old asset nothing converts, nothing shows,
+      // and staff are told how many are waiting. With one, the next read converts it.
+      markets_._setFixture({ BTC: 66412.5, XAU: 0 });
+      await db_.holdings.insert({ id: uuid(), created_at: stamp, user_id: userId, symbol: 'XAU', units: '0.5', cost_basis: 120000 });
+      const waiting = await customer.get('/api/bank/invest');
+      assert.strictEqual(waiting.body.converting, true, 'the customer is told it is on its way');
+      assert.ok(!/XAU|Gold/.test(JSON.stringify(waiting.body)), 'without naming it');
+      const desk = await staffer.get('/api/bank/admin/investments');
+      assert.strictEqual(desk.status, 200, desk.text);
+      assert.strictEqual(desk.body.converting, 1, 'staff see one waiting');
+      assert.ok(desk.body.holdings.every((h) => h.symbol === 'BTC') && desk.body.trades.every((t) => t.symbol === 'BTC'), 'and only Bitcoin');
+      markets_._setFixture({ BTC: 66412.5 });
+      const sweep = await staffer.get('/api/bank/admin/investments');
+      assert.strictEqual(sweep.body.converting, 0, 'with a price, the staff screen converts it');
+      assert.ok(!(await db_.holdings.find({ user_id: userId })).some((h) => h.symbol !== 'BTC'), 'and it is gone');
 
       // On the ledger as investments.
       const tx = await customer.get('/api/bank/transactions?limit=10');
       assert.ok(tx.body.transactions.some((t) => t.category === 'Investments' && /Bitcoin/.test(t.description)));
 
       markets_._setFixture(null);
-      ok(`invest: 0.01 BTC bought for $632.50 on a 6-month term, sold first-in-first-out at $66,412.50; retired assets refused but sellable`);
+      ok(`invest: 0.01 BTC bought for $632.50 on a 6-month term, sold first-in-first-out at $66,412.50; other assets refused, converted to Bitcoin and never shown`);
     }
 
     /* ---- 5d. an active session keeps its cookies; an ended one loses them ---- */

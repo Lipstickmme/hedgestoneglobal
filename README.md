@@ -85,9 +85,18 @@ announcement banner.
 
 Cards, cheque deposits, bill pay, statements, claims, payments between
 customers and every asset but Bitcoin were removed. Their old addresses
-redirect (`src/site/retired.js`, mirrored in `vercel.json`). A customer who
-bought another asset before keeps it, valued at the live price, and can sell
-it; nothing else can be bought.
+redirect (`src/site/retired.js`, mirrored in `vercel.json`).
+
+Anything a customer still holds of another asset is converted to Bitcoin the
+next time their portfolio is read, or when staff open Bitcoin investments:
+each holding is valued at its live price and that value buys Bitcoin at
+Bitcoin's. No cash moves. What they originally paid carries over as the cost
+of the Bitcoin, so their gain or loss continues rather than restarting, and the
+Bitcoin is a new purchase on the default term. The customer is sent a notice,
+each conversion is in the activity log, and a conversion cannot be reversed.
+Until a holding is converted it is not shown anywhere; if there is no live
+price for it, the customer sees that a conversion is on its way and staff see
+how many are waiting. Past transactions keep their original descriptions.
 
 ---
 

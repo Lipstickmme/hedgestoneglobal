@@ -480,8 +480,11 @@ How it behaves:
 - A maturity date does not lock anything: Bitcoin can be sold at any time,
   oldest purchase first.
 - Holdings of the assets offered before the platform became Bitcoin only (the
-  S&P 500, stocks, gold) stay valued at their live price and can be sold, but
-  nothing else can be bought.
+  S&P 500, stocks, gold) are converted to Bitcoin at live prices the next time
+  the customer's portfolio is read, or when staff open Bitcoin investments.
+  What the customer originally invested carries over as the cost of the
+  Bitcoin, and they are sent a notice. Those other assets are never shown, and
+  nothing but Bitcoin can be bought or sold.
 
 **This is a demonstration of the flow.** Holdings are recorded in this
 application's ledger; no order is sent to an exchange or broker, and no Bitcoin
@@ -572,7 +575,7 @@ notifications, so you can work entirely offline. To test notifications locally, 
 | `PINGRAM_SMS_FROM` | for texts | The sending number, in E.164 (`+18005559999`) |
 | `PINGRAM_DEFAULT_COUNTRY` | no | Country code assumed for a ten-digit number with no `+` (default `1`) |
 | `PINGRAM_SMS_URL` | no | Override for Pingram's send endpoint (default `https://api.pingram.io/sms`) |
-| `FINNHUB_API_KEY` | recommended | Free key from finnhub.io: real-time stock and ETF prices for the ticker and Invest. Without it, Yahoo Finance and Stooq are used |
+| `FINNHUB_API_KEY` | optional | Free key from finnhub.io: stock and ETF prices, used only to convert holdings of those assets to Bitcoin. Without it, Yahoo Finance and Stooq are used |
 | `MARKET_CACHE_SECONDS` | no | How long one round of prices is reused (default 30) |
 | `MARKET_TRADE_MAX_AGE_SECONDS` | no | A purchase or sale is refused if the freshest price is older than this (default 120) |
 | `MARKET_HISTORY_CACHE_MINUTES` | no | How long the daily price history behind the dashboard chart is kept before it is fetched again (default 30) |

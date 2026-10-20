@@ -75,7 +75,7 @@
   }
 
   function renderAssets() {
-    qs('[data-inv-assets]').innerHTML = data.assets.filter((a) => !a.retired).map((a) => {
+    qs('[data-inv-assets]').innerHTML = data.assets.map((a) => {
       const q = a.quote;
       const held = holdingBy(a.symbol);
       const disabled = !q || q.stale;
@@ -105,20 +105,9 @@
     </tr>`).join('');
   }
 
-  /** Assets bought before Bitcoin only: valued, and sellable, nothing else. */
-  function renderHoldings() {
-    const legacy = data.holdings.filter((h) => h.retired);
-    qs('[data-inv-holdings-wrap]').hidden = !legacy.length;
-    qs('[data-inv-holdings]').innerHTML = legacy.map((h) => {
-      const a = assetBy(h.symbol);
-      return `<tr>
-        <td><span class="hs-cell-asset">${logoOf(h.symbol, 30)}<span><strong>${esc(h.name)}</strong><span class="sub">${esc(h.symbol)}</span></span></span></td>
-        <td class="num rf-mono">${fmtUnits(h.units, a ? a.decimals : 8)}</td>
-        <td class="num"><strong>${h.value == null ? '&mdash;' : money(h.value)}</strong></td>
-        <td class="num rf-amt ${h.gain >= 0 ? 'credit' : 'debit'}">${h.gain == null ? '&mdash;' : `${h.gain >= 0 ? '+' : '-'}${money(Math.abs(h.gain))}<span class="sub">${pct(h.gainPct)}</span>`}</td>
-        <td class="num rf-nowrap"><button class="rf-btn ghost sm" data-sell="${esc(h.symbol)}">Sell</button></td>
-      </tr>`;
-    }).join('');
+  /** Earlier investments are converted to Bitcoin when this loads; one waiting on a price says so. */
+  function renderConverting() {
+    qs('[data-inv-converting]').hidden = !data.converting;
   }
 
   function renderTrades() {
@@ -129,9 +118,9 @@
     }
     list.innerHTML = data.trades.slice(0, 8).map((t) => `<li>
       ${logoOf(t.symbol, 30)}
-      <span class="hs-trade-side ${t.side}">${t.side === 'buy' ? 'Bought' : 'Sold'}</span>
+      <span class="hs-trade-side ${t.side}">${t.converted ? 'Converted' : t.side === 'buy' ? 'Bought' : 'Sold'}</span>
       <span class="hs-trade-main"><strong>${esc(t.units)} ${esc(t.symbol)}</strong><small>${datetime(t.createdAt)} &middot; @ ${money(t.price)}</small></span>
-      <span class="rf-amt ${t.side === 'buy' ? 'debit' : 'credit'}">${t.side === 'buy' ? '-' : '+'}${money(t.amount)}</span>
+      ${t.converted ? `<span class="rf-amt">${money(t.amount)}</span>` : `<span class="rf-amt ${t.side === 'buy' ? 'debit' : 'credit'}">${t.side === 'buy' ? '-' : '+'}${money(t.amount)}</span>`}
     </li>`).join('');
   }
 
@@ -139,7 +128,7 @@
     renderTotals();
     renderAssets();
     renderPositions();
-    renderHoldings();
+    renderConverting();
     renderTrades();
   }
 
@@ -198,7 +187,7 @@
 
   /** Buy: cash -> Bitcoin, for a term. */
   function openConvert(symbol) {
-    const buyable = data.assets.filter((a) => !a.retired);
+    const buyable = data.assets;
     const asset = buyable.find((a) => a.symbol === symbol) || buyable.find((a) => a.quote && !a.quote.stale);
     if (!asset || !asset.quote) { toast('There is no live Bitcoin price right now. Try again in a minute.', 'bad'); return; }
     if (!data.accounts.length) { toast('You need a cash balance to buy from. Send us a message and we will open one.', 'bad'); return; }

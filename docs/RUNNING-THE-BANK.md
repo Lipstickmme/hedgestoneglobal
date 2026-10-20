@@ -27,7 +27,7 @@ statements or payments between customers.
 | Put money into a cash balance, any amount | **Customers** → open one → **Adjust** |
 | Buy or sell Bitcoin for a customer, or change a purchase's term | **Customers** → open one → **Book a purchase or sale** / **Change date or term** |
 | Release or return a withdrawal | **Withdrawals** |
-| See who holds what | **Bitcoin investments** |
+| See who holds what, and convert any other assets still held to Bitcoin | **Bitcoin investments** |
 | Email or text every customer at once | **Email alerts** |
 | Rename the platform, set the terms on offer, limits and fees | **Settings** |
 
@@ -92,6 +92,16 @@ nothing happens automatically on the day. It is not a promise of any value.
 From the customer drawer, staff can **Book a purchase or sale** (at an agreed
 price, an earlier time and any whole number of months), **Change date or term**
 on a purchase (its maturity moves with it), or **Reverse** one completely.
+
+Customers who bought another asset before the platform became Bitcoin only
+(the S&P 500, stocks, gold) have it converted to Bitcoin automatically: the
+next time they open their dashboard, or when you open **Bitcoin
+investments**, whichever comes first. Each holding is valued at its live price
+and that value buys Bitcoin; what they originally invested carries over, and
+they are sent a notice. A conversion shows as "Converted" in their purchases
+and cannot be reversed. If a live price for the old asset cannot be had,
+**Bitcoin investments** says how many are waiting; open it again a few
+minutes later to convert them.
 
 ### Withdrawals
 

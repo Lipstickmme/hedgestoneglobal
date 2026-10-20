@@ -131,6 +131,7 @@
     gainEl.textContent = btc.value == null ? '—' : `${signed(btc.gain)}${btc.gainPct == null ? '' : ` (${pct(btc.gainPct)})`}`;
     gainEl.classList.toggle('down', (btc.gain || 0) < 0);
     qs('[data-hero="units"]').textContent = `${btc.units} BTC`;
+    qs('[data-converting]').hidden = !inv.converting;
 
     if (btc.firstPurchasedAt) {
       const held = Math.floor((Date.now() - new Date(btc.firstPurchasedAt).getTime()) / DAY);

@@ -445,22 +445,19 @@
 
         <!-- ------------------------------------------------- investments -- -->
         <section data-panel="investments" hidden>
+          <div class="rf-notice warn rf-mb" data-inv-converting hidden></div>
           <div class="rf-grid cols-4 rf-mb" data-inv-stats></div>
           <div class="rf-grid side">
             <section class="rf-card">
               <div class="rf-card-head"><h3>Who holds Bitcoin</h3><div class="rf-card-actions rf-small rf-muted">valued at the live price</div></div>
               <div class="rf-table-wrap">
                 <table class="rf-table">
-                  <thead><tr><th>Customer</th><th>Asset</th><th class="num">Units</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
-                  <tbody data-inv-holdings><tr><td colspan="6" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
+                  <thead><tr><th>Customer</th><th class="num">Bitcoin</th><th class="num opt">Cost</th><th class="num">Value</th><th class="num">Gain / loss</th></tr></thead>
+                  <tbody data-inv-holdings><tr><td colspan="5" class="rf-center rf-muted">Loading&hellip;</td></tr></tbody>
                 </table>
               </div>
             </section>
             <div class="rf-stack">
-              <section class="rf-card">
-                <div class="rf-card-head"><h3>By asset</h3></div>
-                <ul class="rf-list" data-inv-assets><li class="rf-muted rf-small">Loading&hellip;</li></ul>
-              </section>
               <section class="rf-card">
                 <div class="rf-card-head"><h3>Latest purchases and sales</h3></div>
                 <ul class="rf-list" data-inv-trades><li class="rf-muted rf-small">Loading&hellip;</li></ul>
@@ -676,6 +673,6 @@
   <script src="/js/asset-logos.js?v=93d683f2" defer></script>
   <script src="/js/assets.js?v=a953dc1b" defer></script>
   <script src="/js/ticker.js?v=68500b3e" defer></script>
-  <script src="/js/bank/console.js?v=91f17f3d" defer></script>
+  <script src="/js/bank/console.js?v=52f67363" defer></script>
 </body>
 </html>

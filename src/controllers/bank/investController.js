@@ -93,14 +93,24 @@ const { db } = require('../../bank/db');
 const usersLib = require('../../bank/users');
 
 /**
- * GET /api/bank/admin/investments - every holding on the platform, valued at
- * the latest prices, with the most recent trades and who made them.
+ * GET /api/bank/admin/investments - every customer's Bitcoin, valued at the
+ * latest price, with the most recent trades and who made them. Anyone still
+ * holding an asset no longer offered is converted to Bitcoin first; those
+ * that cannot be converted yet, for want of a live price, are counted in
+ * `converting`.
  */
 const staffOverview = asyncHandler(async (req, res) => {
+  let sweep = { pending: [] };
+  try {
+    sweep = await invest.convertAllRetired({ staff: req.bankUser, req });
+  } catch (err) {
+    console.warn(`[hedgestone] converting holdings to Bitcoin failed: ${err.message}`);
+    sweep = { pending: [{ reason: err.message }] };
+  }
   const [rows, assets, trades] = await Promise.all([
-    db.holdings.find({}),
-    markets.list({ withRetired: true }),
-    db.trades.find({}, { order: 'created_at.desc', limit: 50 }),
+    db.holdings.find({ symbol: 'BTC' }),
+    markets.list(),
+    db.trades.find({ symbol: 'BTC' }, { order: 'created_at.desc', limit: 50 }),
   ]);
   const bySymbol = new Map(assets.map((a) => [a.symbol, a]));
   const people = await db.users.findByIds([...rows.map((r) => r.user_id), ...trades.map((t) => t.user_id)]);
@@ -139,7 +149,8 @@ const staffOverview = asyncHandler(async (req, res) => {
     byAsset: Object.values(bySym).sort((a, b) => b.value - a.value),
     holdings,
     trades: trades.map((t) => ({ ...invest.publicTrade(t), customer: who(t.user_id) })),
-    assets: assets.filter((a) => !a.retired),
+    assets,
+    converting: sweep.pending.length,
   });
 });
 
@@ -147,7 +158,7 @@ const staffOverview = asyncHandler(async (req, res) => {
 const staffCustomerHoldings = asyncHandler(async (req, res) => {
   const data = await invest.portfolio(req.params.id);
   res.set('Cache-Control', 'no-store');
-  res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin });
+  res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin, converting: data.converting });
 });
 
 module.exports.staffOverview = staffOverview;
