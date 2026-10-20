@@ -74,12 +74,14 @@ const login = asyncHandler(async (req, res) => {
 
   const user = result.user;
 
+  // A suspended customer still signs in: they see their vault and why it is
+  // suspended, and can message us; what would change anything is refused
+  // (auth.requireAuth).
   if (user.status === 'suspended') {
     await audit.log({
-      action: 'auth.login_blocked', category: 'security', userId: user.id, req, severity: 'warning',
-      actor: { id: user.id, email, role: user.role }, detail: 'Sign-in on a suspended account',
+      action: 'auth.login_suspended', category: 'security', userId: user.id, req, severity: 'notice',
+      actor: { id: user.id, email, role: user.role }, detail: 'Signed in while the account is suspended',
     });
-    throw fail(403, `This account is suspended. Please ${contact.callSupport()}.`, 'suspended');
   }
 
   // Second factor, when the customer has it switched on.
@@ -229,6 +231,8 @@ async function sessionPayload(req, res) {
   ]);
   return {
     authenticated: true,
+    // Why, as staff told them, for the notice on every page while it lasts.
+    suspended: await users.suspensionOf(req.bankUser),
     user: users.publicUser(req.bankUser, req.bankUser.role === 'admin' ? 'admin' : 'self'),
     csrf: req.bankSession && req.bankSession.csrf,
     expiresAt: req.bankSession && req.bankSession.expires_at,

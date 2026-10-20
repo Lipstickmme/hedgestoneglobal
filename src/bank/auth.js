@@ -255,14 +255,29 @@ async function attach(req, res, next) {
   next();
 }
 
+/*
+ * What a suspended customer may still do besides look: sign out, change their
+ * password, read their alerts, message us, and take back a request of theirs
+ * that is still waiting. Everything else that changes something is refused,
+ * with the reason they were given.
+ */
+const SUSPENDED_MAY = [
+  /^\/auth\/(logout|password)$/,
+  /^\/alerts\/(read-all|[^/]+\/read)$/,
+  /^\/messages(\/[^/]+\/read)?$/,
+  /^\/vault\/requests\/[^/]+\/cancel$/,
+];
+
 function requireAuth(req, res, next) {
   if (!req.bankUser) {
     return res.status(401).json({ error: 'unauthorized', message: 'Sign in to continue.' });
   }
-  if (req.bankUser.status === 'suspended') {
-    return res.status(403).json({
-      error: 'account_suspended',
-      message: `This account is suspended. Please ${contact.callSupport()}.`,
+  if (req.bankUser.status === 'suspended' && !isRead(req) && !SUSPENDED_MAY.some((re) => re.test(req.path))) {
+    return require('./users').suspensionOf(req.bankUser).catch(() => null).then((s) => {
+      res.status(403).json({
+        error: 'account_suspended',
+        message: `Your account is suspended${s && s.reason ? `: ${s.reason}` : ''}. You can still see your vault and message us, but nothing can be received, sent or changed until our team lifts it.`,
+      });
     });
   }
   return next();

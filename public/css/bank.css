@@ -2224,3 +2224,21 @@ tr.is-reversed td { opacity: .55; }
 .rf-pw-toggle:hover { background: var(--rf-surface-3); color: var(--rf-ink); }
 .rf-pw-toggle:focus-visible { outline: 2px solid var(--rf-navy); outline-offset: 1px; }
 .rf-pw-toggle[aria-pressed="true"] { color: var(--rf-navy); }
+
+/* A suspended account: the notice at the top of every signed-in page. */
+.hs-suspended {
+  display: flex; align-items: flex-start; gap: 14px; margin: 0 0 18px; padding: 16px 18px; border-radius: 16px;
+  background: #fff1f0; border: 1px solid #f3b8b1; color: #6e1d14; box-shadow: 0 10px 30px -22px rgba(170, 40, 30, .6);
+}
+.hs-suspended-icon {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; background: #c8372b; color: #fff;
+  font-weight: 800; font-size: 17px; line-height: 32px; text-align: center;
+}
+.hs-suspended-body { flex: 1 1 auto; min-width: 0; }
+.hs-suspended-body strong { display: block; font-size: 16px; color: #5a140d; margin-bottom: 4px; }
+.hs-suspended-body p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; }
+.hs-suspended-reason { padding: 8px 11px; border-radius: 10px; background: rgba(200, 55, 43, .08); color: #5a140d; }
+.hs-suspended .rf-btn { flex: 0 0 auto; align-self: center; }
+@media (max-width: 640px) { .hs-suspended { flex-wrap: wrap; } .hs-suspended .rf-btn { width: 100%; } }
+/* While suspended, the forms that would change something are shown as closed. */
+body.is-suspended [data-suspend-closed] { opacity: .55; pointer-events: none; }

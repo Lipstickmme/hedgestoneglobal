@@ -220,6 +220,7 @@
         ${c.lockedUntil ? badge('bad', 'Locked out') : ''}
         ${c.mustChangePassword ? badge('pending', 'Must change password') : ''}
       </div>
+      ${data.suspension ? `<div class="rf-notice bad rf-mb"><strong>Suspended${data.suspension.since ? ` since ${date(data.suspension.since)}` : ''}.</strong> ${data.suspension.reason ? `They see the reason: &ldquo;${esc(data.suspension.reason)}&rdquo;` : 'No reason was given.'} They can sign in and look, and message us; nothing can be received, sent or changed until you reactivate them.</div>` : ''}
 
       <div class="rf-grid cols-2">
         <div>
@@ -382,10 +383,10 @@
           await api.post(`/admin/customers/${id}/kyc`, { kycStatus: status, notes: prompt('Note (optional):') || '' });
           toast('Identity status updated.', 'ok');
         } else if (action === 'suspend') {
-          const reason = prompt('Why is this account being suspended? The customer is told.');
+          const reason = prompt('Why is this account being suspended? The customer sees this on every page while it lasts. They can still sign in and look, but not receive, send or change anything.');
           if (reason == null) return;
           await api.post(`/admin/customers/${id}/status`, { status: 'suspended', reason });
-          toast('Account suspended and sessions ended.', 'ok');
+          toast('Suspended. The customer sees the reason when they next sign in.', 'ok');
         } else if (action === 'activate') {
           await api.post(`/admin/customers/${id}/status`, { status: 'active' });
           toast('Account reactivated.', 'ok');

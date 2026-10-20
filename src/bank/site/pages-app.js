@@ -300,8 +300,8 @@ const receiveContent = `
             <div class="rf-card-head"><h3>${icon('receive', 18)} Pay with cash</h3></div>
             <div class="rf-card-body">
               <p class="rf-small rf-muted" style="margin-top:0">Pay our OTC partner from a bank in your name. When they confirm your payment, it buys Bitcoin at that day&rsquo;s price and goes into your vault.</p>
-              <div data-otc><div class="rf-skel" style="height:140px"></div></div>
-              <form id="hs-cash-form" class="rf-mt" novalidate hidden>
+              <div data-otc data-suspend-closed><div class="rf-skel" style="height:140px"></div></div>
+              <form id="hs-cash-form" data-suspend-closed class="rf-mt" novalidate hidden>
                 <h4 class="rf-label">Once you have paid, tell us</h4>
                 <div class="rf-row">
                   <div class="rf-field"><label for="c-amount">Amount paid (USD)</label><input class="rf-input money" id="c-amount" name="amount" inputmode="decimal" placeholder="0.00" required /></div>
@@ -319,8 +319,8 @@ const receiveContent = `
             <div class="rf-card-head"><h3>${btcMark(18)} Send Bitcoin to your vault</h3></div>
             <div class="rf-card-body">
               <p class="rf-small rf-muted" style="margin-top:0">Send Bitcoin from a wallet of yours to the address below. When it has arrived it is added to your vault, valued at that day&rsquo;s price.</p>
-              <div data-address><div class="rf-skel" style="height:96px"></div></div>
-              <form id="hs-btc-form" class="rf-mt" novalidate hidden>
+              <div data-address data-suspend-closed><div class="rf-skel" style="height:96px"></div></div>
+              <form id="hs-btc-form" data-suspend-closed class="rf-mt" novalidate hidden>
                 <h4 class="rf-label">Once you have sent it, tell us</h4>
                 <div class="rf-row">
                   <div class="rf-field"><label for="b-units">Bitcoin sent</label><input class="rf-input money" id="b-units" name="units" inputmode="decimal" placeholder="0.00000000" required /></div>
@@ -357,7 +357,7 @@ const sendContent = `
                 <strong class="v" data-ready>&mdash;</strong>
                 <span class="d" data-ready-sub>Only Bitcoin that has reached its maturity date can be sent.</span>
               </div>
-              <form id="hs-send-form" class="rf-mt" novalidate>
+              <form id="hs-send-form" data-suspend-closed class="rf-mt" novalidate>
                 <div class="rf-field">
                   <label for="s-units">How much</label>
                   <input class="rf-input money" id="s-units" name="units" inputmode="decimal" placeholder="0.00000000" required />

@@ -736,14 +736,52 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       ok(`activity log: ${res.body.total} rows, staff actions attributed`);
     }
 
-    /* ---- 18. the console can suspend, and suspension bites ---- */
+    /* ---- 18. suspended: they can sign in and look, see why, and change nothing ---- */
     {
-      await admin.post(`/api/bank/admin/customers/${newCustomerId}/status`, { status: 'suspended', reason: 'Fraud review' });
-      const target = client(base);
-      const attempt = await target.post('/api/bank/auth/login', { email: 'newcustomer@example.com', password: 'whatever' });
-      assert.ok([401, 403].includes(attempt.status), 'a suspended customer cannot get in');
-      await admin.post(`/api/bank/admin/customers/${newCustomerId}/status`, { status: 'active' });
-      ok('console: suspend and restore');
+      const made = await admin.post('/api/bank/admin/customers', {
+        email: 'paused@example.com', firstName: 'Sam', lastName: 'Okafor', password: 'Paused#Customer2026', mustChangePassword: false,
+        dateOfBirth: '1988-02-02', phone: '(614) 555-0140', addressLine1: '1 Elm St', city: 'Columbus', state: 'OH', postalCode: '43201',
+      });
+      assert.strictEqual(made.status, 201, made.text);
+      const pausedId = made.body.customer.id;
+      const signInAs = async (who) => {
+        const start = await who.post('/api/bank/auth/login', { email: 'paused@example.com', password: 'Paused#Customer2026' });
+        assert.strictEqual(start.status, 200, start.text);
+        if (start.body.devCode) {
+          const done = await who.post('/api/bank/auth/verify', { email: 'paused@example.com', code: start.body.devCode });
+          assert.strictEqual(done.status, 200, done.text);
+        }
+      };
+      const sam = client(base);
+      await signInAs(sam);
+      assert.strictEqual((await sam.get('/api/bank/auth/session')).body.suspended, null, 'not suspended yet');
+
+      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'suspended', reason: 'Identity documents under review' });
+      assert.strictEqual((await sam.get('/api/bank/auth/session')).body.authenticated, false, 'suspending ends the sessions they had');
+      await signInAs(sam);
+      const session = (await sam.get('/api/bank/auth/session')).body;
+      assert.strictEqual(session.authenticated, true, 'a suspended customer can still sign in');
+      assert.strictEqual(session.suspended.reason, 'Identity documents under review', 'and is told why');
+      assert.ok(session.suspended.since, 'and since when');
+      assert.strictEqual((await sam.get('/api/bank/boot?page=dashboard')).body.session.suspended.reason, 'Identity documents under review', 'on the dashboard too');
+      assert.strictEqual((await sam.get('/api/bank/invest')).status, 200, 'they can see their vault');
+      const refused = await sam.post('/api/bank/vault/receive', { kind: 'cash', amount: '100', occurredAt: '2020-01-01', termYears: 10 });
+      assert.strictEqual(refused.status, 403);
+      assert.strictEqual(refused.body.error, 'account_suspended');
+      assert.match(refused.body.message, /suspended: Identity documents under review/, 'a refusal carries the reason');
+      assert.strictEqual((await sam.post('/api/bank/vault/send', { units: '0.1', address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' })).body.error, 'account_suspended');
+      assert.strictEqual((await sam.patch('/api/bank/me', { phone: '(614) 555-0199' })).body.error, 'account_suspended', 'and their details cannot change');
+      const wrote = await sam.post('/api/bank/messages', { subject: 'My suspension', body: 'Which documents do you need from me?' });
+      assert.ok([200, 201].includes(wrote.status), `they can message us (${wrote.text})`);
+      const sheet = await admin.get(`/api/bank/admin/customers/${pausedId}`);
+      assert.strictEqual(sheet.body.suspension.reason, 'Identity documents under review', 'staff see the reason they gave');
+
+      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'active' });
+      await signInAs(sam);
+      assert.strictEqual((await sam.get('/api/bank/auth/session')).body.suspended, null, 'reactivated, the notice goes');
+      assert.notStrictEqual((await sam.patch('/api/bank/me', { phone: '(614) 555-0199' })).body.error, 'account_suspended', 'and changes are open again');
+      await admin.del(`/api/bank/admin/customers/${pausedId}`, { confirm: 'paused@example.com' });
+      ok('suspended: they sign in and look, see the reason on every page, message us, and change nothing until reactivated');
     }
 
     /* ---- 18b. the console's setup checklist and investments views ---- */

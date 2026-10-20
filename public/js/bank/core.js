@@ -529,6 +529,38 @@
       banner.className = `rf-notice ${session.announcementLevel === 'info' ? '' : session.announcementLevel || ''}`;
       banner.classList.remove('rf-hide');
     }
+    paintSuspended(session.suspended);
+  }
+
+  /**
+   * Suspended: said at the top of every signed-in page, with the reason staff
+   * gave, and what still works. The forms that would change something say
+   * the same when used; the server refuses them either way.
+   */
+  function paintSuspended(suspended) {
+    document.body.classList.toggle('is-suspended', Boolean(suspended));
+    const content = qs('#rf-content');
+    let box = qs('[data-suspended]');
+    if (!suspended || !content) {
+      if (box) box.remove();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('section');
+      box.className = 'hs-suspended';
+      box.setAttribute('data-suspended', '');
+      box.setAttribute('role', 'alert');
+      content.insertBefore(box, content.firstChild);
+    }
+    const since = suspended.since ? date(suspended.since, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    box.innerHTML = `
+      <span class="hs-suspended-icon" aria-hidden="true">!</span>
+      <div class="hs-suspended-body">
+        <strong>Your account is suspended${since ? ` since ${esc(since)}` : ''}</strong>
+        ${suspended.reason ? `<p class="hs-suspended-reason"><b>Reason:</b> ${esc(suspended.reason)}</p>` : ''}
+        <p>You can still sign in, see your vault and message us. Receiving, sending and changes to your account are paused until our team lifts the suspension.</p>
+      </div>
+      <a class="rf-btn sm" href="/messages">Message us</a>`;
   }
 
   /**

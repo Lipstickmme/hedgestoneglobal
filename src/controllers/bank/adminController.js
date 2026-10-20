@@ -145,7 +145,9 @@ const customerDetail = asyncHandler(async (req, res) => {
   const requests = await db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }).catch(() => []);
   const byId = new Map(accounts.map((a) => [a.id, a]));
 
+  const suspension = await usersLib.suspensionOf(user).catch(() => null);
   res.json({
+    suspension,
     customer: usersLib.publicUser(user, 'admin'),
     accounts: accounts.map(accountsLib.publicAccount),
     transfers: transfers.map(transfersLib.publicTransfer),
@@ -307,12 +309,17 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   await audit.log({
     action: `admin.customer_${status}`, category: 'admin', userId: user.id, req, severity: status === 'active' ? 'notice' : 'warning',
     actor: actorOf(req), detail: `Account ${status}${reason ? `: ${reason}` : ''}`,
+    // The reason is shown to the customer on every page while suspended.
+    meta: { status, reason: reason || null },
   });
+  const plain = status === 'suspended'
+    ? 'Your account is suspended. You can still sign in and see your vault and message us, but nothing can be received, sent or changed until our team lifts it.'
+    : status === 'active' ? 'Your account is active again. Everything is open to you as before.' : `Your account is now ${status}.`;
   await alerts.notifyUser(await db.users.findById(user.id), 'profile_changed', {
     force: true,
     subject: `Your ${BANK.name} account is now ${status}`,
     heading: `Account ${status}`,
-    intro: reason || `Your online banking access is now ${status}.`,
+    intro: reason ? `${plain} The reason: ${reason}` : plain,
     footNote: `Questions? Please ${contact.callSupport()}.`,
     severity: status === 'active' ? 'info' : 'warning',
   });

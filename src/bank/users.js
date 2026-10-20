@@ -274,7 +274,22 @@ function patchFromBody(body = {}, allowed = EDITABLE) {
   return patch;
 }
 
+/**
+ * Why and since when a customer is suspended, as staff told them: from the
+ * activity log entry the suspension made (the reason is the customer's to
+ * read; staff notes are not). Null when they are not suspended.
+ */
+async function suspensionOf(user) {
+  if (!user || user.status !== 'suspended') return null;
+  const rows = await db.activity.find({ user_id: user.id, action: 'admin.customer_suspended' }, { order: 'created_at.desc', limit: 1 }).catch(() => []);
+  const row = rows[0];
+  if (!row) return { reason: '', since: user.updated_at || null };
+  const fromDetail = String(row.detail || '').replace(/^Account suspended:?\s*/i, '');
+  return { reason: String((row.meta && row.meta.reason) || fromDetail || '').slice(0, 300), since: row.created_at };
+}
+
 module.exports = {
+  suspensionOf,
   createUser,
   findByEmail,
   publicUser,

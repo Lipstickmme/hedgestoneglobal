@@ -157,7 +157,13 @@ the vault**; returned, it is converted next time.
 
 ### Suspend or delete a customer
 
-- **Suspend** stops them signing in and keeps everything; **Reactivate** undoes it.
+- **Suspend** pauses the account and keeps everything; **Reactivate** undoes
+  it. The reason you give is shown to the customer at the top of every page
+  while it lasts (and on their sheet for you). They can still sign in, see
+  their vault, read alerts, message us, change their password and cancel a
+  request that is waiting; receiving, sending and changes to their details
+  are refused until you reactivate them. Suspending signs them out once, so
+  they see the notice when they next sign in.
 - **Delete customer** erases them for good: their login, vault, every movement,
   request, message and document. You type their email address to confirm. The
   activity log keeps a record of who was deleted, by whom, and what their vault
