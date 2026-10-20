@@ -164,7 +164,18 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
     {
       await page.goto(`${base}/signin`, { waitUntil: 'domcontentloaded' });
       await page.click('[data-fill="customer"]');
+      // Show password: reveals what was typed, and hides it again to send.
+      await page.waitForSelector('.rf-pw-toggle');
+      assert.strictEqual(await page.getAttribute('#rf-password', 'type'), 'password');
+      await page.click('.rf-pw-toggle');
+      assert.strictEqual(await page.getAttribute('#rf-password', 'type'), 'text', 'Show reveals the password');
+      assert.strictEqual(await page.getAttribute('.rf-pw-toggle', 'aria-pressed'), 'true');
+      assert.match(await page.textContent('.rf-pw-toggle'), /Hide/);
+      await page.click('.rf-pw-toggle');
+      assert.strictEqual(await page.getAttribute('#rf-password', 'type'), 'password', 'and Hide hides it');
+      await page.click('.rf-pw-toggle');
       await page.click('#rf-signin-form [data-submit]');
+      assert.strictEqual(await page.getAttribute('#rf-password', 'type'), 'password', 'hidden again as it is sent');
       await page.waitForSelector('#rf-verify-form:not(.rf-hide)', { timeout: 20000 });
 
       const shown = await page.textContent('[data-dev-code]');
@@ -174,7 +185,7 @@ const IGNORE = /fonts\.googleapis|fonts\.gstatic|ERR_CONNECTION_RESET|ERR_NAME_N
         await page.fill(`.rf-otp input >> nth=${index}`, digit);
       }
       await page.waitForURL('**/dashboard', { timeout: 20000 });
-      ok('sign-in: password, then the emailed code');
+      ok('sign-in: password (with Show / Hide), then the emailed code');
 
       // The headline is the vault, and it is the sum of its investments.
       await page.waitForFunction(() => /\$/.test((document.querySelector('[data-hero="value"]') || {}).textContent || ''), null, { timeout: 20000 });

@@ -308,6 +308,45 @@
    * three selects carry no name; the hidden input beside them does, and gets
    * the ISO date, so every form handler behind this is untouched.
    */
+  /* ------------------------------------------------------ show password -- */
+
+  const EYE = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.6 0 3-.4 4.3-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
+  /**
+   * A Show / Hide button inside every password field marked
+   * data-show-password. Hidden again when the form is sent, so the browser
+   * still offers to save the password, and so it is never left on screen.
+   */
+  function wireShowPassword(root) {
+    qsa('input[data-show-password]', root).forEach((input) => {
+      if (input.parentElement.classList.contains('rf-pw')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'rf-pw';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'rf-pw-toggle';
+      if (input.id) button.setAttribute('aria-controls', input.id);
+      wrap.appendChild(button);
+      const set = (shown) => {
+        input.type = shown ? 'text' : 'password';
+        button.setAttribute('aria-pressed', String(shown));
+        button.setAttribute('aria-label', shown ? 'Hide password' : 'Show password');
+        button.innerHTML = `${shown ? EYE_OFF : EYE}<span>${shown ? 'Hide' : 'Show'}</span>`;
+      };
+      set(false);
+      button.addEventListener('click', () => {
+        const at = input.selectionStart;
+        set(input.type === 'password');
+        input.focus();
+        try { input.setSelectionRange(at, at); } catch (err) { /* not every type allows it */ }
+      });
+      if (input.form) input.form.addEventListener('submit', () => set(false), true);
+    });
+  }
+
   function wireDateParts(root) {
     qsa('[data-dateparts]', root || document).forEach((group) => {
       if (group.dataset.wired) return;
@@ -618,6 +657,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     wireShell();
+    wireShowPassword();
     wireDateParts();
     watchFit();
     booted = bootstrap().then((session) => {

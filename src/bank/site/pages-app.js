@@ -45,7 +45,7 @@ const signinContent = `
               </div>
               <div class="rf-field">
                 <label for="rf-password">Password</label>
-                <input class="rf-input" type="password" id="rf-password" name="password" autocomplete="current-password" required />
+                <input class="rf-input" type="password" id="rf-password" data-show-password name="password" autocomplete="current-password" required />
               </div>
               <label class="rf-check">
                 <input type="checkbox" name="remember" />
@@ -122,12 +122,12 @@ const forgotContent = `
               </div>
               <div class="rf-field">
                 <label for="rf-new-password">New password</label>
-                <input class="rf-input" type="password" id="rf-new-password" name="newPassword" autocomplete="new-password" required />
+                <input class="rf-input" type="password" id="rf-new-password" data-show-password name="newPassword" autocomplete="new-password" required />
                 <div class="hint">At least 10 characters, with upper and lower case, a number and a symbol.</div>
               </div>
               <div class="rf-field">
                 <label for="rf-confirm-password">Confirm new password</label>
-                <input class="rf-input" type="password" id="rf-confirm-password" name="confirm" autocomplete="new-password" required />
+                <input class="rf-input" type="password" id="rf-confirm-password" data-show-password name="confirm" autocomplete="new-password" required />
               </div>
               <div class="rf-notice bad rf-hide" data-form-error></div>
               <button class="rf-btn block" type="submit" data-submit>Set my new password</button>
@@ -146,16 +146,16 @@ const changePasswordContent = `
             <form id="rf-change-form" novalidate>
               <div class="rf-field">
                 <label for="rf-current">Current password</label>
-                <input class="rf-input" type="password" id="rf-current" name="currentPassword" autocomplete="current-password" required />
+                <input class="rf-input" type="password" id="rf-current" data-show-password name="currentPassword" autocomplete="current-password" required />
               </div>
               <div class="rf-field">
                 <label for="rf-next">New password</label>
-                <input class="rf-input" type="password" id="rf-next" name="newPassword" autocomplete="new-password" required />
+                <input class="rf-input" type="password" id="rf-next" data-show-password name="newPassword" autocomplete="new-password" required />
                 <div class="hint">At least 10 characters, with upper and lower case, a number and a symbol.</div>
               </div>
               <div class="rf-field">
                 <label for="rf-next-confirm">Confirm new password</label>
-                <input class="rf-input" type="password" id="rf-next-confirm" name="confirm" autocomplete="new-password" required />
+                <input class="rf-input" type="password" id="rf-next-confirm" data-show-password name="confirm" autocomplete="new-password" required />
               </div>
               <div class="rf-notice bad rf-hide" data-form-error></div>
               <button class="rf-btn block" type="submit" data-submit>Save and continue</button>
@@ -472,11 +472,11 @@ const securityContent = `
                   <div class="rf-row">
                     <div class="rf-field">
                       <label for="s-current">Current password</label>
-                      <input class="rf-input" type="password" id="s-current" name="currentPassword" autocomplete="current-password" required />
+                      <input class="rf-input" type="password" id="s-current" data-show-password name="currentPassword" autocomplete="current-password" required />
                     </div>
                     <div class="rf-field">
                       <label for="s-new">New password</label>
-                      <input class="rf-input" type="password" id="s-new" name="newPassword" autocomplete="new-password" required />
+                      <input class="rf-input" type="password" id="s-new" data-show-password name="newPassword" autocomplete="new-password" required />
                     </div>
                   </div>
                   <div class="rf-notice bad rf-hide" data-form-error></div>

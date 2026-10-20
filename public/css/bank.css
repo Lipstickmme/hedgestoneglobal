@@ -2211,3 +2211,16 @@ tr.is-reversed td { opacity: .55; }
 }
 .hs-dash-hero .v.is-long { font-size: clamp(26px, 3.4vw, 40px); }
 @media (max-width: 640px) { .hs-dash-hero .v.is-long { font-size: clamp(22px, 7vw, 30px); } .hs-pill { white-space: normal; } }
+
+/* Show / Hide inside a password field (core.js, wireShowPassword). */
+.rf-pw { position: relative; }
+.rf-pw .rf-input { padding-right: 84px; }
+.rf-pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; gap: 6px; height: calc(100% - 12px); min-height: 30px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--rf-ink-2);
+  font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.rf-pw-toggle:hover { background: var(--rf-surface-3); color: var(--rf-ink); }
+.rf-pw-toggle:focus-visible { outline: 2px solid var(--rf-navy); outline-offset: 1px; }
+.rf-pw-toggle[aria-pressed="true"] { color: var(--rf-navy); }
