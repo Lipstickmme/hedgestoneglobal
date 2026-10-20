@@ -176,6 +176,7 @@ staff.get('/customers/:id', admin.customerDetail);
 staff.get('/customers/:id/investments', invest.staffCustomerHoldings);
 staff.patch('/customers/:id', admin.updateCustomer);
 staff.post('/customers/:id/status', admin.setCustomerStatus);
+staff.patch('/customers/:id/suspension', admin.editSuspension);
 staff.delete('/customers/:id', admin.deleteCustomer);
 staff.post('/customers/:id/kyc', admin.setKyc);
 staff.post('/customers/:id/ssn', admin.revealSsn);

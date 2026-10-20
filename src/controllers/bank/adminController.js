@@ -130,34 +130,38 @@ const listCustomers = asyncHandler(async (req, res) => {
 });
 
 /** Everything about one customer, for the profile screen. */
+/**
+ * Everything the customer sheet in the console shows, in one request and one
+ * round of reads side by side: who they are, their vault, the payment details
+ * they are shown, their documents (listed, not their contents), requests and
+ * recent activity. The sheet used to wait for five reads in turn and then ask
+ * twice more.
+ */
 const customerDetail = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
-  const [accounts, transfers, documents, activity, sessions, beneficiaries, alertRows] = await Promise.all([
-    db.accounts.find({ user_id: user.id }, { order: 'created_at.asc' }),
-    db.transfers.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
-    db.documents.find({ user_id: user.id }, { order: 'created_at.desc' }),
-    db.activity.find({ user_id: user.id }, { order: 'created_at.desc', limit: 60 }),
-    db.sessions.find({ user_id: user.id, revoked_at: null }, { order: 'last_seen_at.desc' }),
-    db.beneficiaries.find({ user_id: user.id }),
-    db.alerts.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
+  const { staffHoldingsData } = require('./investController');
+  const [documents, activity, requests, suspension, investments, vaultDetails] = await Promise.all([
+    db.documents.find({ user_id: user.id }, { order: 'created_at.desc', select: profile.DOCUMENT_LIST_COLUMNS }),
+    db.activity.find({ user_id: user.id }, { order: 'created_at.desc', limit: 20 }),
+    db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }).catch(() => []),
+    usersLib.suspensionOf(user).catch(() => null),
+    // Staff only ever see customers' vaults; a staff login has none.
+    user.role === 'admin' ? null : staffHoldingsData(user).catch((err) => {
+      console.warn(`[hedgestone] sheet vault for ${user.id} failed: ${err.message}`);
+      return null;
+    }),
+    user.role === 'admin' ? null : vaultLib.detailsForStaff(user.id).catch(() => null),
   ]);
-  const transactions = await db.transactions.find({ user_id: user.id }, { order: 'date.desc', limit: 60 });
-  const requests = await db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }).catch(() => []);
-  const byId = new Map(accounts.map((a) => [a.id, a]));
-
-  const suspension = await usersLib.suspensionOf(user).catch(() => null);
+  res.set('Cache-Control', 'no-store');
   res.json({
-    suspension,
+    // Read after the vault: opening it can align when they joined.
     customer: usersLib.publicUser(user, 'admin'),
-    accounts: accounts.map(accountsLib.publicAccount),
-    transfers: transfers.map(transfersLib.publicTransfer),
-    transactions: transactions.map((t) => accountsController.publicTransaction(t, byId.get(t.account_id))),
+    suspension,
     documents: documents.map(profile.publicDocument),
     activity: activity.map(publicActivity),
-    sessions: sessions.map((s) => ({ id: s.id, device: s.device, ip: s.ip, lastSeenAt: s.last_seen_at, createdAt: s.created_at })),
-    beneficiaries: beneficiaries.map(money_.publicBeneficiary),
-    alerts: alertRows.map((a) => ({ id: a.id, subject: a.subject, type: a.type, status: a.status, createdAt: a.created_at, readAt: a.read_at })),
     requests: requests.map(vaultLib.publicRequest),
+    investments,
+    vaultDetails,
   });
 });
 
@@ -300,9 +304,12 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
   const status = trimmed(req.body.status, 20);
   if (!['active', 'suspended', 'closed', 'pending'].includes(status)) throw fail(400, 'Unknown status.');
-  const reason = trimmed(req.body.reason, 200);
+  const reason = trimmed(req.body.reason, 300);
+  // The day it counts from: today unless staff say otherwise.
+  const since = status === 'suspended' ? usersLib.suspensionDay(req.body.since) : null;
 
   await db.users.update(user.id, { status, updated_at: nowIso(), notes: reason ? `${user.notes || ''}\n[${nowIso().slice(0, 10)}] ${status}: ${reason}`.trim() : user.notes });
+  await usersLib.saveSuspension(user.id, status === 'suspended' ? { reason, since, by: req.bankUser.email } : null);
   if (status !== 'active') {
     await require('../../bank/auth').revokeOtherSessions(user.id, null);
   }
@@ -310,7 +317,7 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
     action: `admin.customer_${status}`, category: 'admin', userId: user.id, req, severity: status === 'active' ? 'notice' : 'warning',
     actor: actorOf(req), detail: `Account ${status}${reason ? `: ${reason}` : ''}`,
     // The reason is shown to the customer on every page while suspended.
-    meta: { status, reason: reason || null },
+    meta: { status, reason: reason || null, since },
   });
   const plain = status === 'suspended'
     ? 'Your account is suspended. You can still sign in and see your vault and message us, but nothing can be received, sent or changed until our team lifts it.'
@@ -368,6 +375,7 @@ const deleteCustomer = asyncHandler(async (req, res) => {
       if (err.code !== 'setup_required') throw err;
     })),
     db.settings.remove(`vault:${user.id}`).catch(() => {}),
+    db.settings.remove(`suspension:${user.id}`).catch(() => {}),
   ]);
   await db.users.remove(user.id);
 
@@ -379,6 +387,30 @@ const deleteCustomer = asyncHandler(async (req, res) => {
     meta: { email: user.email, customerNumber: user.customer_number || null, btc: btc.toFixed(8), trades: trades.length },
   });
   res.json({ deleted: true, id: user.id });
+});
+
+/**
+ * PATCH /admin/customers/:id/suspension - correct a suspension: the day it
+ * counts from, or the reason the customer reads. Nobody is signed out and no
+ * email goes; the notice changes on their next page.
+ */
+const editSuspension = asyncHandler(async (req, res) => {
+  const user = await customerOr404(req.params.id);
+  if (user.status !== 'suspended') throw fail(409, 'This customer is not suspended.', 'not_suspended');
+  const before = await usersLib.suspensionOf(user);
+  const body = req.body || {};
+  const since = body.since !== undefined ? usersLib.suspensionDay(body.since) : before.since;
+  const reason = body.reason !== undefined ? trimmed(body.reason, 300) : before.reason;
+  const saved = await usersLib.saveSuspension(user.id, { reason, since, by: req.bankUser.email });
+  const changed = [];
+  if (String(since).slice(0, 10) !== String(before.since || '').slice(0, 10)) changed.push(`dated ${String(since).slice(0, 10)} (was ${String(before.since || 'unset').slice(0, 10)})`);
+  if (reason !== before.reason) changed.push(`reason "${reason}"`);
+  await audit.log({
+    action: 'admin.suspension_edited', category: 'admin', userId: user.id, req, severity: 'notice',
+    actor: actorOf(req), detail: `Suspension ${changed.join(', ') || 'unchanged'}`,
+    meta: { reason, since, before },
+  });
+  res.json({ suspension: saved });
 });
 
 const setKyc = asyncHandler(async (req, res) => {
@@ -1031,6 +1063,7 @@ module.exports = {
   createCustomer,
   updateCustomer,
   setCustomerStatus,
+  editSuspension,
   deleteCustomer,
   setKyc,
   revealSsn,

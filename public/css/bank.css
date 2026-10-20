@@ -2242,3 +2242,5 @@ tr.is-reversed td { opacity: .55; }
 @media (max-width: 640px) { .hs-suspended { flex-wrap: wrap; } .hs-suspended .rf-btn { width: 100%; } }
 /* While suspended, the forms that would change something are shown as closed. */
 body.is-suspended [data-suspend-closed] { opacity: .55; pointer-events: none; }
+.hs-susp-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hs-susp-note > span { flex: 1 1 320px; }

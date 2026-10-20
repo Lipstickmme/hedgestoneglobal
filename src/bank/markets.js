@@ -41,8 +41,10 @@ const PROVIDER_TIMEOUT_MS = 3000;
 // The ticker answers within this, from the cache if the providers are slow;
 // the refresh carries on and the next request gets its result.
 const LIST_BUDGET_MS = 3500;
-// How old a price may be and still be shown at once, while a newer one is fetched.
-const SHOW_STALE_MS = Number(process.env.MARKET_SHOW_STALE_SECONDS || 300) * 1000;
+// A price this recent is shown at once while a newer one is fetched. On a
+// quiet site the last price is often a few minutes old, and waiting for the
+// providers then held every page up by seconds; trades never use it.
+const SHOW_STALE_MS = Number(process.env.MARKET_SHOW_STALE_SECONDS || 900) * 1000;
 const UA = 'Mozilla/5.0 (compatible; HedgestoneFinance/1.0)';
 
 /**

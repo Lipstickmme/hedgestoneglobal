@@ -163,7 +163,10 @@ the vault**; returned, it is converted next time.
   their vault, read alerts, message us, change their password and cancel a
   request that is waiting; receiving, sending and changes to their details
   are refused until you reactivate them. Suspending signs them out once, so
-  they see the notice when they next sign in.
+  they see the notice when they next sign in. When suspending you give the
+  reason and the day it counts from (today unless you change it); **Edit
+  date or reason** on their sheet corrects either later, without signing
+  them out. Every change is in the activity log.
 - **Delete customer** erases them for good: their login, vault, every movement,
   request, message and document. You type their email address to confirm. The
   activity log keeps a record of who was deleted, by whom, and what their vault

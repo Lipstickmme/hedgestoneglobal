@@ -152,7 +152,9 @@ function toQuery(where = {}, opts = {}) {
   if (opts.order) parts.push(`order=${opts.order}`);
   if (opts.limit) parts.push(`limit=${opts.limit}`);
   if (opts.offset) parts.push(`offset=${opts.offset}`);
-  parts.push('select=*');
+  // Named columns only, when given: a list of documents should not carry
+  // every file's contents with it.
+  parts.push(`select=${opts.select || '*'}`);
   return parts.join('&');
 }
 
@@ -233,6 +235,10 @@ function createCollection(name) {
     out = sortRows(out, opts.order);
     if (opts.offset) out = out.slice(opts.offset);
     if (opts.limit) out = out.slice(0, opts.limit);
+    if (opts.select && opts.select !== '*') {
+      const cols = String(opts.select).split(',').map((c) => c.trim());
+      return out.map((r) => Object.fromEntries(cols.filter((c) => c in r).map((c) => [c, r[c]])));
+    }
     return out.map((r) => ({ ...r }));
   }
 

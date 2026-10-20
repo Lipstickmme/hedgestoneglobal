@@ -155,15 +155,22 @@ const staffOverview = asyncHandler(async (req, res) => {
   });
 });
 
+/** One customer's vault, as the customer sheet shows it. */
+async function staffHoldingsData(customer) {
+  const data = await invest.portfolio(customer.id, { user: customer });
+  return { holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin, converting: data.converting };
+}
+
 /** Holdings for one customer, for the customer sheet. */
 const staffCustomerHoldings = asyncHandler(async (req, res) => {
   const customer = await db.users.findById(req.params.id);
-  const data = await invest.portfolio(req.params.id, { user: customer || undefined });
+  if (!customer) throw Object.assign(new Error('Customer not found.'), { status: 404 });
   res.set('Cache-Control', 'no-store');
-  res.json({ holdings: data.holdings, totals: data.totals, trades: data.trades, positions: data.positions, bitcoin: data.bitcoin, converting: data.converting });
+  res.json(await staffHoldingsData(customer));
 });
 
 module.exports.staffOverview = staffOverview;
+module.exports.staffHoldingsData = staffHoldingsData;
 module.exports.staffCustomerHoldings = staffCustomerHoldings;
 
 /**

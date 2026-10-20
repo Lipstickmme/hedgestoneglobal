@@ -220,7 +220,7 @@
         ${c.lockedUntil ? badge('bad', 'Locked out') : ''}
         ${c.mustChangePassword ? badge('pending', 'Must change password') : ''}
       </div>
-      ${data.suspension ? `<div class="rf-notice bad rf-mb"><strong>Suspended${data.suspension.since ? ` since ${date(data.suspension.since)}` : ''}.</strong> ${data.suspension.reason ? `They see the reason: &ldquo;${esc(data.suspension.reason)}&rdquo;` : 'No reason was given.'} They can sign in and look, and message us; nothing can be received, sent or changed until you reactivate them.</div>` : ''}
+      ${data.suspension ? `<div class="rf-notice bad rf-mb hs-susp-note"><span><strong>Suspended${data.suspension.since ? ` since ${date(data.suspension.since)}` : ''}.</strong> ${data.suspension.reason ? `They see the reason: &ldquo;${esc(data.suspension.reason)}&rdquo;` : 'No reason was given.'} They can sign in and look, and message us; nothing can be received, sent or changed until you reactivate them.</span><button class="rf-btn ghost sm" data-customer-action="edit-suspension" data-id="${esc(c.id)}">Edit date or reason</button></div>` : ''}
 
       <div class="rf-grid cols-2">
         <div>
@@ -289,7 +289,8 @@
         <button class="rf-btn danger sm" data-customer-action="delete" data-id="${esc(c.id)}">Delete customer</button>
       </div>`;
 
-    const paintInvestments = () => api.get(`/admin/customers/${id}/investments`).then((inv) => {
+    // The sheet's own request brought the vault; later repaints ask again.
+    const paintInvestments = (preloaded) => (preloaded ? Promise.resolve(preloaded) : api.get(`/admin/customers/${id}/investments`)).then((inv) => {
       const list = qs('[data-sheet-investments]', customerModal);
       if (!list) return;
       const holdings = inv.holdings.length ? inv.holdings.map((h) => `<li>
@@ -312,20 +313,22 @@
       const list = qs('[data-sheet-investments]', customerModal);
       if (list) list.innerHTML = '<li class="rf-muted rf-small">Could not load their vault.</li>';
     });
-    paintInvestments();
-    acting.paintInvestments = paintInvestments;
-    paintDetails(id);
+    paintInvestments(data.investments);
+    acting.paintInvestments = () => paintInvestments();
+    paintDetails(id, data.vaultDetails);
     acting.customerData = data;
 
     wireCustomerSheet(c, data);
   }
 
   /* Where this customer pays cash and sends Bitcoin: their own details, else the platform's. */
-  async function paintDetails(id) {
+  async function paintDetails(id, preloaded) {
     const host = qs('[data-sheet-details]', customerModal);
     if (!host) return;
-    let d;
-    try { d = await api.get(`/admin/customers/${id}/vault-details`); } catch (err) { host.innerHTML = `<p class="rf-muted rf-small">${esc(err.message)}</p>`; return; }
+    let d = preloaded;
+    if (!d) {
+      try { d = await api.get(`/admin/customers/${id}/vault-details`); } catch (err) { host.innerHTML = `<p class="rf-muted rf-small">${esc(err.message)}</p>`; return; }
+    }
     host.innerHTML = `<ul class="rf-list">
         <li><span class="t"><strong>Vault address</strong><span>${d.shown.address ? `<span class="rf-mono" style="word-break:break-all">${esc(d.shown.address.address)}</span> &middot; ${FROM[d.shown.addressFrom]}` : 'None: they see a button to ask for one'}</span></span></li>
         <li><span class="t"><strong>Cash payment details</strong><span>${d.shown.otc ? `${otcSummary(d.shown.otc)} &middot; ${FROM[d.shown.otcFrom]}` : 'None: they see a button to ask for them'}</span></span></li>
@@ -382,11 +385,9 @@
           if (!status) return;
           await api.post(`/admin/customers/${id}/kyc`, { kycStatus: status, notes: prompt('Note (optional):') || '' });
           toast('Identity status updated.', 'ok');
-        } else if (action === 'suspend') {
-          const reason = prompt('Why is this account being suspended? The customer sees this on every page while it lasts. They can still sign in and look, but not receive, send or change anything.');
-          if (reason == null) return;
-          await api.post(`/admin/customers/${id}/status`, { status: 'suspended', reason });
-          toast('Suspended. The customer sees the reason when they next sign in.', 'ok');
+        } else if (action === 'suspend' || action === 'edit-suspension') {
+          suspensionSheet(customer, action === 'edit-suspension' ? data.suspension : null);
+          return;
         } else if (action === 'activate') {
           await api.post(`/admin/customers/${id}/status`, { status: 'active' });
           toast('Account reactivated.', 'ok');
@@ -400,6 +401,29 @@
         openCustomer(id);
       } catch (err) { toast(err.message, 'bad'); }
     }));
+  }
+
+  /**
+   * Suspend a customer, or correct a suspension: the reason they read on every
+   * page, and the day it counts from.
+   */
+  function suspensionSheet(customer, current) {
+    const today = localDate(new Date().toISOString());
+    const { form, close } = staffSheet(current ? `Suspension of ${customer.fullName}` : `Suspend ${customer.fullName}`, `
+      ${current ? '' : '<p class="rf-small rf-muted">They can still sign in, see their vault and message us; receiving, sending and changes are paused until you reactivate them. They are signed out now and see the reason when they sign in again.</p>'}
+      <div class="rf-field"><label>Reason (the customer reads this)</label><textarea class="rf-textarea" name="reason" maxlength="300" rows="3" placeholder="We are reviewing a recent payment. Please send us proof of where the funds came from.">${esc(current ? current.reason : '')}</textarea></div>
+      <div class="rf-field"><label>Suspended from</label><input class="rf-input" type="date" name="since" max="${today}" value="${current && current.since ? localDate(current.since) : today}" /><div class="hint">The day it counts from, shown to the customer. Not in the future.</div></div>`, current ? 'Save' : 'Suspend');
+    onSubmit(form, async (values) => {
+      if (current) {
+        await api.patch(`/admin/customers/${customer.id}/suspension`, { reason: values.reason || '', since: values.since || today });
+        toast('Suspension updated. The customer sees it on their next page.', 'ok');
+      } else {
+        await api.post(`/admin/customers/${customer.id}/status`, { status: 'suspended', reason: values.reason || '', since: values.since || today });
+        toast('Suspended. The customer sees the reason when they next sign in.', 'ok');
+      }
+      close();
+      openCustomer(customer.id);
+    });
   }
 
   /** Delete a customer and everything that is theirs. Suspend is the reversible choice. */

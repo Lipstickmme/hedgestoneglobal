@@ -275,12 +275,18 @@ function patchFromBody(body = {}, allowed = EDITABLE) {
 }
 
 /**
- * Why and since when a customer is suspended, as staff told them: from the
- * activity log entry the suspension made (the reason is the customer's to
- * read; staff notes are not). Null when they are not suspended.
+ * Why and since when a customer is suspended, as staff told them. Staff set
+ * both when they suspend and can correct either later (a bank_settings row,
+ * "suspension:<id>"); a suspension made before that kept its reason only in
+ * the activity log entry, which is read instead. The reason is the customer's
+ * to read; staff notes are not. Null when they are not suspended.
  */
+const SUSPENSION_ROW = (userId) => `suspension:${userId}`;
+
 async function suspensionOf(user) {
   if (!user || user.status !== 'suspended') return null;
+  const own = await db.settings.findById(SUSPENSION_ROW(user.id)).catch(() => null);
+  if (own && own.values) return { reason: String(own.values.reason || '').slice(0, 300), since: own.values.since || null };
   const rows = await db.activity.find({ user_id: user.id, action: 'admin.customer_suspended' }, { order: 'created_at.desc', limit: 1 }).catch(() => []);
   const row = rows[0];
   if (!row) return { reason: '', since: user.updated_at || null };
@@ -288,8 +294,36 @@ async function suspensionOf(user) {
   return { reason: String((row.meta && row.meta.reason) || fromDetail || '').slice(0, 300), since: row.created_at };
 }
 
+/**
+ * The day a suspension counts from: a date (YYYY-MM-DD, or any date), not in
+ * the future. Kept at midday UTC so it reads as the same day everywhere.
+ */
+function suspensionDay(value) {
+  if (value == null || value === '') return new Date().toISOString();
+  const day = String(value).slice(0, 10);
+  const when = new Date(`${day}T12:00:00.000Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(when.getTime())) throw Object.assign(new Error('Enter the date the suspension starts.'), { status: 400, code: 'invalid_date' });
+  if (day > new Date().toISOString().slice(0, 10)) throw Object.assign(new Error('A suspension cannot start in the future.'), { status: 400, code: 'future_date' });
+  return when.toISOString();
+}
+
+/** Record (or clear, with null) a customer's suspension: its reason and the day it counts from. */
+async function saveSuspension(userId, value) {
+  const id = SUSPENSION_ROW(userId);
+  if (!value) {
+    await db.settings.remove(id).catch(() => {});
+    return null;
+  }
+  const row = { values: { reason: value.reason || '', since: value.since, by: value.by || null }, updated_at: new Date().toISOString() };
+  if (await db.settings.findById(id)) await db.settings.update(id, row);
+  else await db.settings.insert({ id, ...row });
+  return { reason: row.values.reason, since: row.values.since };
+}
+
 module.exports = {
   suspensionOf,
+  suspensionDay,
+  saveSuspension,
   createUser,
   findByEmail,
   publicUser,

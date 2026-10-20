@@ -756,13 +756,13 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       await signInAs(sam);
       assert.strictEqual((await sam.get('/api/bank/auth/session')).body.suspended, null, 'not suspended yet');
 
-      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'suspended', reason: 'Identity documents under review' });
+      await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'suspended', reason: 'Identity documents under review', since: '2026-03-02' });
       assert.strictEqual((await sam.get('/api/bank/auth/session')).body.authenticated, false, 'suspending ends the sessions they had');
       await signInAs(sam);
       const session = (await sam.get('/api/bank/auth/session')).body;
       assert.strictEqual(session.authenticated, true, 'a suspended customer can still sign in');
       assert.strictEqual(session.suspended.reason, 'Identity documents under review', 'and is told why');
-      assert.ok(session.suspended.since, 'and since when');
+      assert.strictEqual(session.suspended.since.slice(0, 10), '2026-03-02', 'and since the day staff gave');
       assert.strictEqual((await sam.get('/api/bank/boot?page=dashboard')).body.session.suspended.reason, 'Identity documents under review', 'on the dashboard too');
       assert.strictEqual((await sam.get('/api/bank/invest')).status, 200, 'they can see their vault');
       const refused = await sam.post('/api/bank/vault/receive', { kind: 'cash', amount: '100', occurredAt: '2020-01-01', termYears: 10 });
@@ -775,13 +775,28 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.ok([200, 201].includes(wrote.status), `they can message us (${wrote.text})`);
       const sheet = await admin.get(`/api/bank/admin/customers/${pausedId}`);
       assert.strictEqual(sheet.body.suspension.reason, 'Identity documents under review', 'staff see the reason they gave');
+      assert.ok(sheet.body.investments && sheet.body.vaultDetails, 'the sheet opens with the vault and payment details in the same request');
+      assert.ok(sheet.body.documents.every((d) => !('data' in d)), 'documents are listed without their contents');
+
+      // The day and the reason can be corrected, without signing them out.
+      const future = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+      assert.strictEqual((await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: future })).body.error, 'future_date');
+      const moved = await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: '2026-02-14', reason: 'Proof of funds needed' });
+      assert.strictEqual(moved.status, 200, moved.text);
+      const after = (await sam.get('/api/bank/auth/session')).body;
+      assert.strictEqual(after.authenticated, true, 'still signed in');
+      assert.strictEqual(after.suspended.since.slice(0, 10), '2026-02-14', 'the new day');
+      assert.strictEqual(after.suspended.reason, 'Proof of funds needed', 'and the new reason');
+      const logged = (await admin.get('/api/bank/admin/activity?limit=20')).body.activity.find((a) => a.action === 'admin.suspension_edited');
+      assert.ok(logged && /2026-02-14/.test(logged.detail), 'the correction is in the activity log');
 
       await admin.post(`/api/bank/admin/customers/${pausedId}/status`, { status: 'active' });
+      assert.strictEqual((await admin.patch(`/api/bank/admin/customers/${pausedId}/suspension`, { since: '2026-01-01' })).body.error, 'not_suspended');
       await signInAs(sam);
       assert.strictEqual((await sam.get('/api/bank/auth/session')).body.suspended, null, 'reactivated, the notice goes');
       assert.notStrictEqual((await sam.patch('/api/bank/me', { phone: '(614) 555-0199' })).body.error, 'account_suspended', 'and changes are open again');
       await admin.del(`/api/bank/admin/customers/${pausedId}`, { confirm: 'paused@example.com' });
-      ok('suspended: they sign in and look, see the reason on every page, message us, and change nothing until reactivated');
+      ok('suspended: they sign in and look, see the reason and the day on every page, message us, and change nothing until reactivated; the day and reason can be corrected');
     }
 
     /* ---- 18b. the console's setup checklist and investments views ---- */

@@ -125,6 +125,9 @@ async function storeDocument({ user, kind, filename, dataUrl, uploadedBy = 'cust
   return doc;
 }
 
+// Every column of a document but its contents, for listing them.
+const DOCUMENT_LIST_COLUMNS = 'id,created_at,user_id,kind,filename,mime,size,status,uploaded_by,note';
+
 const publicDocument = (doc) => ({
   id: doc.id,
   kind: doc.kind,
@@ -140,7 +143,7 @@ const publicDocument = (doc) => ({
 });
 
 const listDocuments = asyncHandler(async (req, res) => {
-  const rows = await db.documents.find({ user_id: req.bankUser.id }, { order: 'created_at.desc' });
+  const rows = await db.documents.find({ user_id: req.bankUser.id }, { order: 'created_at.desc', select: DOCUMENT_LIST_COLUMNS });
   res.json({ documents: rows.map(publicDocument), kinds: DOCUMENT_KINDS });
 });
 
@@ -360,6 +363,7 @@ const updateAlertPreferences = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  DOCUMENT_LIST_COLUMNS,
   me,
   updateProfile,
   listDocuments,
