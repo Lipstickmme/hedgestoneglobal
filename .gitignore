@@ -3,8 +3,8 @@ node_modules/
 
 # Runtime data written by the file-backed store: website enquiries, chat
 # transcripts, and the whole bank when Supabase is not configured. None of it
-# belongs in the repository.
-data/
+# belongs in the repository. Anchored to the root: src/data/ is source.
+/data/
 
 # Environment
 .env

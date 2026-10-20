@@ -95,6 +95,23 @@ async function createSession(user, req, res, extra = {}) {
   return { token, session: { ...session, csrf }, csrf };
 }
 
+/*
+ * A page asks for three or four things at once as it opens, and each used to
+ * look the session and the customer up again: two round trips to the
+ * database before any of them could start. A read reuses what this server
+ * looked up in the last few seconds. Anything that changes something always
+ * looks again, so a revoked session or a suspended customer is never trusted
+ * from memory for a change - only, briefly, for a read.
+ */
+const SESSION_REUSE_MS = 10000;
+const recentSessions = new Map(); // token hash -> { at, session, user }
+const isRead = (req) => req.method === 'GET' || req.method === 'HEAD';
+
+function forgetSession(hash) {
+  if (hash) recentSessions.delete(hash);
+  else recentSessions.clear();
+}
+
 /** Look up the signed-in customer, sliding the expiry forward as they work. */
 async function resolveSession(req) {
   const cookies = parseCookies(req);
@@ -102,14 +119,28 @@ async function resolveSession(req) {
   const header = req.headers['x-hedgestone-session'];
   const raw = token || (typeof header === 'string' ? header : '');
   if (!raw) return null;
+  const hash = security.hashToken(raw);
 
-  const session = await db.sessions.findOne({ token_hash: security.hashToken(raw) });
-  if (!session || session.revoked_at) return null;
-  if (session.expires_at && session.expires_at < nowIso()) return null;
-
-  const user = await db.users.findById(session.user_id);
-  if (!user) return null;
-  if (user.status === 'closed') return null;
+  let session;
+  let user;
+  const recent = recentSessions.get(hash);
+  if (recent && isRead(req) && Date.now() - recent.at < SESSION_REUSE_MS) {
+    ({ session, user } = recent);
+  } else {
+    session = await db.sessions.findOne({ token_hash: hash });
+    user = session && !session.revoked_at ? await db.users.findById(session.user_id) : null;
+  }
+  if (!session || session.revoked_at) { forgetSession(hash); return null; }
+  if (session.expires_at && session.expires_at < nowIso()) { forgetSession(hash); return null; }
+  if (!user || user.status === 'closed') { forgetSession(hash); return null; }
+  if (!isRead(req)) {
+    // A change may be to this very customer - a new photo, a new name - so
+    // the next read looks them up afresh rather than showing the old one.
+    recentSessions.delete(hash);
+  } else if (!recent || recent.session !== session) {
+    if (recentSessions.size > 5000) recentSessions.clear();
+    recentSessions.set(hash, { at: Date.now(), session, user });
+  }
 
   const cfg = await settings.get();
   const minutes = session.remember ? 60 * 24 * 30 : Number(cfg.sessionMinutes || 30);
@@ -118,6 +149,8 @@ async function resolveSession(req) {
   let slid = false;
   if (!session.last_seen_at || Date.now() - new Date(session.last_seen_at).getTime() > 60000) {
     await db.sessions.update(session.id, { last_seen_at: nowIso(), expires_at: nextExpiry });
+    session.last_seen_at = nowIso();
+    session.expires_at = nextExpiry;
     slid = true;
   }
   return { user, session, slid: slid && token ? { token, minutes } : null };
@@ -127,6 +160,7 @@ async function destroySession(req, res) {
   const cookies = parseCookies(req);
   const token = cookies[SESSION_COOKIE];
   if (token) {
+    forgetSession(security.hashToken(token));
     const session = await db.sessions.findOne({ token_hash: security.hashToken(token) });
     if (session) await db.sessions.update(session.id, { revoked_at: nowIso() });
   }
@@ -136,6 +170,9 @@ async function destroySession(req, res) {
 
 /** Sign every other device out. What "sign out everywhere" does. */
 async function revokeOtherSessions(userId, keepSessionId) {
+  recentSessions.forEach((entry, hash) => {
+    if (entry.session.user_id === userId && entry.session.id !== keepSessionId) recentSessions.delete(hash);
+  });
   const rows = await db.sessions.find({ user_id: userId, revoked_at: null });
   let count = 0;
   for (const row of rows) {
@@ -312,6 +349,7 @@ module.exports = {
   resolveSession,
   destroySession,
   revokeOtherSessions,
+  forgetSession,
   issueOtp,
   verifyOtp,
   attach,

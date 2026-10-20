@@ -6,6 +6,11 @@
 -- Paste this whole file into Supabase, SQL Editor, New query, and run it.
 -- Safe to run more than once, and to run again after an update.
 --
+-- It runs as one transaction: if the result panel shows an error, NOTHING
+-- in it was saved, including the parts before the error. A successful run
+-- ends with "Success. No rows returned". Run it in the same Supabase
+-- project the site uses: Settings, Setup in the console names it.
+--
 -- Afterwards, to open the /admin desk: create your login under
 -- Authentication, Users (tick Auto Confirm User), then run
 -- supabase/grant-admin.sql with your address on its marked line.
@@ -1109,4 +1114,8 @@ create index if not exists bank_vault_requests_status_idx on public.bank_vault_r
 
 -- Server-only, like every bank table: RLS on with no policy.
 alter table public.bank_vault_requests enable row level security;
+
+
+-- Tell the Supabase API about the new tables and columns straight away.
+notify pgrst, 'reload schema';
 

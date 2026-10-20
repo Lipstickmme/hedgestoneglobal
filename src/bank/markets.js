@@ -41,6 +41,8 @@ const PROVIDER_TIMEOUT_MS = 3000;
 // The ticker answers within this, from the cache if the providers are slow;
 // the refresh carries on and the next request gets its result.
 const LIST_BUDGET_MS = 3500;
+// How old a price may be and still be shown at once, while a newer one is fetched.
+const SHOW_STALE_MS = Number(process.env.MARKET_SHOW_STALE_SECONDS || 300) * 1000;
 const UA = 'Mozilla/5.0 (compatible; HedgestoneFinance/1.0)';
 
 /**
@@ -254,7 +256,13 @@ function fromRow(row) {
   };
 }
 
+// Stored prices are for a cold instance's first read; once read, memory is
+// the source, and a test that resets the fixture does not get them back.
+let storedLoaded = false;
+
 async function loadStored() {
+  if (storedLoaded) return;
+  storedLoaded = true;
   try {
     const rows = await db.quotes.find({});
     rows.forEach((row) => {
@@ -353,14 +361,24 @@ function publicAsset(asset) {
  */
 async function list({ withRetired = false } = {}) {
   const pool = withRetired ? ALL : ASSETS;
+  // A cold instance starts from the prices the last one stored.
+  if (!memory.size) await loadStored();
+  // A forced refresh, and the fixture's prices, which cost nothing to fetch,
+  // are always waited for.
+  const mustWait = forceRefresh || fixtureMode();
   const refreshing = ensureFresh(CACHE_MS, pool).catch((err) => {
     console.warn(`[hedgestone] market refresh failed: ${err.message}`);
   });
-  let timer;
-  await Promise.race([refreshing, new Promise((resolve) => { timer = setTimeout(resolve, LIST_BUDGET_MS); })]);
-  clearTimeout(timer);
-  // A cold instance that ran out of budget still has the stored prices.
-  if (!memory.size) await loadStored();
+  // A price from the last few minutes is good enough to show while a newer
+  // one is fetched: the page answers now, and the next one gets the new
+  // price. Only a page with nothing recent waits, and not for long. Trades
+  // never take this path; tradeQuote() insists on a fresh price.
+  const recent = pool.every((a) => age(memory.get(a.symbol)) <= SHOW_STALE_MS);
+  if (mustWait || !recent) {
+    let timer;
+    await Promise.race([refreshing, new Promise((resolve) => { timer = setTimeout(resolve, LIST_BUDGET_MS); })]);
+    clearTimeout(timer);
+  }
   return pool.map(publicAsset);
 }
 
@@ -387,10 +405,42 @@ async function tradeQuote(symbol) {
 /*
  * Daily closing prices, for the chart of an investment since the day it was
  * bought. One call answers for everybody: the series is the same whoever asks,
- * so it is held in memory for HISTORY_CACHE_MS and shared at the edge.
+ * so it is held in memory for HISTORY_CACHE_MS and shared at the edge. It is
+ * also written to bank_settings (row "history:BTC:365"), so a cold serverless
+ * instance reads one row instead of asking the providers for years of prices;
+ * a stored series younger than HISTORY_STORE_MS is used as it is.
  */
 const HISTORY_CACHE_MS = Number(process.env.MARKET_HISTORY_CACHE_MINUTES || 30) * 60 * 1000;
+const HISTORY_STORE_MS = Number(process.env.MARKET_HISTORY_STORE_HOURS || 6) * 3600 * 1000;
 const historyMemory = new Map(); // "BTC:365" -> { at, points, source }
+const historyStoreRead = new Set(); // keys whose stored copy this instance has already read
+
+async function storedHistory(key) {
+  // Once per instance, like the stored quotes: after that, memory is the source.
+  if (historyStoreRead.has(key)) return null;
+  historyStoreRead.add(key);
+  try {
+    const row = await db.settings.findById(`history:${key}`);
+    const v = row && row.values;
+    if (!v || !Array.isArray(v.points) || v.points.length < 2) return null;
+    return { at: new Date(v.at).getTime() || 0, points: v.points, source: v.source || '' };
+  } catch (err) {
+    console.warn(`[hedgestone] could not read the stored ${key} history: ${err.message}`);
+    return null;
+  }
+}
+
+async function storeHistory(key, entry) {
+  const row = { values: { at: new Date(entry.at).toISOString(), points: entry.points, source: entry.source }, updated_at: new Date().toISOString() };
+  try {
+    const id = `history:${key}`;
+    if (await db.settings.findById(id)) await db.settings.update(id, row);
+    else await db.settings.insert({ id, ...row });
+  } catch (err) {
+    // A convenience, like the stored quotes. Never let it fail a chart.
+    console.warn(`[hedgestone] could not store the ${key} history: ${err.message}`);
+  }
+}
 
 /*
  * The earliest day a purchase may be dated. Bitcoin itself began in January
@@ -502,8 +552,15 @@ async function history(symbol, days = 365) {
   const wanted = Math.min(longest, Math.max(30, Number(days) || 365));
   const bucket = [30, 90, 180, 365, 730, 1825, 3650, longest].find((d) => wanted <= d) || longest;
   const key = `${asset.symbol}:${bucket}`;
-  const cached = historyMemory.get(key);
+  let cached = historyMemory.get(key);
   if (cached && Date.now() - cached.at < HISTORY_CACHE_MS) return { symbol: asset.symbol, points: cached.points, source: cached.source };
+  if (!cached && !fixtureMode()) {
+    cached = await storedHistory(key);
+    if (cached) {
+      historyMemory.set(key, cached);
+      if (Date.now() - cached.at < HISTORY_STORE_MS) return { symbol: asset.symbol, points: cached.points, source: cached.source };
+    }
+  }
 
   let points = null;
   let source = '';
@@ -538,7 +595,9 @@ async function history(symbol, days = 365) {
   if (points && points.length > 1) {
     const from = dayOf(Date.now() - (bucket - 1) * DAY_MS);
     points = points.filter((p) => p.t >= from && p.t >= EARLIEST);
-    historyMemory.set(key, { at: Date.now(), points, source });
+    const entry = { at: Date.now(), points, source };
+    historyMemory.set(key, entry);
+    if (!fixtureMode()) await storeHistory(key, entry);
     return { symbol: asset.symbol, points, source };
   }
   // Nothing new: an old series is better than none, and is labelled with its source.

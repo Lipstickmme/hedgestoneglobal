@@ -369,17 +369,22 @@ const OPEN_SENDS = ['pending_verification', 'pending'];
  * `excluding` leaves one request out, for approving that request.
  */
 async function maturedUnits(userId, { excluding } = {}) {
-  const asset = markets.BY_SYMBOL.get('BTC');
   const [holding, trades, sends] = await Promise.all([
     holdingFor(userId, 'BTC'),
     db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
     db.vaultRequests.find({ user_id: userId, kind: 'btc_out' }).catch(() => []),
   ]);
+  return readyFrom(trades, holding, sends, { excluding });
+}
+
+/** maturedUnits, from rows already in hand. */
+function readyFrom(trades, holding, sends, { excluding } = {}) {
+  const asset = markets.BY_SYMBOL.get('BTC');
   const now = nowIso();
   const { lots } = lotsOf(trades, holding, asset);
   const ripe = lots.filter((l) => maturityOf(l.trade).maturesAt <= now).reduce((n, l) => n + l.units, 0n);
   const asked = sends
-    .filter((r) => OPEN_SENDS.includes(r.status) && r.id !== excluding)
+    .filter((r) => r.kind === 'btc_out' && OPEN_SENDS.includes(r.status) && r.id !== excluding)
     .reduce((n, r) => n + toScaled(r.units, asset.decimals), 0n);
   return ripe > asked ? ripe - asked : 0n;
 }
@@ -865,25 +870,36 @@ function positionsOf(trades, holding, asset, pc) {
  * converted first; if one cannot be yet, `converting` says so without naming
  * it.
  */
-async function portfolio(userId) {
+async function portfolio(userId, { user: known } = {}) {
+  // Everything the screen needs, in one round of parallel reads. The
+  // conversions only run, and the reads only repeat, when there is cash or
+  // another asset left to convert - which, once converted, there never is.
+  const read = () => Promise.all([
+    db.holdings.find({ user_id: userId }),
+    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
+    db.vaultRequests.find({ user_id: userId, kind: 'btc_out' }).catch(() => []),
+  ]);
+  const [first, accounts, assets] = await Promise.all([read(), db.accounts.find({ user_id: userId, status: 'active' }), markets.list()]);
+  let [holdingRows, btcTrades, sends] = first;
+
   let pending = [];
-  const user = await db.users.findById(userId);
-  if (user && user.role !== 'admin') {
-    try {
-      ({ pending } = await convertLegacy(user));
-    } catch (e) {
-      console.warn(`[hedgestone] converting ${userId} to Bitcoin failed: ${e.message}`);
-      pending = [{ reason: e.message }];
+  const leftover = holdingRows.some((h) => h.symbol !== 'BTC')
+    || accounts.some((a) => (ACCOUNT_TYPES[a.type] || {}).sign !== -1 && ledger.availableFor(a) >= MIN_BUY);
+  if (leftover) {
+    const user = known || await db.users.findById(userId);
+    if (user && user.role !== 'admin') {
+      try {
+        ({ pending } = await convertLegacy(user));
+      } catch (e) {
+        console.warn(`[hedgestone] converting ${userId} to Bitcoin failed: ${e.message}`);
+        pending = [{ reason: e.message }];
+      }
+      [holdingRows, btcTrades, sends] = await read();
     }
   }
-
-  const [btcHolding, trades, btcTrades, assets, ready] = await Promise.all([
-    holdingFor(userId, 'BTC'),
-    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.desc', limit: 25 }),
-    db.trades.find({ user_id: userId, symbol: 'BTC' }, { order: 'created_at.asc' }),
-    markets.list(),
-    maturedUnits(userId),
-  ]);
+  const btcHolding = holdingRows.find((h) => h.symbol === 'BTC') || null;
+  const trades = btcTrades.slice().reverse().slice(0, 25);
+  const ready = readyFrom(btcTrades, btcHolding, sends);
   const btc = assets.find((a) => a.symbol === 'BTC');
   const btcPc = btc && btc.quote ? priceCents(btc.quote.price) : null;
 

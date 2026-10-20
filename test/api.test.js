@@ -168,6 +168,37 @@ async function withApp(env, fn) {
     );
     stale.close();
 
+    // The database the screenshots came from: 0007 and 0008 never applied.
+    // The checklist names what is missing in words, names the project, and
+    // hands over exactly that SQL; the vault refuses requests rather than
+    // keeping them in files a serverless instance forgets.
+    const behind = await mock.start({ drop: ['bank_trades.term_months', 'bank_trades.matures_at'] });
+    delete behind.db.bank_vault_requests;
+    await withApp(
+      { SUPABASE_URL: `http://127.0.0.1:${behind.address().port}`, SUPABASE_SERVICE_ROLE_KEY: mock.SERVICE_KEY, SUPABASE_ANON_KEY: mock.ANON_KEY },
+      async () => {
+        const { setup } = require(ROOT + '/src/controllers/bank/setupController');
+        const body = await new Promise((resolve, reject) => {
+          const res = { set() { return res; }, status() { return res; }, json: resolve };
+          setup({ bankUser: { id: 'staff', role: 'admin' } }, res, reject);
+        });
+        const item = (id) => body.items.find((i) => i.id === id);
+        assert.strictEqual(item('0007_invest_term.sql').status, 'todo');
+        assert.match(item('0007_invest_term.sql').detail, /bank_trades has no term_months column/);
+        assert.match(item('0008_vault.sql').detail, /the bank_vault_requests table is not there/);
+        assert.strictEqual(item('0005_bank_invest.sql').status, 'done');
+        assert.deepStrictEqual(body.sql.files, ['0007_invest_term.sql', '0008_vault.sql'], 'only what is missing');
+        assert.match(body.sql.text, /add column if not exists term_months[\s\S]*create table if not exists public\.bank_vault_requests[\s\S]*notify pgrst, 'reload schema';/);
+        assert.ok(item('project'), 'the project it checks is named');
+
+        const { db } = require(ROOT + '/src/bank/db');
+        assert.deepStrictEqual(await db.vaultRequests.find({ user_id: 'x' }), [], 'nothing to read');
+        await assert.rejects(db.vaultRequests.insert({ id: 'x', user_id: 'x', kind: 'cash_in' }), (e) => e.status === 503 && e.code === 'setup_required');
+        console.log('  ok  a database missing 0007 and 0008 is told exactly which SQL to run, and the vault refuses requests it could not keep');
+      }
+    );
+    behind.close();
+
     // Once MAILBOX_ADDRESS is set the inbox tables stop being optional. Filing
     // is best effort, so without them the webhook still answers 200 and Resend
     // still reports success while /admin stays empty and nothing says why.
@@ -510,12 +541,17 @@ async function withApp(env, fn) {
 
     // supabase/setup.sql is every migration in one paste, and must not drift.
     {
-      const { build, OUT } = require(`${ROOT}/scripts/build-setup-sql`);
+      const { build, buildJson, OUT, JSON_OUT } = require(`${ROOT}/scripts/build-setup-sql`);
       assert.strictEqual(
         fs.readFileSync(OUT, 'utf8'), build(),
         'supabase/setup.sql is out of date with supabase/migrations - run npm run build:sql'
       );
-      console.log('  ok  supabase/setup.sql matches every migration, in order');
+      assert.strictEqual(
+        fs.readFileSync(JSON_OUT, 'utf8'), buildJson(),
+        'src/data/migrations.json is out of date with supabase/migrations - run npm run build:sql'
+      );
+      assert.ok(/notify pgrst, 'reload schema';\s*$/.test(build()), 'setup.sql ends by reloading the API schema');
+      console.log('  ok  supabase/setup.sql and the checklist copy match every migration, in order');
     }
 
     // And when the bank's tables are missing it says so rather than failing

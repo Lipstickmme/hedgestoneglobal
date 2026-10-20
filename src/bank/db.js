@@ -48,6 +48,33 @@ const COLLECTIONS = {
 
 const bankDir = () => path.join(dataDir(), 'bank');
 
+/*
+ * A table that was never created, as Postgres or PostgREST says it. Only that
+ * falls back to files: a missing column ("column bank_trades.term_months does
+ * not exist") is a migration half-applied, and writing the row to a file
+ * instead would hide it where nobody looks.
+ */
+const MISSING_TABLE = /42P01|PGRST205|relation "?[\w.]+"? does not exist|Could not find the table/i;
+
+/*
+ * Collections whose records must not land in file storage while Supabase is
+ * connected. On Vercel those files last as long as one instance, so a
+ * customer's request to receive Bitcoin would be accepted and then lost.
+ * Until the table exists, reads find nothing and writes are refused with a
+ * message that says what to do.
+ */
+const SUPABASE_ONLY = new Set(['vaultRequests']);
+
+function notSetUp(table) {
+  console.error(`[hedgestone] ${table} is missing in Supabase: run the SQL from the console's setup checklist`);
+  return Object.assign(new Error('This is not available yet while the vault is being set up. Please try again later, or send us a message.'), {
+    status: 503,
+    code: 'setup_required',
+    expose: true,
+    table,
+  });
+}
+
 /* ----------------------------------------------------------- filtering --- */
 
 /**
@@ -181,6 +208,12 @@ async function writeFile(name, rows) {
 
 function createCollection(name) {
   const table = COLLECTIONS[name] || `bank_${name}`;
+  const strict = SUPABASE_ONLY.has(name);
+  // A write whose table is missing: on to files, or refused for a strict one.
+  const fallBack = (err) => {
+    if (!MISSING_TABLE.test(err.message)) throw err;
+    if (strict) throw notSetUp(table);
+  };
 
   async function find(where = {}, opts = {}) {
     const supabase = getSupabase();
@@ -190,11 +223,9 @@ function createCollection(name) {
       } catch (err) {
         // A missing table means the migration has not been applied yet. Fall
         // through to files rather than taking the whole dashboard down.
-        if (/does not exist|42P01|PGRST205/i.test(err.message)) {
-          console.warn(`[hedgestone] ${table} missing in Supabase; using file storage`);
-        } else {
-          throw err;
-        }
+        if (!MISSING_TABLE.test(err.message)) throw err;
+        if (strict) return [];
+        console.warn(`[hedgestone] ${table} missing in Supabase; using file storage`);
       }
     }
     const rows = await readFile(name);
@@ -242,7 +273,7 @@ function createCollection(name) {
         await supabase.insert(table, row);
         return row;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
     return chain(name, async () => {
@@ -279,7 +310,7 @@ function createCollection(name) {
         }
         return rows;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
 
@@ -299,7 +330,7 @@ function createCollection(name) {
         const rows = await supabase.update(table, `id=eq.${encodeURIComponent(id)}`, patch);
         return (rows && rows[0]) || null;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
     return chain(name, async () => {
@@ -328,7 +359,7 @@ function createCollection(name) {
         const rows = await supabase.update(table, filter, patch);
         return Array.isArray(rows) ? rows.length : 0;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
     return chain(name, async () => {
@@ -351,7 +382,7 @@ function createCollection(name) {
         await supabase.remove(table, `id=eq.${encodeURIComponent(id)}`);
         return true;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
     return chain(name, async () => {
@@ -382,7 +413,7 @@ function createCollection(name) {
         const rows = await supabase.remove(table, filter);
         return Array.isArray(rows) ? rows.length : 0;
       } catch (err) {
-        if (!/does not exist|42P01|PGRST205/i.test(err.message)) throw err;
+        fallBack(err);
       }
     }
     return chain(name, async () => {
@@ -442,4 +473,4 @@ function _resetCache() {
   chains.clear();
 }
 
-module.exports = { db, COLLECTIONS, withLock, matches, toQuery, bankDir, _resetCache };
+module.exports = { db, COLLECTIONS, MISSING_TABLE, withLock, matches, toQuery, bankDir, _resetCache };

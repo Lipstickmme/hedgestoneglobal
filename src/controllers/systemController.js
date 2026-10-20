@@ -83,20 +83,24 @@ async function probeSchema() {
 
   const results = {};
   const problems = [];
-  for (const { table, columns, migration, neededWhen, key } of PROBES) {
+  // All at once: thirty probes one after another is several seconds against a
+  // hosted database, and the checklist waits for every one.
+  const answers = await Promise.all(PROBES.map(({ table, columns }) => supabase.select(table, `select=${columns}&limit=1`)
+    .then(() => null, (err) => err)));
+  PROBES.forEach(({ migration, neededWhen, key, table }, i) => {
     const needed = neededWhen ? neededWhen() : true;
     // A table can be probed twice - once for the columns one migration adds
     // and once for another's - so the answers are keyed separately. Keyed on
     // the table alone, the second probe would quietly overwrite the first.
     const label = key || table;
-    try {
-      await supabase.select(table, `select=${columns}&limit=1`);
+    const err = answers[i];
+    if (!err) {
       results[label] = 'ok';
-    } catch (err) {
-      results[label] = needed ? err.message : `optional: ${err.message}`;
-      if (needed) problems.push({ table: label, message: err.message, migration: migration || '0001_init.sql' });
+      return;
     }
-  }
+    results[label] = needed ? err.message : `optional: ${err.message}`;
+    if (needed) problems.push({ table: label, message: err.message, migration: migration || '0001_init.sql' });
+  });
   return { results, problems };
 }
 

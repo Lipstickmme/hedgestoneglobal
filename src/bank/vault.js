@@ -8,7 +8,14 @@
  *   cash_in   "I have paid $X to the OTC partner on this date"
  *   btc_in    "I have sent X BTC to the vault address on this date"
  *   btc_out   "Send X BTC of my matured Bitcoin to this address"
+ *   need_otc, need_address
+ *             "Please give me the details to pay cash" (or "an address to send
+ *             Bitcoin to"), when none is set for them; staff answer it by
+ *             setting that customer's own details
  *
+ * The details a customer sees are their own when staff have set some for them
+ * (a bank_settings row "vault:<id>"), otherwise the platform's from Settings,
+ * otherwise none - and then they can ask for them.
  * Nothing moves until a member of staff confirms it (confirm()): a payment
  * or a transfer is checked against what actually arrived, then booked into
  * the vault at Bitcoin's price on the day it happened (invest.addToVault); a
@@ -32,7 +39,12 @@ const err = (status, message, code, extra) => Object.assign(new Error(message), 
 const { toScaled, fromScaled } = invest._units;
 
 const OPEN = ['pending_verification', 'pending'];
-const LABEL = { cash_in: 'Cash through the OTC partner', btc_in: 'Bitcoin received', btc_out: 'Bitcoin sent out' };
+const LABEL = {
+  cash_in: 'Cash through the OTC partner', btc_in: 'Bitcoin received', btc_out: 'Bitcoin sent out',
+  need_otc: 'Asked for cash payment details', need_address: 'Asked for a vault address',
+};
+const NEEDS = { cash: 'need_otc', bitcoin: 'need_address' };
+const isNeed = (kind) => kind === 'need_otc' || kind === 'need_address';
 
 /* --------------------------------------------------------- the details --- */
 
@@ -57,16 +69,100 @@ function addressFor(user, cfg) {
   return list[n % list.length];
 }
 
+const OTC_FIELDS = ['name', 'bankName', 'accountName', 'accountNumber', 'routingNumber', 'swift', 'instructions'];
+
+/** The OTC fields, trimmed and bounded. */
+function cleanOtc(o) {
+  const out = {};
+  OTC_FIELDS.forEach((f) => { out[f] = String((o && o[f]) || '').trim().slice(0, f === 'instructions' ? 500 : 120); });
+  return out;
+}
+
 /** The OTC partner's payment details, or null until the name and the number to pay are set. */
 function otcDetails(cfg) {
-  const o = (cfg && cfg.otc) || {};
-  const clean = (v) => String(v || '').trim();
-  const details = {
-    name: clean(o.name), bankName: clean(o.bankName), accountName: clean(o.accountName),
-    accountNumber: clean(o.accountNumber), routingNumber: clean(o.routingNumber), swift: clean(o.swift),
-    instructions: clean(o.instructions),
-  };
+  const details = cleanOtc((cfg && cfg.otc) || {});
   return details.accountName && details.accountNumber ? details : null;
+}
+
+/* --------------------------------------------- one customer's details --- */
+
+const OWN_ROW = (userId) => `vault:${userId}`;
+
+/** What staff set for this one customer: { address, addressLabel, otc, updatedAt, updatedBy }, or {}. */
+async function ownDetails(userId) {
+  const row = await db.settings.findById(OWN_ROW(userId)).catch(() => null);
+  return (row && row.values) || {};
+}
+
+/**
+ * The address and payment details this customer is shown, and where each
+ * comes from: 'customer' (set for them), 'platform' (Settings) or null.
+ */
+function resolveDetails(user, cfg, own) {
+  const mineAddress = own && isBitcoinAddress(own.address) ? { address: own.address, label: own.addressLabel || '' } : null;
+  const mineOtc = own && own.otc ? otcDetails({ otc: own.otc }) : null;
+  const platformAddress = addressFor(user, cfg);
+  const platformOtc = otcDetails(cfg);
+  return {
+    address: mineAddress || platformAddress,
+    addressFrom: mineAddress ? 'customer' : platformAddress ? 'platform' : null,
+    otc: mineOtc || platformOtc,
+    otcFrom: mineOtc ? 'customer' : platformOtc ? 'platform' : null,
+  };
+}
+
+/** Everything staff need to see and edit about one customer's details. */
+async function detailsForStaff(userId) {
+  const user = await db.users.findById(userId);
+  if (!user || user.role === 'admin') throw err(404, 'Customer not found.');
+  const [cfg, own] = await Promise.all([settings.get(), ownDetails(userId)]);
+  return {
+    own: { address: own.address || '', addressLabel: own.addressLabel || '', otc: cleanOtc(own.otc || {}), updatedAt: own.updatedAt || null, updatedBy: own.updatedBy || '' },
+    platform: { address: addressFor(user, cfg), otc: otcDetails(cfg) },
+    shown: resolveDetails(user, cfg, own),
+    paymentReference: paymentReference(user),
+  };
+}
+
+/**
+ * Set (or clear) one customer's own address and payment details. A blank
+ * address, or OTC details without a name and number to pay, means "use the
+ * platform's".
+ *
+ * @param {object} input  { address, addressLabel, otc: { ...OTC_FIELDS } } - either part may be left out
+ */
+async function setOwnDetails(userId, input, staff, req) {
+  const user = await db.users.findById(userId);
+  if (!user || user.role === 'admin') throw err(404, 'Customer not found.');
+  const current = await ownDetails(userId);
+  const next = { ...current };
+  if (input.address !== undefined) {
+    const address = String(input.address || '').trim();
+    if (address && !isBitcoinAddress(address)) throw err(400, 'That is not a Bitcoin address. Check it and paste it again.', 'invalid_address');
+    next.address = address;
+    next.addressLabel = String(input.addressLabel || '').trim().slice(0, 60);
+  }
+  if (input.otc !== undefined) {
+    const otc = cleanOtc(input.otc || {});
+    const any = OTC_FIELDS.some((f) => otc[f]);
+    if (any && !(otc.accountName && otc.accountNumber)) throw err(400, 'Enter at least who to pay and the number to pay into, or leave every field blank to use the platform\'s details.', 'otc_incomplete');
+    next.otc = otc;
+  }
+  next.updatedAt = nowIso();
+  next.updatedBy = staff.email;
+  const id = OWN_ROW(userId);
+  const row = { values: next, updated_at: next.updatedAt };
+  if (await db.settings.findById(id)) await db.settings.update(id, row);
+  else await db.settings.insert({ id, ...row });
+  const parts = [];
+  if (input.address !== undefined) parts.push(next.address ? `vault address ${next.address}` : 'vault address cleared');
+  if (input.otc !== undefined) parts.push(next.otc.accountNumber ? `cash payment details (${next.otc.accountName}, ${next.otc.accountNumber})` : 'cash payment details cleared');
+  await audit.log({
+    action: 'vault.details_set', category: 'admin', userId, req, severity: 'notice',
+    actor: { id: staff.id, email: staff.email, role: 'admin' },
+    detail: `Set for this customer: ${parts.join('; ')}`,
+  });
+  return detailsForStaff(userId);
 }
 
 /** Mainnet addresses: bech32 (bc1...) and the older base58 forms (1..., 3...). */
@@ -104,22 +200,61 @@ function publicRequest(r) {
 
 /** What the Receive and Send screens need. */
 async function detailsFor(user) {
-  const cfg = await settings.get();
-  const [ready, rows] = await Promise.all([
+  const [cfg, own, ready, rows] = await Promise.all([
+    settings.get(),
+    ownDetails(user.id),
     invest.maturedUnits(user.id),
     db.vaultRequests.find({ user_id: user.id }, { order: 'created_at.desc', limit: 25 }),
   ]);
+  const shown = resolveDetails(user, cfg, own);
+  const asked = (kind) => {
+    const open = rows.find((r) => r.kind === kind && OPEN.includes(r.status));
+    return open ? publicRequest(open) : null;
+  };
   return {
-    address: addressFor(user, cfg),
-    otc: otcDetails(cfg),
+    address: shown.address,
+    otc: shown.otc,
+    // An open request for details that are still missing, so the page says
+    // "asked on ..." instead of offering to ask again.
+    asked: { cash: shown.otc ? null : asked('need_otc'), bitcoin: shown.address ? null : asked('need_address') },
     paymentReference: paymentReference(user),
     terms: { min: invest.TERM_YEARS.min, max: invest.TERM_YEARS.max, default: invest.defaultTermYears(cfg) },
     earliest: require('./constants').VAULT.earliest,
     ready: fromScaled(ready, 8),
     sendFee: Number((cfg.fees && cfg.fees.vaultSend) || 0),
     hasPin: Boolean(user.transfer_pin_hash),
-    requests: rows.map(publicRequest),
+    requests: rows.filter((r) => !isNeed(r.kind)).map(publicRequest),
   };
+}
+
+/**
+ * "Please give me the details": for a customer with no payment details or no
+ * vault address to use. One open request of each kind at a time.
+ *
+ * @param {object} input  { need: 'cash' | 'bitcoin', note }
+ */
+async function requestDetails(user, input, req) {
+  const kind = NEEDS[input.need];
+  if (!kind) throw err(400, 'Say which details you need: for paying cash, or for sending Bitcoin.', 'invalid_need');
+  const [cfg, own, rows] = await Promise.all([
+    settings.get(), ownDetails(user.id),
+    db.vaultRequests.find({ user_id: user.id, kind }, { order: 'created_at.desc', limit: 10 }),
+  ]);
+  const shown = resolveDetails(user, cfg, own);
+  if (kind === 'need_otc' ? shown.otc : shown.address) throw err(409, 'Those details are already on this page.', 'details_available');
+  const open = rows.find((r) => OPEN.includes(r.status));
+  if (open) return { request: publicRequest(open), already: true };
+  const row = {
+    id: ids.uuid(), created_at: nowIso(), user_id: user.id, kind, status: 'pending',
+    reference: ids.reference('DTL'), note: String(input.note || '').trim().slice(0, 300) || null,
+  };
+  await db.vaultRequests.insert(row);
+  await audit.log({
+    action: `vault.${kind}`, category: 'money', userId: user.id, req,
+    actor: { id: user.id, email: user.email, role: 'customer' },
+    detail: `${LABEL[kind]} - ${row.reference}`, meta: { requestId: row.id },
+  });
+  return { request: publicRequest(row) };
 }
 
 /* ------------------------------------------------------- the customer --- */
@@ -141,7 +276,8 @@ function occurredDate(value) {
  * @param {object} input  { kind: 'cash' | 'bitcoin', amount (cents) | units, occurredAt, termYears, txid, note }
  */
 async function requestReceive(user, input, req) {
-  const cfg = await settings.get();
+  const [cfg, own] = await Promise.all([settings.get(), ownDetails(user.id)]);
+  const shown = resolveDetails(user, cfg, own);
   const kind = input.kind === 'bitcoin' ? 'btc_in' : 'cash_in';
   const termMonths = invest.termFor(input.termYears, cfg);
   const row = {
@@ -150,14 +286,14 @@ async function requestReceive(user, input, req) {
     note: String(input.note || '').slice(0, 300) || null,
   };
   if (kind === 'cash_in') {
-    if (!otcDetails(cfg)) throw err(409, 'Cash payments are not open yet. Send us a message and we will tell you how to pay.', 'otc_unavailable');
+    if (!shown.otc) throw err(409, 'There are no payment details for you yet. Ask for them on this page and we will add them.', 'otc_unavailable');
     const amount = Math.round(Number(input.amount));
     if (!Number.isFinite(amount) || amount < invest.MIN_BUY) throw err(400, `The smallest amount is ${money(invest.MIN_BUY)}.`, 'below_minimum');
     row.amount = amount;
     row.reference = ids.reference('OTC');
   } else {
-    const address = addressFor(user, cfg);
-    if (!address) throw err(409, 'Bitcoin cannot be received yet. Send us a message and we will give you an address.', 'no_vault_address');
+    const { address } = shown;
+    if (!address) throw err(409, 'There is no vault address for you yet. Ask for one on this page and we will add it.', 'no_vault_address');
     const units = toScaled(input.units, 8);
     if (units <= 0n) throw err(400, 'Enter how much Bitcoin you sent.', 'invalid_units');
     if (input.txid && !isTxid(input.txid)) throw err(400, 'A transaction ID is 64 letters and numbers. Leave it blank if you do not have it.', 'invalid_txid');
@@ -319,6 +455,7 @@ async function confirm(id, staff, input, req) {
   const user = await db.users.findById(row.user_id);
   if (!user) throw err(404, 'Customer not found.');
   const note = String(input.note || '').slice(0, 300);
+  if (isNeed(row.kind)) return provideDetails(row, user, staff, input, note, req);
   const opts = { staff };
   let result;
   if (row.kind === 'btc_out') {
@@ -347,6 +484,35 @@ async function confirm(id, staff, input, req) {
   return { request: publicRequest({ ...row, ...patch }), trade: result.trade };
 }
 
+/**
+ * Answer a request for details: save what staff entered as this customer's
+ * own, or - when nothing is entered and the platform's details now cover it -
+ * simply close it. Either way the customer is told to look on Receive; the
+ * details themselves are never emailed, so a customer learns to take them
+ * only from the signed-in page.
+ */
+async function provideDetails(row, user, staff, input, note, req) {
+  if (row.kind === 'need_address' && input.address) await setOwnDetails(user.id, { address: input.address, addressLabel: input.addressLabel }, staff, req);
+  if (row.kind === 'need_otc' && input.otc && OTC_FIELDS.some((f) => String(input.otc[f] || '').trim())) await setOwnDetails(user.id, { otc: input.otc }, staff, req);
+  const [cfg, own] = await Promise.all([settings.get(), ownDetails(user.id)]);
+  const shown = resolveDetails(user, cfg, own);
+  if (row.kind === 'need_address' ? !shown.address : !shown.otc) {
+    throw err(400, row.kind === 'need_address' ? 'Enter the vault address to give this customer.' : 'Enter who to pay and the number to pay into.', 'details_required');
+  }
+  const patch = { status: 'completed', updated_at: nowIso(), decided_at: nowIso(), decided_by: staff.id, decision_note: note || null };
+  await db.vaultRequests.update(row.id, patch);
+  await alerts.notifyUser(user, 'vault_request', {
+    subject: row.kind === 'need_address' ? 'Your vault address is ready' : 'Your payment details are ready',
+    heading: 'Your details are ready',
+    intro: row.kind === 'need_address'
+      ? 'Sign in and open Receive to see the address to send your Bitcoin to.'
+      : 'Sign in and open Receive to see where to pay, and the reference to quote.',
+    rows: [{ label: 'Reference', value: row.reference }],
+    footNote: 'For your safety we never send payment details or addresses by email. Always take them from the Receive page after signing in.',
+  }).catch(() => {});
+  return { request: publicRequest({ ...row, ...patch }), trade: null };
+}
+
 async function reject(id, staff, reason, req) {
   const row = await db.vaultRequests.findById(id);
   if (!row) throw err(404, 'Request not found.');
@@ -372,6 +538,7 @@ async function reject(id, staff, reason, req) {
 }
 
 module.exports = {
-  detailsFor, requestReceive, requestSend, verifySend, resendCode, cancel, queue, confirm, reject,
-  vaultAddresses, addressFor, otcDetails, isBitcoinAddress, publicRequest, OPEN,
+  detailsFor, requestReceive, requestSend, requestDetails, verifySend, resendCode, cancel, queue, confirm, reject,
+  detailsForStaff, setOwnDetails, ownDetails, resolveDetails,
+  vaultAddresses, addressFor, otcDetails, isBitcoinAddress, publicRequest, OPEN, OTC_FIELDS,
 };

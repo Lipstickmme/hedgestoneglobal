@@ -27,6 +27,8 @@ between customers.
 | --- | --- |
 | Set the vault addresses, the OTC partner, the default term and the fee to send | **Settings** |
 | Confirm a payment or a transfer a customer told us about, or mark a send as sent | **Requests** |
+| Give one customer their own vault address or payment details, or answer their request for them | **Customers** → open one → **Set details for this customer**, or **Requests** → **Give details** |
+| Delete a customer for good (not just suspend) | **Customers** → open one → **Delete customer** |
 | Create a customer, with anything they have already paid | **Register a customer** |
 | Add to a vault directly, move an investment to its real date, change its term, or reverse it | **Customers** → open one → **Add to this vault** / **Change date or term** / **Reverse** |
 | See every vault, and convert any cash or other assets still held to Bitcoin | **Vaults** |
@@ -39,16 +41,30 @@ Under **Settings**:
 
 - **Vault addresses** — the Bitcoin addresses customers send to, one a line,
   optionally followed by a label (`bc1q... Main vault`). Each customer is
-  always shown the same one. Until one is set, Receive tells customers it
-  cannot take Bitcoin yet.
+  always shown the same one.
 - **OTC partner** — the partner's name, bank, payee name, the number to pay,
   routing or sort code, SWIFT and any instructions. Customers pay the partner
-  directly and quote their customer number. Until the payee name and number are
-  set, cash payments are closed.
+  directly and quote their customer number.
 - **Default term** — 10 to 100 years. Customers choose their own term within
   that range; this one is preselected and used for conversions.
 - **Fee to send** — our own fee, shown on the Send page. The Bitcoin network's
   fee is separate.
+
+### Details for one customer, and customers who ask
+
+What a customer sees on **Receive** comes from, in order:
+
+1. **Their own details**, if you set some: open the customer → **Payment
+   details shown to this customer** → **Set details for this customer**. A
+   vault address, the OTC payment details, or both. Leave a part blank to use
+   the platform's.
+2. **The platform's**, from **Settings**.
+3. **None** — then Receive shows **Ask for payment details** or **Ask for a
+   vault address**. The request arrives under **Requests**; press **Give
+   details**, enter them (or leave them blank if Settings now covers it), and
+   the customer is emailed that their details are ready. The email never
+   contains the details themselves: customers learn to take them only from the
+   signed-in page.
 
 ### Rename the platform
 
@@ -94,6 +110,8 @@ sign-in.
   shows how much else of theirs has matured. Make the transfer from the vault
   wallet, then **Mark sent** with its transaction ID. It comes off their vault,
   from what matured first.
+- **Asked for cash payment details** / **Asked for a vault address** — see
+  above: **Give details**.
 - **Reject** any of them with a reason; the customer reads it. A rejected send
   leaves the Bitcoin in their vault.
 
@@ -129,6 +147,14 @@ later. Cash held for a withdrawal asked for before the vault stays put until
 you release or return it under **Requests** → **Cash withdrawals from before
 the vault**; returned, it is converted next time.
 
+### Suspend or delete a customer
+
+- **Suspend** stops them signing in and keeps everything; **Reactivate** undoes it.
+- **Delete customer** erases them for good: their login, vault, every movement,
+  request, message and document. You type their email address to confirm. The
+  activity log keeps a record of who was deleted, by whom, and what their vault
+  held. Staff logins, and your own, cannot be deleted this way.
+
 ### Everything else worth knowing
 
 - **Email alerts** — compose to one customer or to every active one. It sends
@@ -149,8 +175,23 @@ the vault**; returned, it is converted next time.
 | "We cannot get Bitcoin's price for that day" | No history provider answered. Try again in a minute; see the setup checklist's **Price history** |
 | "The earliest date that can be used is January 1, 2011" | Nothing is dated before Bitcoin had a daily price |
 | A customer cannot sign in | Check their status, and whether they are locked after five failed attempts. The customer drawer has **Clear the lockout** |
-| "This database cannot store a term yet" | Run `supabase/setup.sql` again; it adds the term columns (0007) |
-| Requests do not save, or the setup checklist flags `bank_vault_requests` | Run `supabase/setup.sql` again; it adds the requests table (0008) |
+| "This database cannot store a term yet", or the setup checklist shows `0007_invest_term.sql` / `0008_vault.sql` as to do | Open **Setup checklist**: **Run this in Supabase** has exactly the SQL that database is missing. **Copy SQL**, run it in the SQL Editor of the project the checklist names, then **Check again**. See below if it stays to do |
+| "This is not available yet while the vault is being set up" | The requests table (0008) is missing. Requests are refused rather than saved somewhere they would be lost; run the SQL above |
+
+#### The SQL ran, but the checklist still says to do
+
+- **It ran in a different Supabase project.** The checklist's first Database
+  line names the project this site uses (its id is in the Supabase dashboard's
+  address bar). SQL run anywhere else changes nothing here.
+- **It stopped on an error.** The SQL Editor runs a paste as one transaction:
+  one error and *nothing* in it is saved, including everything before the
+  error. A run that worked says "Success. No rows returned". Fix or report the
+  error and run it again; every statement is safe to repeat.
+- **An old copy was used.** Take the SQL from the checklist, or the current
+  `supabase/setup.sql`; copies saved before an update lack the newer parts.
+
+The SQL ends with `notify pgrst, 'reload schema';`, which makes Supabase's API
+see new tables and columns at once.
 
 ---
 

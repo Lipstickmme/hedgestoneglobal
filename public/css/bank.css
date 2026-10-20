@@ -1709,6 +1709,10 @@ html.rf-booting body::after {
 .hs-setup-progress span { color: var(--rf-ink-3); }
 .hs-setup-bar { height: 10px; margin-top: 12px; border-radius: 999px; background: var(--rf-surface-3); overflow: hidden; }
 .hs-setup-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0b6b50, #2ebe8c); transition: width .8s var(--rf-ease); }
+.hs-setup-steps { margin: 0 0 14px; padding-left: 20px; color: var(--rf-ink-2); line-height: 1.6; }
+.hs-setup-steps li { margin: 2px 0; }
+.hs-setup-code { display: block; width: 100%; box-sizing: border-box; min-height: 180px; padding: 12px 14px; border: 1px solid var(--rf-line); border-radius: 10px;
+  background: var(--rf-surface-2); color: var(--rf-ink); font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; overflow: auto; resize: vertical; }
 .hs-setup-items { list-style: none; margin: 0; padding: 4px 20px 10px; }
 .hs-setup-items li { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--rf-line-2); }
 .hs-setup-items li:last-child { border-bottom: 0; }

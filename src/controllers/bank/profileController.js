@@ -297,6 +297,7 @@ const revokeSession = asyncHandler(async (req, res) => {
   const row = await db.sessions.findById(req.params.id);
   if (!row || row.user_id !== req.bankUser.id) throw fail(404, 'Session not found.');
   await db.sessions.update(row.id, { revoked_at: nowIso() });
+  if (row.token_hash) auth.forgetSession(row.token_hash);
   await audit.log({
     action: 'security.session_revoked', category: 'security', userId: req.bankUser.id, req,
     actor: { id: req.bankUser.id, email: req.bankUser.email, role: 'customer' },

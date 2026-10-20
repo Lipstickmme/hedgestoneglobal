@@ -316,6 +316,63 @@ const setCustomerStatus = asyncHandler(async (req, res) => {
   res.json({ customer: usersLib.publicUser(await db.users.findById(user.id), 'admin') });
 });
 
+/*
+ * Every collection holding a customer's own rows. bank_activity is left out
+ * on purpose: the audit trail outlives the customer, and records the delete.
+ */
+const CUSTOMER_COLLECTIONS = [
+  'sessions', 'otps', 'alerts', 'messages', 'vaultRequests', 'trades', 'holdings', 'transactions',
+  'transfers', 'beneficiaries', 'cards', 'payees', 'bills', 'deposits', 'documents', 'statements',
+  'disputes', 'accounts',
+];
+
+/**
+ * DELETE /admin/customers/:id - remove a customer and everything that is
+ * theirs, for good. Suspending is the reversible choice; this is not, so the
+ * request must repeat the customer's email address. Staff accounts and your
+ * own cannot be deleted here.
+ */
+const deleteCustomer = asyncHandler(async (req, res) => {
+  const user = await customerOr404(req.params.id);
+  if (user.id === req.bankUser.id) throw fail(400, 'You cannot delete your own login.');
+  if (user.role === 'admin') throw fail(400, 'Staff logins cannot be deleted here.');
+  const typed = trimmed((req.body || {}).confirm, 200).toLowerCase();
+  if (!typed || typed !== String(user.email || '').toLowerCase()) {
+    throw fail(400, 'Type the customer\'s email address exactly to confirm the delete.', 'confirm_required');
+  }
+
+  // What is being erased, for the audit trail.
+  const [holdings, trades, requests] = await Promise.all([
+    db.holdings.find({ user_id: user.id }).catch(() => []),
+    db.trades.find({ user_id: user.id }).catch(() => []),
+    db.vaultRequests.find({ user_id: user.id }).catch(() => []),
+  ]);
+  const btc = holdings.filter((h) => h.symbol === 'BTC').reduce((sum, h) => sum + Number(h.units || 0), 0);
+
+  await require('../../bank/auth').revokeOtherSessions(user.id, null);
+  // Children first. On Supabase the user's own row would cascade to these
+  // anyway; in file storage nothing cascades, so each is cleared by name.
+  for (const name of CUSTOMER_COLLECTIONS) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await db[name].removeWhere({ user_id: user.id });
+    } catch (err) {
+      if (err.code !== 'setup_required') throw err;
+    }
+  }
+  await db.settings.remove(`vault:${user.id}`).catch(() => {});
+  await db.users.remove(user.id);
+
+  const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+  await audit.log({
+    action: 'admin.customer_deleted', category: 'admin', userId: user.id, req, severity: 'warning',
+    actor: actorOf(req),
+    detail: `Deleted ${name} (${user.email}, ${user.customer_number || user.id}): ${btc.toFixed(8)} BTC in the vault, ${trades.length} movement${trades.length === 1 ? '' : 's'}, ${requests.length} request${requests.length === 1 ? '' : 's'}`,
+    meta: { email: user.email, customerNumber: user.customer_number || null, btc: btc.toFixed(8), trades: trades.length },
+  });
+  res.json({ deleted: true, id: user.id });
+});
+
 const setKyc = asyncHandler(async (req, res) => {
   const user = await customerOr404(req.params.id);
   const status = trimmed(req.body.kycStatus, 20);
@@ -966,6 +1023,7 @@ module.exports = {
   createCustomer,
   updateCustomer,
   setCustomerStatus,
+  deleteCustomer,
   setKyc,
   revealSsn,
   resetCustomerPassword,

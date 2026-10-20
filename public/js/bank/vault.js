@@ -180,6 +180,17 @@
     });
   }
 
+  /** No details to show yet: offer to ask for them, or say when they were asked for. */
+  function askFor(need, asked) {
+    const what = need === 'cash' ? 'payment details for cash' : 'a vault address';
+    if (asked) {
+      return `<div class="rf-notice" data-asked="${need}">You asked for ${what} on ${longDate(asked.createdAt)}. They will appear here as soon as our team adds them, and we will email you. <span class="rf-mono rf-small">${esc(asked.reference)}</span></div>`;
+    }
+    return `<div class="rf-notice">There ${need === 'cash' ? 'are no payment details' : 'is no vault address'} for you yet.
+        <div class="rf-mt"><button type="button" class="rf-btn sm" data-ask-details="${need}">${need === 'cash' ? 'Ask for payment details' : 'Ask for a vault address'}</button></div>
+      </div>`;
+  }
+
   async function receivePage() {
     let data = await api.get('/vault');
     const cashForm = qs('#hs-cash-form');
@@ -198,7 +209,7 @@
           <dt>Your reference</dt><dd class="mono"><strong>${esc(data.paymentReference)}</strong> <button type="button" class="rf-copy" data-copy="${esc(data.paymentReference)}">copy</button></dd>
         </dl>
         <p class="rf-small rf-muted">${esc(otc.instructions || 'Quote your reference with the payment so the partner can match it to you.')}</p>`
-      : '<div class="rf-notice">Cash payments are not open yet. <a href="/messages">Send us a message</a> and we will tell you how to pay.</div>';
+      : askFor('cash', data.asked && data.asked.cash);
     cashForm.hidden = !otc;
 
     const address = data.address;
@@ -209,12 +220,24 @@
           <button type="button" class="rf-btn ghost sm" data-copy="${esc(address.address)}">Copy the address</button>
         </div>
         <p class="rf-small rf-muted">Send only Bitcoin to this address, on the Bitcoin network. Anything else sent to it is lost.</p>`
-      : '<div class="rf-notice">Bitcoin cannot be received yet. <a href="/messages">Send us a message</a> and we will give you an address.</div>';
+      : askFor('bitcoin', data.asked && data.asked.bitcoin);
     btcForm.hidden = !address;
 
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', async (event) => {
       const copy = event.target.closest('[data-copy]');
       if (copy) RF.copy(copy.getAttribute('data-copy'), 'Copied');
+      const ask = event.target.closest('[data-ask-details]');
+      if (ask) {
+        ask.disabled = true;
+        try {
+          await api.post('/vault/details-request', { need: ask.getAttribute('data-ask-details') });
+          toast('Asked. We will put the details on this page and email you when they are ready.', 'ok');
+          window.location.reload();
+        } catch (err) {
+          ask.disabled = false;
+          toast(err.message, 'bad');
+        }
+      }
     });
 
     [cashForm, btcForm].forEach((form) => {

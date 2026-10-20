@@ -46,7 +46,7 @@ const history = asyncHandler(async (req, res) => {
 
 /** The vault screen and the dashboard: what it is worth, everything in it, and when each part matures. */
 const portfolio = asyncHandler(async (req, res) => {
-  const [data, cfg] = await Promise.all([invest.portfolio(req.bankUser.id), settings.get()]);
+  const [data, cfg] = await Promise.all([invest.portfolio(req.bankUser.id, { user: req.bankUser }), settings.get()]);
   res.set('Cache-Control', 'no-store');
   res.json({
     ...data,

@@ -199,7 +199,7 @@ const content = `
                 </select>
               </div>
             </div>
-            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Cash paid to the OTC partner and Bitcoin sent to the vault are booked when you confirm them, at Bitcoin&rsquo;s price on the day the customer paid or sent it. A send can only be approved for Bitcoin that has matured: make the transfer from the vault wallet, then mark it sent with its transaction ID.</p>
+            <p class="rf-small rf-muted" style="margin:0;padding:0 20px 12px">Cash paid to the OTC partner and Bitcoin sent to the vault are booked when you confirm them, at Bitcoin&rsquo;s price on the day the customer paid or sent it. A send can only be approved for Bitcoin that has matured: make the transfer from the vault wallet, then mark it sent with its transaction ID. A customer with no payment details or vault address can ask for them here; give details saves them as that customer&rsquo;s own.</p>
             <div class="rf-table-wrap">
               <table class="rf-table">
                 <thead><tr><th>Submitted</th><th>Customer</th><th>Request</th><th>Details</th><th>Status</th><th class="num">Amount</th><th></th></tr></thead>
@@ -399,7 +399,7 @@ const content = `
               <section class="rf-card">
                 <div class="rf-card-head"><h3>The vault</h3></div>
                 <div class="rf-card-body">
-                  <div class="rf-field"><label for="st-addresses">Vault addresses</label><textarea class="rf-textarea mono" id="st-addresses" name="vaultAddresses" style="min-height:96px" placeholder="bc1q... Main vault"></textarea><div class="hint">Where customers send Bitcoin in. One address a line, optionally followed by a label. Each customer is always shown the same one. Until one is set, customers cannot send Bitcoin in.</div></div>
+                  <div class="rf-field"><label for="st-addresses">Vault addresses</label><textarea class="rf-textarea mono" id="st-addresses" name="vaultAddresses" style="min-height:96px" placeholder="bc1q... Main vault"></textarea><div class="hint">Where customers send Bitcoin in. One address a line, optionally followed by a label. Each customer is always shown the same one. A customer given an address of their own (from their sheet, under Customers) sees that instead. With neither, they see a button to ask for one, and the request comes to Requests.</div></div>
                   <div class="rf-row">
                     <div class="rf-field"><label for="st-term">Default term (years)</label><input class="rf-input" id="st-term" name="investmentTermYears" type="number" min="${VAULT.termYears.min}" max="${VAULT.termYears.max}" step="1" /><div class="hint">Customers choose ${VAULT.termYears.min} to ${VAULT.termYears.max} years; this one is preselected.</div></div>
                     <div class="rf-field"><label for="st-send-fee">Fee to send Bitcoin out</label><input class="rf-input money" id="st-send-fee" name="vaultSendFee" inputmode="decimal" placeholder="0.00" /><div class="hint">Ours, shown on the Fees page. The Bitcoin network&rsquo;s fee is separate.</div></div>
@@ -410,7 +410,7 @@ const content = `
               <section class="rf-card">
                 <div class="rf-card-head"><h3>OTC partner</h3></div>
                 <div class="rf-card-body">
-                  <p class="rf-small rf-muted" style="margin:0 0 16px">Customers paying cash pay the OTC partner directly, quoting their customer number. These details are shown on their Receive page. Until the payee name and number are set, cash payments are closed.</p>
+                  <p class="rf-small rf-muted" style="margin:0 0 16px">Customers paying cash pay the OTC partner directly, quoting their customer number. These details are shown on their Receive page, unless a customer has details of their own (set from their sheet, under Customers). With neither, the customer sees a button to ask for them, and the request comes to Requests.</p>
                   <div class="rf-row">
                     <div class="rf-field"><label for="st-otc-name">Partner</label><input class="rf-input" id="st-otc-name" name="otc.name" placeholder="The OTC desk's trading name" /></div>
                     <div class="rf-field"><label for="st-otc-bank">Their bank</label><input class="rf-input" id="st-otc-bank" name="otc.bankName" /></div>

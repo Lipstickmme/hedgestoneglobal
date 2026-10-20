@@ -11,7 +11,12 @@
  * whole file again on a database that already has some of it is safe - which
  * also makes it the upgrade path: paste the latest setup.sql and run it.
  *
- * test/api.test.js fails if this file falls out of step with the migrations.
+ * It also writes src/data/migrations.json, the same migrations keyed by file
+ * name, so the console's setup checklist can hand an operator exactly the SQL
+ * a database is missing. Bundled as a require(), it reaches a serverless
+ * function without any file tracing.
+ *
+ * test/api.test.js fails if either falls out of step with the migrations.
  */
 
 const fs = require('fs');
@@ -20,9 +25,29 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'supabase', 'migrations');
 const OUT = path.join(ROOT, 'supabase', 'setup.sql');
+const JSON_OUT = path.join(ROOT, 'src', 'data', 'migrations.json');
+
+/*
+ * Supabase's API keeps a cache of the tables and columns it knows. It is
+ * normally refreshed on its own after a change; this asks for it at once, so
+ * the checklist turns green on the next check rather than a while later.
+ */
+const RELOAD = [
+  '-- Tell the Supabase API about the new tables and columns straight away.',
+  "notify pgrst, 'reload schema';",
+].join('\n');
+
+const migrationFiles = () => fs.readdirSync(DIR).filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
+
+/** { "0001_init.sql": "<sql>", ... } in order, as the checklist serves it. */
+function buildJson() {
+  const files = {};
+  migrationFiles().forEach((file) => { files[file] = fs.readFileSync(path.join(DIR, file), 'utf8').trimEnd(); });
+  return `${JSON.stringify({ generatedBy: 'scripts/build-setup-sql.js', reload: RELOAD, files }, null, 2)}\n`;
+}
 
 function build() {
-  const files = fs.readdirSync(DIR).filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort();
+  const files = migrationFiles();
   const parts = [
     '-- Hedgestone Finance - complete database setup',
     '--',
@@ -31,6 +56,11 @@ function build() {
     '--',
     '-- Paste this whole file into Supabase, SQL Editor, New query, and run it.',
     '-- Safe to run more than once, and to run again after an update.',
+    '--',
+    '-- It runs as one transaction: if the result panel shows an error, NOTHING',
+    '-- in it was saved, including the parts before the error. A successful run',
+    '-- ends with "Success. No rows returned". Run it in the same Supabase',
+    '-- project the site uses: Settings, Setup in the console names it.',
     '--',
     '-- Afterwards, to open the /admin desk: create your login under',
     '-- Authentication, Users (tick Auto Confirm User), then run',
@@ -50,12 +80,14 @@ function build() {
       ''
     );
   });
+  parts.push('', RELOAD, '');
   return `${parts.join('\n')}\n`;
 }
 
 if (require.main === module) {
   fs.writeFileSync(OUT, build(), 'utf8');
-  console.log(`[sql] wrote ${path.relative(ROOT, OUT)}`);
+  fs.writeFileSync(JSON_OUT, buildJson(), 'utf8');
+  console.log(`[sql] wrote ${path.relative(ROOT, OUT)} and ${path.relative(ROOT, JSON_OUT)}`);
 }
 
-module.exports = { build, OUT };
+module.exports = { build, buildJson, OUT, JSON_OUT };

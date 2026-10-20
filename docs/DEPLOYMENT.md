@@ -139,6 +139,11 @@ come next.
    safe, and is the upgrade path too. (It is generated: after changing a
    migration, run `npm run build:sql`.)
 
+   It runs as one transaction: if the editor shows an error, nothing in the
+   paste was saved. A good run answers "Success. No rows returned". After an
+   update, the console's **Setup checklist** shows exactly the SQL a database
+   is missing, with a Copy button, and names the Supabase project it checks.
+
    The individual files, if you would rather run them one at a time:
 
    | File | Creates |
@@ -460,10 +465,12 @@ What it needs:
    (holdings and trades), `0007_invest_term.sql` (the term and maturity date)
    and `0008_vault.sql` (requests to receive and send). Until 0007 has run,
    investments still book, on the default term; until 0008 has run, the setup
-   checklist flags `bank_vault_requests`.
+   checklist flags `bank_vault_requests` and requests to receive or send are
+   refused (never kept in temporary files).
 2. In the console, **Settings**: the vault addresses and the OTC partner's
-   payment details. Until they are set, Receive tells customers it cannot take
-   cash or Bitcoin yet.
+   payment details. A customer can also be given their own, from their record;
+   with neither, Receive offers to ask for them and the request comes to
+   **Requests**.
 3. Nothing else. The live price comes from CoinGecko, Coinbase or Yahoo
    Finance. The daily history behind the chart, and the price for any past day,
    comes from Yahoo Finance (from September 2014), Blockchain.com and

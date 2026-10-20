@@ -39,6 +39,14 @@ router.use(express.json({ limit: '8mb' }));
 // not, so they get their own much tighter bucket below.
 router.use(limiter.create({ windowMs: 60_000, max: Number(process.env.BANK_RATE_LIMIT_MAX) || 300, name: 'bank' }));
 
+// The price feed and its history are the same for everybody and cached at the
+// edge, so they answer before any session is looked up: two database round
+// trips saved on every page, signed in or not.
+/** Live prices for the ticker under the nav. Public, and cached at the edge. */
+router.get('/markets', invest.quotes);
+/** Daily Bitcoin prices for the dashboard chart. Public, and cached at the edge. */
+router.get('/markets/history', invest.history);
+
 router.use(asyncHandler(auth.attach));
 router.use(auth.csrf);
 
@@ -74,11 +82,6 @@ router.get('/config', asyncHandler(async (req, res) => {
     devCodes: require('../utils/config').showDevCodes(),
   });
 }));
-
-/** Live prices for the ticker under the nav. Public, and cached at the edge. */
-router.get('/markets', invest.quotes);
-/** Daily Bitcoin prices for the dashboard chart. Public, and cached at the edge. */
-router.get('/markets/history', invest.history);
 
 /* ------------------------------------------------------------------ auth --- */
 
@@ -129,6 +132,7 @@ router.get('/invest', invest.portfolio);
 router.get('/vault', vaultController.details);
 router.post('/vault/receive', vaultController.receive);
 router.post('/vault/send', vaultController.send);
+router.post('/vault/details-request', vaultController.askForDetails);
 router.post('/vault/requests/:id/verify', vaultController.verify);
 router.post('/vault/requests/:id/resend', vaultController.resend);
 router.post('/vault/requests/:id/cancel', vaultController.cancel);
@@ -154,6 +158,8 @@ staff.get('/investments', invest.staffOverview);
 staff.get('/vault/requests', vaultController.staffQueue);
 staff.post('/vault/requests/:id/confirm', vaultController.staffConfirm);
 staff.post('/vault/requests/:id/reject', vaultController.staffReject);
+staff.get('/customers/:id/vault-details', vaultController.staffDetails);
+staff.put('/customers/:id/vault-details', vaultController.staffSetDetails);
 staff.post('/trades', invest.staffBook);
 staff.patch('/trades/:id', invest.staffRetime);
 staff.post('/trades/:id/reverse', invest.staffReverse);
@@ -167,6 +173,7 @@ staff.get('/customers/:id', admin.customerDetail);
 staff.get('/customers/:id/investments', invest.staffCustomerHoldings);
 staff.patch('/customers/:id', admin.updateCustomer);
 staff.post('/customers/:id/status', admin.setCustomerStatus);
+staff.delete('/customers/:id', admin.deleteCustomer);
 staff.post('/customers/:id/kyc', admin.setKyc);
 staff.post('/customers/:id/ssn', admin.revealSsn);
 staff.post('/customers/:id/password', admin.resetCustomerPassword);

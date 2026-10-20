@@ -67,7 +67,7 @@ function client(base) {
     post(url, body) { return this.request('POST', url, body === undefined ? {} : body); },
     patch(url, body) { return this.request('PATCH', url, body); },
     put(url, body) { return this.request('PUT', url, body); },
-    del(url) { return this.request('DELETE', url); },
+    del(url, body) { return this.request('DELETE', url, body); },
   };
 }
 
@@ -215,6 +215,49 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       const noBtc = await customer.post('/api/bank/vault/receive', { kind: 'bitcoin', units: '0.1', occurredAt: '2020-01-01', termYears: 10 });
       assert.strictEqual(noBtc.body.error, 'no_vault_address');
 
+      // With nothing to show, the customer asks; staff answer with details for them alone.
+      const OWN = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+      assert.strictEqual((await customer.post('/api/bank/vault/details-request', { need: 'gold' })).body.error, 'invalid_need');
+      const askCash = await customer.post('/api/bank/vault/details-request', { need: 'cash', note: 'I pay from Chase' });
+      assert.strictEqual(askCash.status, 201, askCash.text);
+      assert.match(askCash.body.request.reference, /^DTL-/);
+      const again = await customer.post('/api/bank/vault/details-request', { need: 'cash' });
+      assert.strictEqual(again.body.request.id, askCash.body.request.id, 'one open request at a time');
+      const askBtc = await customer.post('/api/bank/vault/details-request', { need: 'bitcoin' });
+      assert.strictEqual(askBtc.status, 201, askBtc.text);
+      const waiting = await customer.get('/api/bank/vault');
+      assert.strictEqual(waiting.body.asked.cash.id, askCash.body.request.id, 'the page says it was asked for');
+      assert.strictEqual(waiting.body.asked.bitcoin.id, askBtc.body.request.id);
+      assert.ok(!waiting.body.requests.some((r) => /^need_/.test(r.kind)), 'and does not list it among payments');
+      const asks = (await admin.get('/api/bank/admin/vault/requests')).body.requests.filter((r) => /^need_/.test(r.kind));
+      assert.strictEqual(asks.length, 2, 'staff see both in Requests');
+      assert.strictEqual((await admin.post(`/api/bank/admin/vault/requests/${askBtc.body.request.id}/confirm`, {})).body.error, 'details_required', 'an answer needs details');
+      assert.strictEqual((await admin.post(`/api/bank/admin/vault/requests/${askBtc.body.request.id}/confirm`, { address: 'nope' })).body.error, 'invalid_address');
+      const gaveBtc = await admin.post(`/api/bank/admin/vault/requests/${askBtc.body.request.id}/confirm`, { address: OWN, addressLabel: 'Personal' });
+      assert.strictEqual(gaveBtc.status, 200, gaveBtc.text);
+      assert.strictEqual(gaveBtc.body.request.status, 'completed');
+      const halfOtc = await admin.post(`/api/bank/admin/vault/requests/${askCash.body.request.id}/confirm`, { otc: { bankName: 'Only a bank' } });
+      assert.strictEqual(halfOtc.body.error, 'otc_incomplete');
+      const gaveCash = await admin.post(`/api/bank/admin/vault/requests/${askCash.body.request.id}/confirm`, { otc: { accountName: 'Private OTC Ltd', accountNumber: '998877' } });
+      assert.strictEqual(gaveCash.status, 200, gaveCash.text);
+      const mineNow = await customer.get('/api/bank/vault');
+      assert.deepStrictEqual(mineNow.body.address, { address: OWN, label: 'Personal' }, 'their own address is shown');
+      assert.strictEqual(mineNow.body.otc.accountNumber, '998877', 'and their own payment details');
+      assert.strictEqual(mineNow.body.asked.cash, null);
+      const readyMail = (await customer.get('/api/bank/alerts')).body.alerts.find((a) => a.subject === 'Your payment details are ready');
+      assert.ok(readyMail, 'the customer is told');
+      assert.ok(!JSON.stringify(readyMail).includes('998877'), 'without the details in the message');
+      assert.strictEqual((await customer.post('/api/bank/vault/details-request', { need: 'cash' })).body.error, 'details_available');
+      const sheet = await admin.get(`/api/bank/admin/customers/${demoId}/vault-details`);
+      assert.strictEqual(sheet.body.shown.addressFrom, 'customer');
+      assert.strictEqual(sheet.body.own.otc.accountName, 'Private OTC Ltd');
+      assert.strictEqual((await customer.get(`/api/bank/admin/customers/${demoId}/vault-details`)).status, 403, 'staff only');
+      // Cleared, the customer goes back to the platform's details (none yet).
+      const cleared = await admin.put(`/api/bank/admin/customers/${demoId}/vault-details`, { address: '', otc: {} });
+      assert.strictEqual(cleared.status, 200, cleared.text);
+      assert.strictEqual(cleared.body.shown.address, null);
+      assert.strictEqual(cleared.body.shown.otc, null);
+
       const badAddress = await admin.put('/api/bank/admin/settings', { vaultAddresses: 'not-an-address' });
       assert.strictEqual(badAddress.status, 400, 'only Bitcoin addresses');
       const set = await admin.put('/api/bank/admin/settings', {
@@ -281,7 +324,7 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.strictEqual((await admin.post(`/api/bank/admin/vault/requests/${seeded.id}/confirm`, {})).status, 200);
       const told = (await customer.get('/api/bank/alerts')).body.alerts.filter((a) => /added to your vault/.test(a.subject || ''));
       assert.ok(told.length >= 2, 'the customer is told each time');
-      ok(`receive: closed until set up; refused before 2011, in the future, or outside 10 to 100 years; $1,300 paid on 2016-03-01 booked as ${done.body.trade.units} BTC at $${dollars(pc)}`);
+      ok(`receive: closed until set up, asked for and given per customer; refused before 2011, in the future, or outside 10 to 100 years; $1,300 paid on 2016-03-01 booked as ${done.body.trade.units} BTC at $${dollars(pc)}`);
     }
 
     /* ---- 5c. send: matured Bitcoin only, a PIN and a code, then a person ---- */
@@ -457,13 +500,17 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       const db_ = require(path.join(ROOT, 'src/bank/db')).db;
       const mine = (await db_.sessions.find({ revoked_at: null })).filter((x) => x.csrf === customer.csrf)[0];
       assert.ok(mine, 'the test session is on record');
+      // Written straight to the store, behind the server's few-second session reuse.
+      const forget = () => require(path.join(ROOT, 'src/bank/auth')).forgetSession();
       await db_.sessions.update(mine.id, { last_seen_at: new Date(Date.now() - 5 * 60000).toISOString() });
+      forget();
       const slid = await customer.get('/api/bank/auth/session');
       const set = slid.headers.getSetCookie ? slid.headers.getSetCookie() : [];
       assert.ok(set.some((c) => /^rf_session=/.test(c) && /Max-Age=\d+/.test(c)), 'the session cookie is re-issued as the session slides');
       assert.ok(set.some((c) => /^rf_csrf=/.test(c)), 'and the CSRF cookie with it');
 
       await db_.sessions.update(mine.id, { last_seen_at: new Date(Date.now() - 5 * 60000).toISOString() });
+      forget();
       const feed = await customer.get('/api/bank/markets');
       assert.ok(!(feed.headers.getSetCookie ? feed.headers.getSetCookie() : []).length, 'the CDN-cached price feed never carries a cookie');
 
@@ -669,6 +716,29 @@ const dollars = (cents) => (cents / 100).toFixed(2);
       assert.ok(one.body.holdings.length >= 1);
       assert.ok(one.body.positions.length >= 1 && one.body.positions[0].maturesAt, 'with each purchase and its maturity');
       ok(`console: setup checklist of ${ids.length} items, ${inv.body.holdings.length} holding(s) worth $${dollars(inv.body.totals.value)} across customers`);
+    }
+
+    /* ---- 18c. a customer can be deleted, not only suspended ---- */
+    {
+      const me = (await admin.get('/api/bank/auth/session')).body.user;
+      assert.strictEqual((await admin.del(`/api/bank/admin/customers/${me.id}`, { confirm: me.email })).status, 400, 'not your own login');
+      assert.strictEqual((await customer.del(`/api/bank/admin/customers/${newCustomerId}`, { confirm: 'newcustomer@example.com' })).status, 403, 'not by a customer');
+      const wrong = await admin.del(`/api/bank/admin/customers/${newCustomerId}`, { confirm: 'someone@else.com' });
+      assert.strictEqual(wrong.body.error, 'confirm_required', 'the email address has to be typed');
+      assert.ok((await db_.trades.find({ user_id: newCustomerId })).length > 0, 'they have a vault to lose');
+      const gone = await admin.del(`/api/bank/admin/customers/${newCustomerId}`, { confirm: 'NewCustomer@example.com' });
+      assert.strictEqual(gone.status, 200, gone.text);
+      assert.strictEqual(await db_.users.findById(newCustomerId), null, 'the login is gone');
+      for (const name of ['trades', 'holdings', 'sessions', 'alerts', 'vaultRequests']) {
+        // eslint-disable-next-line no-await-in-loop
+        assert.strictEqual((await db_[name].find({ user_id: newCustomerId })).length, 0, `and their ${name}`);
+      }
+      assert.strictEqual((await admin.get(`/api/bank/admin/customers/${newCustomerId}`)).status, 404);
+      const log = (await admin.get('/api/bank/admin/activity?limit=50')).body.activity.find((a) => a.action === 'admin.customer_deleted');
+      assert.ok(log && /newcustomer@example\.com/.test(log.detail), 'the activity log keeps a record of who was deleted');
+      const target = client(base);
+      assert.ok([401, 403].includes((await target.post('/api/bank/auth/login', { email: 'newcustomer@example.com', password: 'whatever' })).status), 'they cannot sign in');
+      ok('console: delete a customer, with the email typed to confirm; everything of theirs goes, the log keeps the record');
     }
 
     /* ---- 19. settings an operator changes take effect ---- */

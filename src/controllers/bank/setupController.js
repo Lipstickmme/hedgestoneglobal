@@ -17,6 +17,7 @@ const system = require('../systemController');
 const markets = require('../../bank/markets');
 const { db } = require('../../bank/db');
 const { asyncHandler } = require('../../bank/http');
+const migrationsSql = require('../../data/migrations.json');
 
 const MIGRATIONS = [
   { file: '0001_init.sql', what: 'Website enquiries, applications, live chat and the /admin desk' },
@@ -29,6 +30,26 @@ const MIGRATIONS = [
   { file: '0008_vault.sql', what: 'Requests to receive Bitcoin into the vault and send it out' },
 ];
 
+/** The Supabase project the server is connected to, from its URL: "abcd1234". */
+function projectOf(url) {
+  try {
+    const host = new URL(url).hostname;
+    return { host, ref: /\.supabase\.(co|in)$/i.test(host) ? host.split('.')[0] : '' };
+  } catch (err) {
+    return { host: '', ref: '' };
+  }
+}
+
+/** One probe's failure, in words: which table or column is missing, or why it could not be read. */
+function explain(probe, message) {
+  const m = String(message || '');
+  const column = m.match(/column\s+"?(?:[\w]+\.)?([\w]+)"?\s+does not exist/i) || m.match(/Could not find the '([\w]+)' column/i);
+  if (/PGRST205|42P01|Could not find the table|relation .* does not exist/i.test(m)) return `the ${probe.table} table is not there`;
+  if (column) return `${probe.table} has no ${column[1]} column`;
+  if (/42501|permission denied|JWT|401|403/i.test(m)) return `${probe.table} cannot be read with the server key (check SUPABASE_SERVICE_ROLE_KEY is the service_role key)`;
+  return `${probe.table}: ${m.slice(0, 160)}`;
+}
+
 const setup = asyncHandler(async (req, res) => {
   const supabase = Boolean(config.supabaseUrl() && config.supabaseServiceKey());
   const items = [];
@@ -39,10 +60,20 @@ const setup = asyncHandler(async (req, res) => {
     supabase ? 'Every record is stored in Supabase.' : 'The platform is running on temporary files. On Vercel they are lost between requests, so customers, balances and chats will not stay saved.',
     'Create a Supabase project, then in Vercel set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (Project Settings, API) and redeploy. Connecting Supabase from Vercel\'s Storage tab sets them for you.');
 
-  let probe = null;
+  const project = projectOf(config.supabaseUrl());
   if (supabase) {
-    try { probe = await system.probeSchema(); } catch (err) { probe = null; }
+    add('Database', 'project', 'The Supabase project this site uses', 'done',
+      project.ref
+        ? `Project ${project.ref} (${project.host}). Run every SQL step in this project: its id is in the address bar of the Supabase dashboard. SQL run in another project changes nothing here.`
+        : `The database at ${project.host || 'the configured address'}.`);
   }
+
+  let probe = null;
+  let probeError = '';
+  if (supabase) {
+    try { probe = await system.probeSchema(); } catch (err) { probe = null; probeError = err.message; }
+  }
+  const missing = [];
   MIGRATIONS.forEach((m) => {
     if (!supabase) {
       add('Database', m.file, `Tables: ${m.file}`, 'blocked', m.what, 'Connect Supabase first.');
@@ -51,13 +82,34 @@ const setup = asyncHandler(async (req, res) => {
     const mine = system.PROBES.filter((p) => (p.migration || '0001_init.sql') === m.file);
     const failing = mine.filter((p) => {
       const label = p.key || p.table;
-      const answer = probe && probe.results ? probe.results[label] : 'not checked';
+      const answer = probe && probe.results ? probe.results[label] : (probeError || 'not checked');
       return answer !== 'ok' && !String(answer).startsWith('optional');
-    });
+    }).map((p) => explain(p, probe && probe.results ? probe.results[p.key || p.table] : probeError));
+    if (failing.length) missing.push(m.file);
     add('Database', m.file, `Tables: ${m.file}`, failing.length ? 'todo' : 'done',
-      failing.length ? `${m.what}. Missing or out of date: ${failing.map((p) => p.key || p.table).join(', ')}.` : m.what,
-      'Open Supabase, SQL Editor, New query. Paste the whole of supabase/setup.sql from the repository and run it. It is safe to run again.');
+      failing.length ? `${m.what}. Not in this database yet: ${failing.join('; ')}.` : m.what,
+      'Copy the SQL from "Run this in Supabase" at the top of this page, run it in the SQL Editor of the project named above, then press Check again.');
   });
+
+  // Exactly what this database lacks, in order, ending with the schema reload.
+  // Every migration is guarded, so running one that half-applied is safe.
+  let sql = null;
+  if (missing.length) {
+    const text = [
+      `-- ${missing.join(', ')}`,
+      '-- Runs as one transaction: if Supabase shows an error, nothing below was saved.',
+      '',
+      ...missing.map((file) => `${migrationsSql.files[file] || `-- ${file} is not in this build`}\n`),
+      migrationsSql.reload,
+      '',
+    ].join('\n');
+    sql = {
+      files: missing,
+      text,
+      editorUrl: project.ref ? `https://supabase.com/dashboard/project/${project.ref}/sql/new` : 'https://supabase.com/dashboard',
+      project: project.ref || project.host,
+    };
+  }
 
   add('Database', 'anon', 'Browser key for live chat and /admin', config.supabaseAnonKey() ? 'done' : (supabase ? 'todo' : 'blocked'),
     config.supabaseAnonKey() ? 'Visitors can chat, and staff can sign in to the /admin desk.' : 'Without it the chat widget falls back to the server and the /admin desk reports "not connected".',
@@ -123,7 +175,7 @@ const setup = asyncHandler(async (req, res) => {
 
   const counts = items.reduce((acc, i) => { acc[i.status] = (acc[i.status] || 0) + 1; return acc; }, {});
   res.set('Cache-Control', 'no-store');
-  res.json({ items, counts, customers, storage: supabase ? 'supabase' : 'filesystem', checkedAt: new Date().toISOString() });
+  res.json({ items, counts, customers, sql, project: project.ref || project.host || '', storage: supabase ? 'supabase' : 'filesystem', checkedAt: new Date().toISOString() });
 });
 
 module.exports = { setup };

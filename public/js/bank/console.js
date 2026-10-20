@@ -31,10 +31,27 @@
   const KIND_LABEL = { cash: 'Paid in cash', bitcoin: 'Received', sent: 'Sent', converted: 'Converted to', bought: 'Bought', sold: 'Sold' };
   const btc = (units) => `${esc(String(units))} BTC`;
   const termText = (months) => (months == null ? '' : months % 12 === 0 ? `${months / 12}-year term` : `${months}-month term`);
-  const requestAmount = (r) => (r.kind === 'cash_in' ? money(r.amount) : btc(r.units));
-  const requestDetail = (r) => (r.kind === 'btc_out'
-    ? `to ${r.address}`
-    : `${r.kind === 'cash_in' ? 'paid' : 'sent'} ${date(r.occurredAt)}${r.termMonths ? `, ${termText(r.termMonths)}` : ''}`);
+  const isNeed = (r) => r.kind === 'need_otc' || r.kind === 'need_address';
+  const requestAmount = (r) => (isNeed(r) ? '&mdash;' : r.kind === 'cash_in' ? money(r.amount) : btc(r.units));
+  const requestDetail = (r) => (isNeed(r) ? (r.note ? `"${r.note}"` : 'details for this customer')
+    : r.kind === 'btc_out'
+      ? `to ${r.address}`
+      : `${r.kind === 'cash_in' ? 'paid' : 'sent'} ${date(r.occurredAt)}${r.termMonths ? `, ${termText(r.termMonths)}` : ''}`);
+  const OTC_LABELS = [
+    ['accountName', 'Pay (account name)'], ['accountNumber', 'Account number'], ['routingNumber', 'Routing or sort code'],
+    ['swift', 'SWIFT / BIC'], ['bankName', 'Held at (bank)'], ['name', 'OTC partner'],
+  ];
+  const otcFields = (o) => `<div class="rf-row">
+      ${OTC_LABELS.map(([f, label]) => `<div class="rf-field"><label>${esc(label)}</label><input class="rf-input${/Number|swift/.test(f) ? ' mono' : ''}" name="otc.${f}" value="${esc((o && o[f]) || '')}" /></div>`).join('')}
+    </div>
+    <div class="rf-field"><label>Instructions</label><input class="rf-input" name="otc.instructions" value="${esc((o && o.instructions) || '')}" placeholder="Quote your reference with the payment" /></div>`;
+  const otcFrom = (values) => {
+    const o = {};
+    ['name', 'bankName', 'accountName', 'accountNumber', 'routingNumber', 'swift', 'instructions'].forEach((f) => { o[f] = values[`otc.${f}`] || ''; });
+    return o;
+  };
+  const otcSummary = (o) => (o ? `${esc(o.accountName)} &middot; <span class="rf-mono">${esc(o.accountNumber)}</span>${o.routingNumber ? ` &middot; <span class="rf-mono">${esc(o.routingNumber)}</span>` : ''}${o.bankName ? ` &middot; ${esc(o.bankName)}` : ''}` : 'none');
+  const FROM = { customer: 'set for this customer', platform: 'the platform&rsquo;s, from Settings' };
 
   /* ---------------------------------------------------------------- tabs -- */
 
@@ -226,6 +243,9 @@
         </div>
       </div>
 
+      <h4 class="rf-label rf-mt">Payment details shown to this customer</h4>
+      <div data-sheet-details><p class="rf-muted rf-small">Loading&hellip;</p></div>
+
       <div class="rf-grid cols-2 rf-mt">
         <div>
           <h4 class="rf-label">Documents</h4>
@@ -265,6 +285,7 @@
         ${c.status === 'active'
     ? `<button class="rf-btn danger sm" data-customer-action="suspend" data-id="${esc(c.id)}">Suspend</button>`
     : `<button class="rf-btn sm" data-customer-action="activate" data-id="${esc(c.id)}">Reactivate</button>`}
+        <button class="rf-btn danger sm" data-customer-action="delete" data-id="${esc(c.id)}">Delete customer</button>
       </div>`;
 
     const paintInvestments = () => api.get(`/admin/customers/${id}/investments`).then((inv) => {
@@ -292,9 +313,41 @@
     });
     paintInvestments();
     acting.paintInvestments = paintInvestments;
+    paintDetails(id);
     acting.customerData = data;
 
     wireCustomerSheet(c, data);
+  }
+
+  /* Where this customer pays cash and sends Bitcoin: their own details, else the platform's. */
+  async function paintDetails(id) {
+    const host = qs('[data-sheet-details]', customerModal);
+    if (!host) return;
+    let d;
+    try { d = await api.get(`/admin/customers/${id}/vault-details`); } catch (err) { host.innerHTML = `<p class="rf-muted rf-small">${esc(err.message)}</p>`; return; }
+    host.innerHTML = `<ul class="rf-list">
+        <li><span class="t"><strong>Vault address</strong><span>${d.shown.address ? `<span class="rf-mono" style="word-break:break-all">${esc(d.shown.address.address)}</span> &middot; ${FROM[d.shown.addressFrom]}` : 'None: they see a button to ask for one'}</span></span></li>
+        <li><span class="t"><strong>Cash payment details</strong><span>${d.shown.otc ? `${otcSummary(d.shown.otc)} &middot; ${FROM[d.shown.otcFrom]}` : 'None: they see a button to ask for them'}</span></span></li>
+        <li class="hs-sheet-actions"><button class="rf-btn sm" data-edit-details>Set details for this customer</button><span class="rf-small rf-muted">Payment reference ${esc(d.paymentReference)}${d.own.updatedBy ? ` &middot; last set by ${esc(d.own.updatedBy)} ${ago(d.own.updatedAt)}` : ''}</span></li>
+      </ul>`;
+    qs('[data-edit-details]', host).addEventListener('click', () => {
+      const { form, close } = staffSheet('Payment details for this customer', `
+        <p class="rf-small rf-muted">Only for this customer. Leave a part blank to use the platform&rsquo;s from Settings${d.platform.address || d.platform.otc ? '' : ' (none set yet)'}.</p>
+        <h4 class="rf-label">Vault address</h4>
+        <div class="rf-row">
+          <div class="rf-field"><label>Address</label><input class="rf-input mono" name="address" value="${esc(d.own.address)}" placeholder="${esc(d.platform.address ? d.platform.address.address : 'bc1...')}" /></div>
+          <div class="rf-field"><label>Label (optional)</label><input class="rf-input" name="addressLabel" value="${esc(d.own.addressLabel)}" /></div>
+        </div>
+        <h4 class="rf-label rf-mt">Cash payment details (OTC)</h4>
+        ${otcFields(d.own.otc)}`, 'Save details');
+      onSubmit(form, async (values) => {
+        // Blank fields are left out of values, so blank is sent as '' to clear them.
+        await api.put(`/admin/customers/${id}/vault-details`, { address: values.address || '', addressLabel: values.addressLabel || '', otc: otcFrom(values) });
+        close();
+        toast('Saved. This is what the customer now sees on Receive.', 'ok');
+        paintDetails(id);
+      });
+    });
   }
 
   function wireCustomerSheet(customer, data) {
@@ -339,10 +392,31 @@
         } else if (action === 'edit') {
           editCustomer(customer);
           return;
+        } else if (action === 'delete') {
+          deleteCustomer(customer);
+          return;
         }
         openCustomer(id);
       } catch (err) { toast(err.message, 'bad'); }
     }));
+  }
+
+  /** Delete a customer and everything that is theirs. Suspend is the reversible choice. */
+  function deleteCustomer(customer) {
+    const { el, form, close } = staffSheet(`Delete ${customer.fullName}`, `
+      <div class="rf-notice bad">This cannot be undone. Their login, vault, every movement, request, message and document are erased. The activity log keeps a record that you deleted them.</div>
+      <p class="rf-small rf-muted rf-mt">To stop them signing in but keep everything, close this and press <b>Suspend</b> instead.</p>
+      <div class="rf-field"><label>Type their email address to confirm</label><input class="rf-input" name="confirm" autocomplete="off" placeholder="${esc(customer.email)}" /></div>`, 'Delete for good');
+    qs('[data-submit]', el).classList.add('danger');
+    onSubmit(form, async (values) => {
+      await api.del(`/admin/customers/${customer.id}`, { confirm: values.confirm || '' });
+      close();
+      RF.modal.close(customerModal);
+      toast(`${customer.fullName} has been deleted.`, 'ok');
+      ['customers', 'overview', 'queue', 'investments'].forEach((t) => loaded.delete(t));
+      const current = (window.location.hash || '').slice(1);
+      showTab(TABS[current] ? current : 'customers');
+    });
   }
 
   /** Edit the details a customer cannot change themselves. */
@@ -582,14 +656,16 @@
           <td class="rf-nowrap rf-small">${date(r.createdAt)}<span class="sub">${new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span></td>
           <td><button class="rf-btn link sm" data-customer="${esc(r.customer.id)}">${esc(r.customer.fullName)}</button><span class="sub">${esc(r.customer.email)}</span></td>
           <td class="rf-small">${esc(r.label)}<span class="sub rf-mono">${esc(r.reference)}</span></td>
-          <td class="rf-small">${r.kind === 'btc_out'
-    ? `<span class="rf-mono">${esc(r.address)}</span><span class="sub">${r.ready != null ? `${btc(r.ready)} matured besides this` : ''}</span>`
-    : `${r.kind === 'cash_in' ? 'Paid' : 'Sent'} ${date(r.occurredAt)} &middot; ${esc(termText(r.termMonths))}${r.txid ? `<span class="sub rf-mono">${esc(r.txid.slice(0, 16))}&hellip;</span>` : ''}`}${r.note ? `<span class="sub">&ldquo;${esc(r.note)}&rdquo;</span>` : ''}${r.decisionNote ? `<span class="sub">${esc(r.decisionNote)}</span>` : ''}</td>
+          <td class="rf-small">${isNeed(r)
+    ? (r.kind === 'need_otc' ? 'No cash payment details to show them' : 'No vault address to show them')
+    : r.kind === 'btc_out'
+      ? `<span class="rf-mono">${esc(r.address)}</span><span class="sub">${r.ready != null ? `${btc(r.ready)} matured besides this` : ''}</span>`
+      : `${r.kind === 'cash_in' ? 'Paid' : 'Sent'} ${date(r.occurredAt)} &middot; ${esc(termText(r.termMonths))}${r.txid ? `<span class="sub rf-mono">${esc(r.txid.slice(0, 16))}&hellip;</span>` : ''}`}${r.note ? `<span class="sub">&ldquo;${esc(r.note)}&rdquo;</span>` : ''}${r.decisionNote ? `<span class="sub">${esc(r.decisionNote)}</span>` : ''}</td>
           <td>${badge(r.status)}</td>
           <td class="num rf-amt">${requestAmount(r)}</td>
           <td class="rf-right rf-nowrap">
             ${r.status === 'pending' ? `
-              <button class="rf-btn sm" data-confirm-request="${esc(r.id)}">${r.kind === 'btc_out' ? 'Mark sent' : 'Confirm'}</button>
+              <button class="rf-btn sm" data-confirm-request="${esc(r.id)}">${isNeed(r) ? 'Give details' : r.kind === 'btc_out' ? 'Mark sent' : 'Confirm'}</button>
               <button class="rf-btn ghost sm" data-reject-request="${esc(r.id)}">Reject</button>` : ''}
           </td>
         </tr>`).join('') : '<tr><td colspan="7" class="rf-center rf-muted">Nothing here.</td></tr>';
@@ -654,8 +730,38 @@
       }
     });
 
+    /* Give a customer the details they asked for: saved as theirs, shown on their Receive page. */
+    async function giveDetails(r) {
+      let current = null;
+      try { current = await api.get(`/admin/customers/${r.customer.id}/vault-details`); } catch (err) { toast(err.message, 'bad'); return; }
+      const address = r.kind === 'need_address';
+      const platform = address ? current.platform.address : current.platform.otc;
+      const body = `${r.note ? `<p class="rf-small">They wrote: &ldquo;${esc(r.note)}&rdquo;</p>` : ''}
+        <p class="rf-small rf-muted">${platform
+    ? `The platform&rsquo;s ${address ? 'address' : 'payment details'} from Settings now cover this customer. Leave the fields blank to use them, or enter details just for this customer.`
+    : `Enter the ${address ? 'vault address' : 'payment details'} for this customer. They are saved as theirs and shown on their Receive page; they can be changed later from the customer&rsquo;s sheet.`}</p>
+        ${address
+    ? `<div class="rf-field"><label>Vault address</label><input class="rf-input mono" name="address" value="${esc(current.own.address)}" placeholder="bc1..." /></div>
+          <div class="rf-field"><label>Label (optional)</label><input class="rf-input" name="addressLabel" value="${esc(current.own.addressLabel)}" /></div>`
+    : otcFields(current.own.otc)}
+        <div class="rf-field"><label>Note</label><input class="rf-input" name="note" /></div>
+        <p class="rf-small rf-muted">The customer is emailed that their details are ready, but not the details themselves: they read them only after signing in.</p>`;
+      const { form, close } = staffSheet(`${r.label}: ${r.customer.fullName}`, body, 'Save and tell the customer');
+      onSubmit(form, async (values) => {
+        const payload = { note: values.note };
+        if (address) Object.assign(payload, { address: values.address, addressLabel: values.addressLabel });
+        else payload.otc = otcFrom(values);
+        await api.post(`/admin/vault/requests/${r.id}/confirm`, payload);
+        close();
+        toast('Saved. The customer can see the details on Receive now.', 'ok');
+        load();
+        loaded.delete('overview');
+      });
+    }
+
     /* Confirm what arrived (correcting it if need be), or record a send that was made. */
     function confirmRequest(r) {
+      if (isNeed(r)) { giveDetails(r); return; }
       const body = r.kind === 'btc_out'
         ? `<p class="rf-small">Send <strong>${btc(r.units)}</strong> from the vault wallet to:</p>
           <p class="rf-mono" style="word-break:break-all">${esc(r.address)}</p>
@@ -953,7 +1059,26 @@
     qs('[data-setup-bar]').style.width = `${pct}%`;
     const label = { done: 'Done', todo: 'To do', blocked: 'Waiting', optional: 'Optional' };
     const groups = Array.from(new Set(data.items.map((i) => i.group)));
-    list.innerHTML = groups.map((g) => `
+    // The exact SQL this database is missing, so nobody has to find the right
+    // file or wonder whether the copy they ran was the latest.
+    const sql = data.sql ? `
+      <section class="rf-card rf-mb hs-setup-sql" data-setup-sql>
+        <div class="rf-card-head"><h3>Run this in Supabase</h3><span class="rf-muted rf-small">${esc(data.sql.files.join(', '))}</span></div>
+        <div class="rf-card-body">
+          <ol class="hs-setup-steps">
+            <li>Open the SQL Editor of project <strong>${esc(data.sql.project)}</strong>. It has to be this project: SQL run in another one changes nothing here.</li>
+            <li>Paste the SQL below into a new query and press <b>Run</b>. It should answer <b>Success. No rows returned</b>.</li>
+            <li>If it shows an error instead, nothing was saved, not even the lines before the error. Copy the error and send it to whoever looks after the platform.</li>
+            <li>Come back here and press <b>Check again</b>.</li>
+          </ol>
+          <textarea class="hs-setup-code" readonly rows="10" spellcheck="false" data-setup-code>${esc(data.sql.text)}</textarea>
+          <div class="rf-mt hs-actions">
+            <button class="rf-btn sm" type="button" data-setup-copy>Copy SQL</button>
+            <a class="rf-btn ghost sm" href="${esc(data.sql.editorUrl)}" target="_blank" rel="noopener">Open the SQL Editor</a>
+          </div>
+        </div>
+      </section>` : '';
+    list.innerHTML = sql + groups.map((g) => `
       <section class="rf-card rf-mb">
         <div class="rf-card-head"><h3>${esc(g)}</h3></div>
         <ul class="hs-setup-items">
@@ -970,6 +1095,19 @@
         </ul>
       </section>`).join('');
     qsa('[data-staff-pip="setup"]').forEach((pip) => { const left = data.counts.todo || 0; pip.textContent = String(left || ''); pip.classList.toggle('rf-hide', !left); });
+    const copy = qs('[data-setup-copy]');
+    if (copy) {
+      copy.addEventListener('click', async () => {
+        const code = qs('[data-setup-code]');
+        try {
+          await navigator.clipboard.writeText(code.value);
+        } catch (err) {
+          code.select();
+          document.execCommand('copy');
+        }
+        toast('SQL copied. Paste it into the Supabase SQL Editor and press Run.');
+      });
+    }
   }
 
   /* -------------------------------------------------------------- search -- */

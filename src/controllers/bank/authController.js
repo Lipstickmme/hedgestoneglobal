@@ -221,9 +221,11 @@ const session = asyncHandler(async (req, res) => {
     }
     return res.json({ authenticated: false });
   }
-  const cfg = await settings.get();
-  const unread = await alerts.unreadCount(req.bankUser.id);
-  const unreadMessages = (await db.messages.find({ user_id: req.bankUser.id, from_side: 'bank', read_at: null })).length;
+  const [cfg, unread, unreadMessages] = await Promise.all([
+    settings.get(),
+    alerts.unreadCount(req.bankUser.id),
+    db.messages.find({ user_id: req.bankUser.id, from_side: 'bank', read_at: null }).then((rows) => rows.length),
+  ]);
   res.json({
     authenticated: true,
     user: users.publicUser(req.bankUser, req.bankUser.role === 'admin' ? 'admin' : 'self'),

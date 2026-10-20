@@ -67,8 +67,11 @@ day.
 
 **Set up by staff**, under Settings: the vault addresses (one a line; each
 customer always sees the same one), the OTC partner's payment details, the
-default term, and the fee to send. Until an address and the partner are set,
-Receive says so instead of showing anything to pay or send to.
+default term, and the fee to send. A customer can be given an address and
+payment details of their own, from their record in the console. With neither,
+Receive offers **Ask for payment details** / **Ask for a vault address**, and
+staff answer it from Requests. Staff can suspend a customer, or delete one for
+good (typing their email to confirm; the activity log keeps the record).
 
 ---
 

@@ -135,7 +135,10 @@
       return;
     }
     const first = new Date(positions[0].purchasedAt).getTime();
-    const days = Math.ceil((Date.now() - first) / DAY) + 7;
+    // Rounded to the windows the server keeps, so every customer asks for the
+    // same few URLs and the edge cache answers most of them.
+    const reach = Math.ceil((Date.now() - first) / DAY) + 7;
+    const days = [30, 90, 180, 365, 730, 1825, 3650].find((d) => reach <= d) || 6000;
     let history = { points: [], source: '' };
     try {
       history = await api.get(`/markets/history?symbol=BTC&days=${days}`);
